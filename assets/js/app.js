@@ -64,6 +64,8 @@
     spending: { ...PERSONAS[DEFAULT_PERSONA].spending },
     persona: DEFAULT_PERSONA,
     personalRate: null,
+    aiContext: null,
+    aiCache: new Map(),
   };
 
   /* ══════════════ 부팅 ══════════════ */
@@ -285,6 +287,12 @@
       $("#tab-gap").click();
       $("#panel-gap").scrollIntoView({ behavior: "smooth", block: "start" });
     });
+
+    $("#aiExplainBtn").addEventListener("click", openAIInsight);
+    $("#aiCloseBtn").addEventListener("click", () => $("#aiInsightDialog").close());
+    $("#aiInsightDialog").addEventListener("click", (event) => {
+      if (event.target === $("#aiInsightDialog")) $("#aiInsightDialog").close();
+    });
   }
 
   function renderMine() {
@@ -298,6 +306,8 @@
 
     if (!result) {
       state.personalRate = null;
+      state.aiContext = null;
+      $("#aiExplainBtn").disabled = true;
       $("#officialRate").textContent = `${official.toFixed(1)}%`;
       $("#officialMonth").textContent = `${state.cpi.latest.month} 기준`;
       $("#personalRate").textContent = "—";
@@ -340,6 +350,16 @@
     // 결론 문장 — 조작하면 같이 바뀐다
     const sorted = [...result.contributions].sort((a, b) => b.contribution - a.contribution);
     const top = sorted[0];
+    state.aiContext = {
+      officialRate: official,
+      personalRate: result.rate,
+      gapPp: diff,
+      topCategoryId: top.id,
+      topCategory: top.name,
+      topSharePct: top.weight * 100,
+      topRatePct: top.rate,
+    };
+    $("#aiExplainBtn").disabled = false;
     const v = $("#mineVerdict");
     if (diff > 0.05) {
       v.className = "verdict warn";
@@ -373,6 +393,69 @@
 
     renderCumulative(result);
     renderMineAction(result, official);
+  }
+
+  function fallbackInsight(context) {
+    if (context.gapPp > 0.05) {
+      return `공식 평균보다 체감 물가가 높은 편이에요. ${context.topCategory} 지출을 조금 바꿔 보며 내 물가가 얼마나 달라지는지 확인해 보세요.`;
+    }
+    if (context.gapPp < -0.05) {
+      return `공식 평균보다 체감 물가가 낮은 편이에요. 지금의 지출 구성이 장기 누적에서도 같은 흐름인지 아래 그래프로 함께 확인해 보세요.`;
+    }
+    return `지금의 지출 구성은 전국 평균과 비슷해요. 세부 지출을 실제 금액에 맞게 바꾸면 나에게 더 가까운 결과를 볼 수 있습니다.`;
+  }
+
+  async function openAIInsight() {
+    const context = state.aiContext;
+    if (!context) return;
+
+    const dialog = $("#aiInsightDialog");
+    const body = $("#aiInsightBody");
+    const status = $("#aiInsightStatus");
+    $("#aiOfficialRate").textContent = `${context.officialRate.toFixed(1)}%`;
+    $("#aiPersonalRate").textContent = `${context.personalRate.toFixed(1)}%`;
+    $("#aiTopCategory").textContent = context.topCategory;
+    body.textContent = fallbackInsight(context);
+    body.classList.add("is-loading");
+    status.textContent = "Gemini가 계산 결과를 쉬운 말로 정리하고 있어요…";
+    if (!dialog.open) dialog.showModal();
+
+    const payload = {
+      officialRate: context.officialRate,
+      personalRate: context.personalRate,
+      gapPp: context.gapPp,
+      topCategoryId: context.topCategoryId,
+      topSharePct: context.topSharePct,
+      topRatePct: context.topRatePct,
+    };
+    const cacheKey = JSON.stringify(payload);
+    if (state.aiCache.has(cacheKey)) {
+      body.textContent = state.aiCache.get(cacheKey);
+      body.classList.remove("is-loading");
+      status.textContent = "Gemini 해설 · 계산은 샐러리갭 엔진이 수행했습니다.";
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const response = await fetch("/api/insight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: cacheKey,
+        signal: controller.signal,
+      });
+      const data = await response.json();
+      if (!response.ok || typeof data.text !== "string") throw new Error("AI 응답 오류");
+      state.aiCache.set(cacheKey, data.text);
+      body.textContent = data.text;
+      status.textContent = "Gemini 해설 · 계산은 샐러리갭 엔진이 수행했습니다.";
+    } catch (_error) {
+      status.textContent = "AI 연결이 늦어 검증된 기본 해설을 보여드립니다.";
+    } finally {
+      clearTimeout(timeout);
+      body.classList.remove("is-loading");
+    }
   }
 
   function renderCumulative(result) {
