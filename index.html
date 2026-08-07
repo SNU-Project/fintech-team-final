@@ -43,83 +43,85 @@
 
   <!-- ══════════════ 탭 0 · 내 물가 ══════════════ -->
   <section class="panel" id="panel-mine" role="tabpanel" aria-labelledby="tab-mine">
-    <div class="card headline-card">
-      <p class="kicker">뉴스에 나오는 물가는 전국 평균입니다</p>
-      <div class="vs-row" id="vsRow">
-        <div class="vs-side">
-          <span class="vs-k">공식 물가</span>
-          <span class="vs-v" id="officialRate">—</span>
-          <span class="vs-s" id="officialMonth">—</span>
-        </div>
-        <div class="vs-mid" id="vsGap">—</div>
-        <div class="vs-side accent">
-          <span class="vs-k">내 물가</span>
-          <span class="vs-v" id="personalRate">—</span>
-          <span class="vs-s">내 지출 기준</span>
-        </div>
-      </div>
-      <p class="verdict" id="mineVerdict">—</p>
-      <p class="field-note" id="spreadNote">—</p>
-    </div>
+    <div class="bento">
 
-    <div class="workspace">
-      <aside>
-        <div class="card">
-          <div class="section-head">
-            <span class="step-badge">01</span>
-            <div><h2>내 한 달 지출</h2><p>대략이면 충분합니다. 비중만 맞으면 됩니다.</p></div>
+      <!-- 헤드라인: 공식 vs 내 물가 -->
+      <div class="card bento-hero">
+        <p class="kicker">뉴스에 나오는 물가는 전국 평균입니다</p>
+        <div class="vs-row" id="vsRow">
+          <div class="vs-side">
+            <span class="vs-k">공식 물가</span>
+            <span class="vs-v" id="officialRate">—</span>
+            <span class="vs-s" id="officialMonth">—</span>
           </div>
-
-          <div class="seg" id="presetSeg" role="group" style="margin-bottom:.9rem">
-            <button type="button" data-preset="car" aria-pressed="true">차로 출퇴근</button>
-            <button type="button" data-preset="dining" aria-pressed="false">외식·구독</button>
-            <button type="button" data-preset="home" aria-pressed="false">집밥·대중교통</button>
-          </div>
-          <p class="field-note" style="margin-bottom:1rem">
-            프리셋은 예시일 뿐입니다. 숫자를 본인 지출로 바꾸면 결과가 바로 반영됩니다.
-          </p>
-
-          <div id="spendFields"></div>
-
-          <details class="more-fields">
-            <summary>나머지 항목 <span id="moreCount"></span></summary>
-            <div id="spendFieldsMore"></div>
-          </details>
-
-          <div class="spend-total">
-            <span>월 지출 합계</span>
-            <b id="spendTotal">—</b>
+          <div class="vs-mid" id="vsGap">—</div>
+          <div class="vs-side accent">
+            <span class="vs-k">내 물가</span>
+            <span class="vs-v" id="personalRate">—</span>
+            <span class="vs-s">내 지출 기준</span>
           </div>
         </div>
-      </aside>
+        <p class="verdict" id="mineVerdict">—</p>
+      </div>
 
-      <div>
-        <div class="card">
-          <h3 class="block-title">내 물가를 밀어올린 범인</h3>
-          <p class="block-q">막대 길이 = 지출 비중 × 그 품목의 물가상승률. 다 더하면 내 물가가 됩니다.</p>
-          <div class="chart-box" id="contribChart"></div>
-          <span class="src-note" id="mineSrc">—</span>
+      <!-- 지출 입력 -->
+      <div class="card bento-input">
+        <div class="section-head">
+          <span class="step-badge">01</span>
+          <div><h2>내 한 달 지출</h2><p>총액을 넣고 비율을 밀어보세요.</p></div>
         </div>
-      </div>
-    </div>
 
-    <div class="result-grid">
-      <div class="card">
-        <h3 class="block-title">10년을 이렇게 살았다면</h3>
-        <p class="block-q">지출 비중을 고정하고 과거 10년을 되돌렸습니다. 두 선이 벌어질수록 공식 통계와 내 체감의 차이가 큽니다.</p>
-        <div class="chart-box" id="cumChart"></div>
-        <div class="legend" id="cumLegend"></div>
-        <div class="stat-grid" id="cumStats" style="margin-top:1rem"></div>
-        <p class="verdict" id="cumNote" hidden></p>
+        <label class="total-field">
+          <span>월 총 지출</span>
+          <span class="input-wrap">
+            <input type="number" id="spendTotalInput" min="0" step="10" value="250">
+            <span>만원</span>
+          </span>
+        </label>
+
+        <div class="seg" id="presetSeg" role="group">
+          <button type="button" data-preset="car" aria-pressed="true">차로 출퇴근</button>
+          <button type="button" data-preset="dining" aria-pressed="false">외식·구독</button>
+          <button type="button" data-preset="home" aria-pressed="false">집밥·대중교통</button>
+        </div>
+
+        <div class="mix-bar" id="mixBar" aria-label="지출 구성"></div>
+
+        <div id="spendFields"></div>
+
+        <details class="more-fields">
+          <summary>나머지 항목 <span id="moreCount"></span></summary>
+          <div id="spendFieldsMore"></div>
+        </details>
       </div>
 
-      <div class="card">
+      <!-- 기여도 분해 -->
+      <div class="card bento-contrib">
+        <h3 class="block-title">내 물가를 밀어올린 범인</h3>
+        <p class="block-q">막대 = 지출 비중 × 그 품목의 물가상승률. 다 더하면 내 물가입니다.</p>
+        <div class="chart-box" id="contribChart"></div>
+        <span class="src-note" id="mineSrc">—</span>
+      </div>
+
+      <!-- 액션 -->
+      <div class="card bento-action">
         <h3 class="block-title">그래서 얼마를 벌어야 하나</h3>
-        <p class="block-q">내 물가를 넘어서야 실질 소득이 유지됩니다.</p>
         <div class="stat-grid" id="mineActionStats"></div>
         <p class="verdict" id="mineAction">—</p>
         <button class="apply-btn" id="applyToSalary" type="button">이 물가로 연봉 진단하기 →</button>
       </div>
+
+      <!-- 10년 누적 -->
+      <div class="card bento-cum">
+        <h3 class="block-title">10년을 이렇게 살았다면</h3>
+        <p class="block-q">지출 비중을 고정하고 과거 10년을 되돌렸습니다. 두 선이 벌어질수록 공식 통계와 체감의 차이가 큽니다.</p>
+        <div class="chart-box" id="cumChart"></div>
+        <div class="legend" id="cumLegend"></div>
+        <div class="stat-grid" id="cumStats"></div>
+        <p class="verdict" id="cumNote" hidden></p>
+        <p class="field-note" id="spreadNote">—</p>
+      </div>
+
     </div>
   </section>
 

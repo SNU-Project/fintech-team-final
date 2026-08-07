@@ -219,7 +219,7 @@
      막대 길이 = 지출비중 × 그 품목의 물가상승률                        */
   function contributionChart(mount, rows, opts = {}) {
     const { officialRate = null, personalRate = null } = opts;
-    const W = 680, rowH = 30, padL = 132, padR = 96, padT = 26, padB = 8;
+    const W = 680, rowH = 22, padL = 128, padR = 92, padT = 22, padB = 6;
     const H = padT + rows.length * rowH + padB;
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
 

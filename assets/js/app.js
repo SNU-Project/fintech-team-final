@@ -53,16 +53,57 @@
     },
   };
 
+  // 품목별 색 — 누적 막대와 슬라이더에서 같은 색을 쓴다.
+  const CAT_COLOR = {
+    housing: "#2a78d6", food: "#1baf7a", dining: "#eb6834", transport: "#d64550",
+    leisure: "#8d6fb0", comm: "#0f9bb3", clothing: "#eda100", household: "#7a8b3f",
+    health: "#4a9d7c", education: "#c2739b", alcohol: "#8a6b4f", misc: "#909090",
+  };
+
   const state = {
     market: null, cpi: null, meta: null,
     risk: "balanced", goalRisk: "balanced",
     inflation: 2.8, inflationLive: false,
     picks: new Set(["kodex200", "sp500", "gold"]),
     startMonth: null,
-    spending: { ...PRESETS.car.spending },
+    total: 250,          // 월 총 지출(만원)
+    ratios: {},          // { 품목id: 0~1 }, 합이 1
     preset: "car",
     personalRate: null,
   };
+
+  // 지출액을 비율로 환산. 프리셋은 금액으로 적어두는 게 읽기 쉬워서
+  // 여기서 한 번만 비율로 바꾼다.
+  function ratiosFrom(amounts) {
+    const total = Object.values(amounts).reduce((a, b) => a + b, 0) || 1;
+    return Object.fromEntries(Object.entries(amounts).map(([k, v]) => [k, v / total]));
+  }
+  const totalOf = (amounts) => Object.values(amounts).reduce((a, b) => a + b, 0);
+
+  // 현재 비율 × 총액 = 품목별 금액
+  function spendingNow() {
+    return Object.fromEntries(
+      Object.entries(state.ratios).map(([k, r]) => [k, r * state.total])
+    );
+  }
+
+  /* 슬라이더 하나를 움직이면 나머지가 비례해서 줄거나 늘어 합이 항상 100%가 된다.
+     이렇게 안 하면 사용자가 12개를 일일이 맞춰야 하고, 합이 100%를 넘어가 버린다. */
+  function setRatio(id, next) {
+    const ids = Object.keys(state.ratios);
+    const others = ids.filter((k) => k !== id);
+    const clamped = Math.max(0, Math.min(1, next));
+    const remaining = 1 - clamped;
+    const otherSum = others.reduce((s, k) => s + state.ratios[k], 0);
+
+    if (otherSum <= 0) {
+      // 나머지가 전부 0이면 균등 분배 말고는 방법이 없다
+      others.forEach((k) => { state.ratios[k] = remaining / others.length; });
+    } else {
+      others.forEach((k) => { state.ratios[k] = state.ratios[k] / otherSum * remaining; });
+    }
+    state.ratios[id] = clamped;
+  }
 
   /* ══════════════ 부팅 ══════════════ */
   async function boot() {
@@ -195,23 +236,31 @@
       return;
     }
 
-    // 지출 입력 행 — 품목별 현재 물가를 칩으로 같이 보여준다.
-    // 어떤 항목이 비싸지고 있는지 입력하면서 바로 알 수 있게.
-    // 12개를 한 번에 늘어놓으면 입력 벽처럼 보여서, 지출 비중이 큰
-    // 6개만 펼치고 나머지는 접어 둔다.
+    state.total = totalOf(PRESETS.car.spending);
+    state.ratios = ratiosFrom(PRESETS.car.spending);
+    $("#spendTotalInput").value = Math.round(state.total);
+
+    // 금액을 12번 타이핑하는 대신 비율 슬라이더로 조정한다.
+    // 총액은 숫자로 한 번만 넣고, 각 품목은 밀어서 맞춘다.
+    // 품목별 현재 물가를 칩으로 같이 보여줘, 미는 동안 어떤 항목이
+    // 비싸지고 있는지 바로 알 수 있게 했다.
     const PRIMARY = ["housing", "food", "dining", "transport", "leisure", "comm"];
     const row = (c) => {
       const r = c.latest.yoy;
       const cls = r >= 4 ? "rate-hot" : (r <= 1 ? "rate-cool" : "rate-mild");
-      return `<div class="spend-row">
-        <label for="sp-${c.id}">${c.name}
+      const color = CAT_COLOR[c.id] || "var(--brand)";
+      return `<div class="mix-row" style="--slider-color:${color}">
+        <div class="mix-head">
+          <span class="legend-swatch" style="background:${color}"></span>
+          <span class="mix-name">${c.name}</span>
           <span class="rate-chip ${cls}">${r >= 0 ? "+" : ""}${r.toFixed(1)}%</span>
-          <small>${c.hint}</small>
-        </label>
-        <span class="input-wrap">
-          <input type="number" id="sp-${c.id}" min="0" step="1" value="${state.spending[c.id] ?? 0}">
-          <span>만원</span>
-        </span>
+          <span class="spacer"></span>
+          <span class="mix-pct" id="pct-${c.id}">—</span>
+          <span class="mix-won" id="won-${c.id}">—</span>
+        </div>
+        <input type="range" id="sp-${c.id}" min="0" max="60" step="0.5"
+               value="${(state.ratios[c.id] ?? 0) * 100}"
+               aria-label="${c.name} 지출 비중">
       </div>`;
     };
 
@@ -223,11 +272,16 @@
 
     cats.forEach((c) => {
       $(`#sp-${c.id}`).addEventListener("input", (e) => {
-        state.spending[c.id] = Math.max(0, +e.target.value || 0);
+        setRatio(c.id, (+e.target.value || 0) / 100);
         $$("#presetSeg button").forEach((b) => b.setAttribute("aria-pressed", "false"));
         state.preset = null;
         renderMine();
       });
+    });
+
+    $("#spendTotalInput").addEventListener("input", (e) => {
+      state.total = Math.max(0, +e.target.value || 0);
+      renderMine();
     });
 
     $$("#presetSeg button").forEach((b) => {
@@ -235,9 +289,10 @@
         const p = PRESETS[b.dataset.preset];
         if (!p) return;
         state.preset = b.dataset.preset;
-        state.spending = { ...p.spending };
+        state.total = totalOf(p.spending);
+        state.ratios = ratiosFrom(p.spending);
+        $("#spendTotalInput").value = Math.round(state.total);
         $$("#presetSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-        cats.forEach((c) => { $(`#sp-${c.id}`).value = state.spending[c.id] ?? 0; });
         renderMine();
       });
     });
@@ -259,13 +314,36 @@
     const cats = state.cpi.categories || [];
     if (!cats.length) return;
 
-    const result = E.personalInflation(state.spending, cats);
+    const spending = spendingNow();
+
+    // 슬라이더 위치·비율·금액 라벨을 현재 상태에 맞춘다.
+    // (한 슬라이더를 밀면 나머지 비율도 바뀌므로 전부 다시 그려야 한다)
+    cats.forEach((c) => {
+      const ratio = state.ratios[c.id] ?? 0;
+      const slider = $(`#sp-${c.id}`);
+      if (slider && document.activeElement !== slider) {
+        slider.value = (ratio * 100).toFixed(1);
+      }
+      const pct = $(`#pct-${c.id}`), won = $(`#won-${c.id}`);
+      if (pct) pct.textContent = `${(ratio * 100).toFixed(1)}%`;
+      if (won) won.textContent = `${man(spending[c.id] || 0)}만`;
+    });
+
+    // 구성 누적 막대 — 비중이 0인 품목은 넣지 않는다
+    $("#mixBar").innerHTML = cats
+      .filter((c) => (state.ratios[c.id] ?? 0) > 0.002)
+      .map((c) => {
+        const w = (state.ratios[c.id] * 100).toFixed(2);
+        return `<span style="width:${w}%;background:${CAT_COLOR[c.id] || "var(--brand)"}"
+                 title="${c.name} ${w}%"></span>`;
+      }).join("");
+
+    const result = E.personalInflation(spending, cats);
     const official = state.cpi.latest.yoy;
 
     if (!result) {
       $("#personalRate").textContent = "—";
-      $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
-      $("#spendTotal").textContent = "0만원";
+      $("#mineVerdict").textContent = "월 총 지출을 입력해 주세요.";
       return;
     }
 
@@ -275,7 +353,6 @@
     $("#officialRate").textContent = `${official.toFixed(1)}%`;
     $("#officialMonth").textContent = `${state.cpi.latest.month} 기준`;
     $("#personalRate").textContent = `${result.rate.toFixed(1)}%`;
-    $("#spendTotal").textContent = `${man(result.total)}만원`;
 
     const mid = $("#vsGap");
     const side = $("#vsRow").querySelector(".vs-side.accent");
@@ -330,7 +407,7 @@
 
   function renderCumulative(result) {
     const cats = state.cpi.categories;
-    const mine = E.personalIndexPath(state.spending, cats);
+    const mine = E.personalIndexPath(spendingNow(), cats);
     if (!mine) return;
 
     // 공식 지수도 같은 구간으로 잘라 100 기준으로 맞춘다
@@ -391,7 +468,7 @@
       if (nowDiff < -0.05 && gap > 0.005) {
         const cats = state.cpi.categories;
         const worst = [...cats]
-          .filter((c) => (state.spending[c.id] || 0) > 0 && c.cum10y != null)
+          .filter((c) => (state.ratios[c.id] || 0) > 0 && c.cum10y != null)
           .sort((a, b) => b.cum10y - a.cum10y)[0];
         note.hidden = false;
         note.className = "verdict warn";

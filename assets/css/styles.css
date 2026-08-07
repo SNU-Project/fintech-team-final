@@ -190,16 +190,16 @@ section { scroll-margin-top: 5rem; }
 @media (max-width: 720px) { .hero p.lede { display: none; } }
 
 /* ---------- 탭 ---------- */
-.tabs { display: flex; gap: .3rem; border-bottom: 1px solid var(--border); margin: 1.8rem 0 0; overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; gap: .3rem; border-bottom: 1px solid var(--border); margin: .5rem 0 0; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab {
   appearance: none; border: 0; background: none; font-family: inherit; cursor: pointer;
-  padding: .75rem 1.05rem; font-size: .92rem; font-weight: 600; color: var(--text-muted);
+  padding: .6rem 1.05rem; font-size: .92rem; font-weight: 600; color: var(--text-muted);
   border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
 }
 .tab:hover { color: var(--text-secondary); }
 .tab[aria-selected="true"] { color: var(--brand); border-bottom-color: var(--brand); }
-.panel { padding: 1.8rem 0 0; }
+.panel { padding: .9rem 0 0; }
 .panel[hidden] { display: none; }
 
 /* ---------- 카드 / 그리드 ---------- */
@@ -306,9 +306,94 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
 .verdict.bad { background: color-mix(in srgb, var(--critical) 10%, transparent); border-color: color-mix(in srgb, var(--critical) 30%, transparent); }
 .verdict.bad b { color: var(--critical-text); }
 
+/* ---------- 베이토 그리드 ----------
+   카드를 세로로 쌓으면 높이가 내용에 끌려다녀 크기가 제각각으로 보인다.
+   격자에 맞춰 배치하면 크기 차이가 "들쭉날쭉"이 아니라 "의도된 위계"가 된다. */
+.bento {
+  display: grid;
+  gap: .75rem;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: stretch;
+}
+.bento > * { min-width: 0; margin-top: 0 !important; }
+
+/* 입력 패널을 왼쪽에 세로로 세우고, 오른쪽을 결과로 채운다.
+   세로로 쌓는 것보다 가로 공간을 훨씬 잘 쓴다.
+     ┌──────┬───────────────┐
+     │      │ 공식 vs 내물가  │
+     │ 입력  ├───────────────┤
+     │ 슬라 │  기여도 분해    │
+     │ 이더  ├───────┬───────┤
+     │      │ 액션   │ 10년   │
+     └──────┴───────┴───────┘ */
+.bento-input   { grid-column: 1 / span 4;  grid-row: 1 / span 3; }
+.bento-hero    { grid-column: 5 / span 8;  grid-row: 1; }
+.bento-contrib { grid-column: 5 / span 8;  grid-row: 2; }
+.bento-action  { grid-column: 5 / span 4;  grid-row: 3; }
+.bento-cum     { grid-column: 9 / span 4;  grid-row: 3; }
+
+@media (max-width: 1240px) {
+  .bento-input   { grid-column: 1 / span 5; grid-row: 1 / span 3; }
+  .bento-hero    { grid-column: 6 / span 7; grid-row: 1; }
+  .bento-contrib { grid-column: 6 / span 7; grid-row: 2; }
+  .bento-action  { grid-column: 6 / span 7; grid-row: 3; }
+  .bento-cum     { grid-column: 1 / span 12; grid-row: 4; }
+}
+@media (max-width: 780px) {
+  .bento > * { grid-column: span 12 !important; grid-row: auto !important; }
+}
+
+/* 카드 안에서 차트가 남는 높이를 채우도록 */
+.bento-contrib, .bento-cum, .bento-action { display: flex; flex-direction: column; }
+.bento-contrib .chart-box, .bento-cum .chart-box { flex: 1; display: flex; align-items: center; }
+.bento .chart-box svg { width: 100%; }
+.bento-input { overflow-y: auto; max-height: calc(100vh - 7rem); }
+.bento-action .verdict, .bento-cum .verdict { margin-top: auto; }
+.bento-action .apply-btn { margin-top: .8rem; }
+
+/* 베이토 안에서는 카드 여백을 조금 줄여 밀도를 높인다 */
+.bento .card { padding: .9rem 1rem; }
+.bento .src-note { font-size: .66rem; padding: .12rem .45rem; margin-top: .45rem; }
+.bento .stat { padding: .62rem .7rem; }
+.bento .stat .v { font-size: 1.12rem; }
+.bento .block-q { margin-bottom: .6rem; }
+
+/* ---------- 지출 구성 슬라이더 ---------- */
+.total-field {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .6rem; margin-bottom: .8rem; font-size: .84rem; font-weight: 600;
+  color: var(--text-secondary);
+}
+.total-field .input-wrap { margin-top: 0; width: 132px; flex: 0 0 auto; }
+
+/* 구성 비율을 한 줄에 보여주는 누적 막대 */
+.mix-bar {
+  display: flex; height: 15px; border-radius: 999px; overflow: hidden;
+  margin: .9rem 0 .8rem; background: var(--surface-sunk);
+}
+.mix-bar span { transition: width .12s ease; }
+.mix-bar span:first-child { border-radius: 999px 0 0 999px; }
+.mix-bar span:last-child { border-radius: 0 999px 999px 0; }
+
+.mix-row { margin-bottom: .52rem; }
+.mix-head {
+  display: flex; align-items: baseline; gap: .35rem; font-size: .76rem;
+  color: var(--text-secondary); margin-bottom: .1rem;
+}
+.mix-name { font-weight: 600; }
+.mix-head .spacer { flex: 1; }
+.mix-pct { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-primary); }
+.mix-won { font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: .72rem; }
+
+.mix-row input[type="range"] {
+  width: 100%; margin: 0; height: 16px; cursor: pointer;
+  accent-color: var(--slider-color, var(--brand));
+}
+
 /* ---------- 내 물가: 대비 헤드라인 ---------- */
-.headline-card { text-align: center; padding: 1.6rem 1.3rem 1.3rem; }
-.kicker { margin: 0 0 1.1rem; font-size: .84rem; color: var(--text-muted); }
+.headline-card { text-align: center; padding: 1.1rem 1.3rem 1rem; }
+.kicker { margin: 0 0 .7rem; font-size: .8rem; color: var(--text-muted); }
+.bento-hero .verdict { margin-top: .8rem; }
 
 .vs-row { display: flex; align-items: center; justify-content: center; gap: clamp(.8rem, 4vw, 2.4rem); flex-wrap: wrap; }
 .vs-side { display: flex; flex-direction: column; gap: .1rem; min-width: 120px; }
