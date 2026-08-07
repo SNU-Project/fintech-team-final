@@ -6,7 +6,7 @@
 
 명목 연봉이 올라도 물가가 더 오르면 실질 소득은 줄어듭니다. 이 웹앱은 내 연봉의 진짜 가치를 진단하고, **실제 10년 시장 데이터**로 부족분을 메울 자산배분을 설계합니다.
 
-**라이브** → https://snu-project.github.io/fintech-team-final/
+**라이브** → https://fintech-team-final.vercel.app/
 
 ---
 
