@@ -56,7 +56,11 @@ export async function POST(request) {
   }
   if (!input) return Response.json({ error: "계산 결과 형식이 올바르지 않습니다." }, { status: 400 });
 
-  const token = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN;
+  // Vercel Functions는 런타임 OIDC를 요청 헤더로 주고, 로컬/구형 런타임은
+  // 환경변수로 줄 수 있다. 둘 다 받아야 기존 정적 프로젝트에서도 동작한다.
+  const token = process.env.AI_GATEWAY_API_KEY ||
+    process.env.VERCEL_OIDC_TOKEN ||
+    request.headers.get("x-vercel-oidc-token");
   if (!token) return Response.json({ error: "AI 연결이 설정되지 않았습니다." }, { status: 503 });
 
   const facts = [
