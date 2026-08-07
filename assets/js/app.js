@@ -197,7 +197,10 @@
 
     // 지출 입력 행 — 품목별 현재 물가를 칩으로 같이 보여준다.
     // 어떤 항목이 비싸지고 있는지 입력하면서 바로 알 수 있게.
-    $("#spendFields").innerHTML = cats.map((c) => {
+    // 12개를 한 번에 늘어놓으면 입력 벽처럼 보여서, 지출 비중이 큰
+    // 6개만 펼치고 나머지는 접어 둔다.
+    const PRIMARY = ["housing", "food", "dining", "transport", "leisure", "comm"];
+    const row = (c) => {
       const r = c.latest.yoy;
       const cls = r >= 4 ? "rate-hot" : (r <= 1 ? "rate-cool" : "rate-mild");
       return `<div class="spend-row">
@@ -210,7 +213,13 @@
           <span>만원</span>
         </span>
       </div>`;
-    }).join("");
+    };
+
+    const primary = cats.filter((c) => PRIMARY.includes(c.id));
+    const secondary = cats.filter((c) => !PRIMARY.includes(c.id));
+    $("#spendFields").innerHTML = primary.map(row).join("");
+    $("#spendFieldsMore").innerHTML = secondary.map(row).join("");
+    $("#moreCount").textContent = `(${secondary.length}개)`;
 
     cats.forEach((c) => {
       $(`#sp-${c.id}`).addEventListener("input", (e) => {
@@ -472,6 +481,23 @@
     return { cur, next, budget, valid: cur > 0 };
   }
 
+  // 부족분을 "며칠 더 일해야 하는가"로 환산한다.
+  // 만원 단위 숫자는 잘 안 와닿지만 근무일수는 바로 체감된다.
+  const WORKDAYS_PER_YEAR = 250;  // 주 5일 · 연차·공휴일 제외한 통상 근무일
+  function workdayStat(nextSalary, d) {
+    if (nextSalary <= 0) return "";
+    const perDay = nextSalary / WORKDAYS_PER_YEAR;
+    const days = Math.abs(d.gap) / perDay;
+    if (d.beatsInflation) {
+      return `<div class="stat is-good"><span class="k">벌어둔 시간</span>
+        <span class="v">${days.toFixed(1)}일</span>
+        <span class="s">그만큼 덜 일해도 작년 수준</span></div>`;
+    }
+    return `<div class="stat is-bad"><span class="k">더 일해야 하는 날</span>
+      <span class="v">${days.toFixed(1)}일</span>
+      <span class="s">작년과 같은 생활을 하려면</span></div>`;
+  }
+
   function renderGap() {
     const { cur, next, budget, valid } = readGapInputs();
     $("#inflVal").textContent = `${state.inflation.toFixed(1)}%`;
@@ -504,7 +530,8 @@
         <span class="s">월 ${man(Math.abs(d.monthlyGap))}만원</span></div>
       <div class="stat"><span class="k">내년 연봉의 체감 가치</span>
         <span class="v">${man(d.realValue)}만원</span>
-        <span class="s">올해 물가 기준</span></div>`;
+        <span class="s">올해 물가 기준</span></div>
+      ${workdayStat(next, d)}`;
 
     // 조작하면 같이 바뀌는 결론
     const v = $("#gapVerdict");
@@ -515,14 +542,59 @@
     } else {
       const covered = budget * 12;
       const rate = d.gap > 0 ? Math.min(100, (covered / d.gap) * 100) : 100;
+      const days = next > 0 ? d.gap / (next / WORKDAYS_PER_YEAR) : 0;
       v.className = d.gap > cur * 0.03 ? "verdict bad" : "verdict warn";
       v.innerHTML = `물가를 따라가려면 <b>${man(d.requiredSalary)}만원</b>이 필요한데
         내년 연봉은 ${man(next)}만원입니다. 연 <b>${man(d.gap)}만원</b>(월 ${man(d.monthlyGap)}만원)이 부족합니다.
+        <b>작년과 같은 생활을 하려면 ${days.toFixed(1)}일을 더 일해야 하는 셈입니다.</b>
         지금 설정한 월 ${man(budget)}만원 투자로는 이 부족분의 <b>${rate.toFixed(0)}%</b>를 메울 수 있습니다.`;
     }
 
     renderPlan(d, budget);
+    renderTrend(cur, next, d);
     renderNegotiation(cur, d);
+  }
+
+  /* 격차는 해마다 벌어진다 — 명목 인상률과 물가가 유지될 때의 두 곡선.
+     (bumyong 프로토타입의 연도별 추이 관점을 실데이터 기준으로 다시 만듦) */
+  function renderTrend(cur, next, d) {
+    const YEARS = 10;
+    const raise = cur > 0 ? (next - cur) / cur : 0;
+    const infl = state.inflation / 100;
+
+    const nominal = [], required = [];
+    for (let y = 0; y <= YEARS; y++) {
+      nominal.push({ x: y, y: cur * Math.pow(1 + raise, y), meta: `${y}년차` });
+      required.push({ x: y, y: cur * Math.pow(1 + infl, y), meta: `${y}년차` });
+    }
+
+    const labels = [];
+    for (let y = 0; y <= YEARS; y += 2) labels.push({ at: y, text: `${y}년` });
+
+    lineChart($("#trendChart"), {
+      series: [
+        { id: "nominal", label: "내 연봉", color: "var(--series-1)", points: nominal },
+        { id: "required", label: "물가 유지선", color: "var(--critical)", dashed: true, points: required },
+      ],
+      xLabels: labels,
+      yFormat: (v) => `${man(v / 1000) / 10}억`,
+    });
+
+    $("#trendLegend").innerHTML =
+      `<span class="legend-item"><span class="legend-swatch" style="background:var(--series-1)"></span>내 연봉 (인상률 ${(raise * 100).toFixed(1)}%)</span>
+       <span class="legend-item"><span class="legend-swatch" style="background:var(--critical)"></span>물가 유지선 (${state.inflation.toFixed(1)}%)</span>`;
+
+    const endGap = required[YEARS].y - nominal[YEARS].y;
+    const v = $("#trendVerdict");
+    if (endGap <= 0) {
+      v.className = "verdict";
+      v.innerHTML = `인상률이 물가를 앞서고 있어 격차가 <b>벌어지지 않습니다.</b>
+        10년 뒤에는 오히려 <b>${man(-endGap)}만원</b> 앞섭니다.`;
+    } else {
+      v.className = "verdict bad";
+      v.innerHTML = `지금 조건이 유지되면 10년 뒤 격차는 <b>연 ${man(endGap)}만원</b>까지 벌어집니다.
+        매년 <b>${(state.inflation - d.nominalRatePct).toFixed(1)}%p</b>씩 밀리는 게 복리로 쌓인 결과입니다.`;
+    }
   }
 
   function renderPlan(d, budget) {

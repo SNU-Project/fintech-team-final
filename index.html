@@ -30,17 +30,8 @@
 <main class="wrap" id="top">
 
   <section class="hero">
-    <span class="eyebrow">Real Income Planner · 2026</span>
-    <h1>연봉은 올랐는데,<br><em>왜 더 빠듯할까요?</em></h1>
-    <p class="lede">
-      명목 연봉이 올라도 물가가 더 오르면 실질 소득은 줄어듭니다.
-      내 연봉의 진짜 가치를 진단하고, <strong>실제 10년 시장 데이터</strong>로 부족분을 메울 방법을 찾아보세요.
-    </p>
-    <div class="hero-steps" aria-label="이용 순서">
-      <span><b>01</b>소득 입력</span><i></i>
-      <span><b>02</b>간극 확인</span><i></i>
-      <span><b>03</b>계획 완성</span>
-    </div>
+    <h1>연봉은 올랐는데, <em>왜 더 빠듯할까요?</em></h1>
+    <p class="lede">실제 10년 시장 데이터로 내 연봉의 진짜 가치를 진단합니다</p>
   </section>
 
   <div class="tabs" role="tablist">
@@ -90,6 +81,11 @@
 
           <div id="spendFields"></div>
 
+          <details class="more-fields">
+            <summary>나머지 항목 <span id="moreCount"></span></summary>
+            <div id="spendFieldsMore"></div>
+          </details>
+
           <div class="spend-total">
             <span>월 지출 합계</span>
             <b id="spendTotal">—</b>
@@ -104,23 +100,25 @@
           <div class="chart-box" id="contribChart"></div>
           <span class="src-note" id="mineSrc">—</span>
         </div>
+      </div>
+    </div>
 
-        <div class="card">
-          <h3 class="block-title">10년을 이렇게 살았다면</h3>
-          <p class="block-q">지출 비중을 그대로 두고 과거 10년을 되돌려 누적 물가를 계산했습니다. 두 선이 벌어질수록 공식 통계와 내 체감의 차이가 큽니다.</p>
-          <div class="chart-box" id="cumChart"></div>
-          <div class="legend" id="cumLegend"></div>
-          <div class="stat-grid" id="cumStats" style="margin-top:1rem"></div>
-          <p class="verdict" id="cumNote" hidden></p>
-        </div>
+    <div class="result-grid">
+      <div class="card">
+        <h3 class="block-title">10년을 이렇게 살았다면</h3>
+        <p class="block-q">지출 비중을 고정하고 과거 10년을 되돌렸습니다. 두 선이 벌어질수록 공식 통계와 내 체감의 차이가 큽니다.</p>
+        <div class="chart-box" id="cumChart"></div>
+        <div class="legend" id="cumLegend"></div>
+        <div class="stat-grid" id="cumStats" style="margin-top:1rem"></div>
+        <p class="verdict" id="cumNote" hidden></p>
+      </div>
 
-        <div class="card">
-          <h3 class="block-title">그래서 얼마를 벌어야 하나</h3>
-          <p class="block-q">내 물가를 넘어서야 실질 소득이 유지됩니다.</p>
-          <div class="stat-grid" id="mineActionStats"></div>
-          <p class="verdict" id="mineAction">—</p>
-          <button class="apply-btn" id="applyToSalary" type="button">이 물가로 연봉 진단하기 →</button>
-        </div>
+      <div class="card">
+        <h3 class="block-title">그래서 얼마를 벌어야 하나</h3>
+        <p class="block-q">내 물가를 넘어서야 실질 소득이 유지됩니다.</p>
+        <div class="stat-grid" id="mineActionStats"></div>
+        <p class="verdict" id="mineAction">—</p>
+        <button class="apply-btn" id="applyToSalary" type="button">이 물가로 연봉 진단하기 →</button>
       </div>
     </div>
   </section>
@@ -179,30 +177,41 @@
           <p class="verdict" id="gapVerdict">—</p>
         </div>
 
-        <div class="card">
-          <h3 class="block-title">부족분을 메울 자산배분</h3>
-          <p class="block-q">기대수익률은 아래 자산들의 <strong>실제 10년 실현 수익률</strong>로 계산했습니다.</p>
-          <div class="donut-row">
-            <div class="donut" id="donut"><div class="donut-center" id="donutCenter"></div></div>
-            <div style="flex:1;min-width:230px">
-              <div class="stat-grid" id="planStats"></div>
-            </div>
-          </div>
-          <div class="legend" id="planLegend"></div>
-          <div class="table-scroll"><table>
-            <thead><tr><th>자산</th><th>비중</th><th class="num">10년 CAGR</th><th class="num">연 변동성</th><th class="num">최대 낙폭</th></tr></thead>
-            <tbody id="planTable"></tbody>
-          </table></div>
-          <span class="src-note" id="planSrc">—</span>
-        </div>
+      </div>
+    </div>
 
-        <div class="card">
-          <h3 class="block-title">연봉 협상 가이드</h3>
-          <p class="block-q">물가를 방어하려면 최소 몇 %를 올려야 하는지 계산합니다.</p>
-          <div class="stat-grid" id="negoStats"></div>
-          <p class="verdict" id="negoVerdict">—</p>
+    <div class="result-grid">
+      <div class="card">
+        <h3 class="block-title">격차는 해마다 벌어집니다</h3>
+        <p class="block-q">지금 인상률과 물가가 유지된다면, 두 선의 간격이 매년 얼마나 커지는지 보여줍니다.</p>
+        <div class="chart-box" id="trendChart"></div>
+        <div class="legend" id="trendLegend"></div>
+        <p class="verdict" id="trendVerdict">—</p>
+      </div>
+
+      <div class="card">
+        <h3 class="block-title">연봉 협상 가이드</h3>
+        <p class="block-q">물가를 방어하려면 최소 몇 %를 올려야 하는지 계산합니다.</p>
+        <div class="stat-grid" id="negoStats"></div>
+        <p class="verdict" id="negoVerdict">—</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1rem">
+      <h3 class="block-title">부족분을 메울 자산배분</h3>
+      <p class="block-q">기대수익률은 아래 자산들의 <strong>실제 10년 실현 수익률</strong>로 계산했습니다.</p>
+      <div class="donut-row">
+        <div class="donut" id="donut"><div class="donut-center" id="donutCenter"></div></div>
+        <div style="flex:1;min-width:230px">
+          <div class="stat-grid" id="planStats"></div>
         </div>
       </div>
+      <div class="legend" id="planLegend"></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>자산</th><th>비중</th><th class="num">10년 CAGR</th><th class="num">연 변동성</th><th class="num">최대 낙폭</th></tr></thead>
+        <tbody id="planTable"></tbody>
+      </table></div>
+      <span class="src-note" id="planSrc">—</span>
     </div>
   </section>
 
@@ -250,21 +259,24 @@
           <p class="verdict" id="goalVerdict">—</p>
         </div>
 
-        <div class="card">
-          <h3 class="block-title">시간에 따른 자산 성장</h3>
-          <p class="block-q">곡선이 점선(목표)에 언제 닿는지가 핵심입니다.</p>
-          <div class="chart-box" id="growthChart"></div>
-        </div>
+      </div>
+    </div>
 
-        <div class="card">
-          <h3 class="block-title">투자 성향별 비교</h3>
-          <p class="block-q">같은 목표라도 성향에 따라 필요한 월 저축액이 달라집니다.</p>
-          <div class="chart-box" id="goalScenarioChart"></div>
-          <div class="table-scroll"><table>
-            <thead><tr><th>성향</th><th class="num">기대수익률</th><th class="num">필요 월 저축</th><th class="num">예상 최종자산</th></tr></thead>
-            <tbody id="goalScenarioTable"></tbody>
-          </table></div>
-        </div>
+    <div class="result-grid">
+      <div class="card">
+        <h3 class="block-title">시간에 따른 자산 성장</h3>
+        <p class="block-q">곡선이 점선(목표)에 언제 닿는지가 핵심입니다.</p>
+        <div class="chart-box" id="growthChart"></div>
+      </div>
+
+      <div class="card">
+        <h3 class="block-title">투자 성향별 비교</h3>
+        <p class="block-q">같은 목표라도 성향에 따라 필요한 월 저축액이 달라집니다.</p>
+        <div class="chart-box" id="goalScenarioChart"></div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>성향</th><th class="num">기대수익률</th><th class="num">필요 월 저축</th><th class="num">예상 최종자산</th></tr></thead>
+          <tbody id="goalScenarioTable"></tbody>
+        </table></div>
       </div>
     </div>
   </section>
