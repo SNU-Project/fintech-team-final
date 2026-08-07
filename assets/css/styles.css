@@ -135,19 +135,36 @@ section { scroll-margin-top: 5rem; }
   background: var(--brand); color: #fff; font-size: .95rem; font-weight: 800;
 }
 .brand small { display: block; font-weight: 500; font-size: .68rem; color: var(--text-muted); letter-spacing: 0; }
-.topbar-spacer { flex: 1; }
+@media (max-width: 860px) { .brand small { display: none; } }
 
 .theme-toggle {
+  /* 탭이 숨겨진 첫 화면에서도 오른쪽 끝에 붙어 있도록 — 탭이 보이면
+     탭의 flex:1이 이미 남는 공간을 다 차지해서 이 margin은 그냥 0이 된다. */
+  margin-left: auto;
+  display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
   border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary);
-  border-radius: 999px; padding: .38rem .8rem; font-size: .8rem; cursor: pointer; font-family: inherit;
+  border-radius: 999px; cursor: pointer; font-family: inherit;
 }
 .theme-toggle:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.theme-icon { width: 18px; height: 18px; grid-area: 1 / 1; }
+/* 라이트 모드에서는 달(누르면 어두워짐), 다크 모드에서는 해(누르면
+   밝아짐) 아이콘을 보여준다 — 색상 변수와 같은 다크모드 판별 규칙이다. */
+.theme-icon-moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-icon-sun { display: none; }
+  :root:not([data-theme="light"]) .theme-icon-moon { display: block; }
+}
+:root[data-theme="dark"] .theme-icon-sun { display: none; }
+:root[data-theme="dark"] .theme-icon-moon { display: block; }
 
 /* ---------- 실시간 지표 스트립 ---------- */
 .ticker {
   display: flex; gap: .5rem; overflow-x: auto; padding: .55rem 0; scrollbar-width: none;
 }
 .ticker::-webkit-scrollbar { display: none; }
+/* display:flex는 [hidden]의 기본 display:none과 명시도가 같아 나중에
+   선언된 이 규칙이 이겨버린다. 설문 중엔 티커 자체를 숨겨야 하므로 명시한다. */
+.ticker[hidden] { display: none; }
 .tick {
   flex: 0 0 auto; display: flex; align-items: baseline; gap: .45rem;
   background: var(--surface-2); border: 1px solid var(--border);
@@ -173,34 +190,164 @@ section { scroll-margin-top: 5rem; }
 }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 
-/* ---------- 히어로 ----------
-   의도적으로 작게 뒀다. 시각화 결과물을 평가하는 페이지에서 첫 화면이
-   텍스트로만 채워지면 안 된다. 제목 한 줄만 남기고 나머지 세로 공간은
-   전부 데이터에 넘긴다. */
-.hero {
-  padding: 1.15rem 0 .9rem; display: flex; align-items: baseline;
-  gap: .85rem; flex-wrap: wrap;
+/* ---------- 탭 (로고 옆, 상단바에 고정) ----------
+   더 이상 패널을 숨기고 보여주는 진짜 탭이 아니라, 아래로 쭉 이어지는
+   리포트 안의 한 지점으로 스크롤만 시켜주는 앵커 링크다. 그래서
+   role="tab" 대신 평범한 nav 링크로 만들고, 현재 보고 있는 섹션은
+   aria-current로 표시한다 (JS의 IntersectionObserver가 붙였다 뗀다). */
+.tabs {
+  display: flex; gap: .2rem; flex: 1; min-width: 0;
+  overflow-x: auto; scrollbar-width: none;
 }
-.hero h1 {
-  font-size: clamp(1.15rem, 2.6vw, 1.6rem); line-height: 1.25; letter-spacing: -.025em;
-  margin: 0; font-weight: 800;
-}
-.hero h1 em { font-style: normal; color: var(--brand); }
-.hero p.lede { color: var(--text-muted); font-size: .82rem; margin: 0; }
-@media (max-width: 720px) { .hero p.lede { display: none; } }
-
-/* ---------- 탭 ---------- */
-.tabs { display: flex; gap: .3rem; border-bottom: 1px solid var(--border); margin: .5rem 0 0; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
+/* display:flex는 [hidden]의 기본 display:none과 명시도가 같아 나중에
+   선언된 이 규칙이 이겨버린다. 온보딩 중엔 탭 자체를 숨겨야 하므로 명시한다. */
+.tabs[hidden] { display: none; }
 .tab {
-  appearance: none; border: 0; background: none; font-family: inherit; cursor: pointer;
-  padding: .6rem 1.05rem; font-size: .92rem; font-weight: 600; color: var(--text-muted);
-  border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+  display: inline-block; text-decoration: none; appearance: none; border: 0;
+  background: none; font-family: inherit; cursor: pointer;
+  padding: .5rem .85rem; font-size: .86rem; font-weight: 600; color: var(--text-muted);
+  border-bottom: 2px solid transparent; white-space: nowrap;
 }
 .tab:hover { color: var(--text-secondary); }
-.tab[aria-selected="true"] { color: var(--brand); border-bottom-color: var(--brand); }
-.panel { padding: .9rem 0 0; }
+.tab[aria-current="true"] { color: var(--brand); border-bottom-color: var(--brand); }
+
+.panel { padding: 1.1rem 0 0; }
 .panel[hidden] { display: none; }
+/* 리포트 섹션 사이 구분선 — 첫 섹션(홈)은 그대로 두고, 그다음부터는
+   챕터가 바뀐다는 걸 보여주는 선을 준다. 예전엔 위아래 3rem씩 비워서
+   포트폴리오를 내려볼 때 빈 공간이 너무 크다는 피드백이 있어 줄였다. */
+.panel + .panel { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+.report-heading {
+  font-size: clamp(1.3rem, 2.8vw, 1.7rem); font-weight: 800; letter-spacing: -.02em;
+  margin: 0 0 .9rem; color: var(--text-primary);
+}
+/* 각 리포트 섹션 진입부에 짧게 "이제 이걸 볼게요"를 걸어, 요약 화면의
+   풀이가 아래로 계속 이어지는 느낌을 준다. */
+.report-heading + .report-intro {
+  margin: -.5rem 0 1.1rem; font-size: .88rem; color: var(--text-muted);
+}
+
+/* ---------- 홈 · 온보딩 → 로딩 → 요약 ---------- */
+/* 뷰포트를 꽉 채운다 — 그 아래 리포트 내용이 로드 시점에 살짝 보이면
+   "홈"이 아니라 그냥 리포트 맨 위 여백처럼 느껴진다. 상단바 + 실시간
+   지표 스트립 높이(대략 9rem)만큼만 빼서 스크롤 신호 없이 시작한다. */
+.home-hero {
+  min-height: calc(100vh - 9rem);
+  min-height: calc(100dvh - 9rem);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 1.1rem; padding: 2rem 1rem;
+}
+/* display:flex는 [hidden]의 기본 display:none과 명시도가 같아 나중에
+   선언된 이 규칙이 이겨버린다. 그래서 hidden이어도 안 숨겨지는 걸 막는다. */
+.home-hero[hidden], .onboarding-step[hidden] { display: none; }
+
+/* 요약 화면은 온보딩 표지가 아니라 포트폴리오의 시작이다 — 화면을
+   꽉 채우면 리포트를 보기까지 스크롤이 한 번 더 필요해져서 빈 공간처럼
+   느껴진다. 짧게 두고 바로 아래 리포트로 이어지게 한다. */
+#homeSummary { min-height: auto; padding: 2.4rem 1rem 1.6rem; gap: .9rem; }
+
+.home-hero h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.16; letter-spacing: -.03em;
+  margin: 0; font-weight: 800; color: var(--text-primary);
+}
+.home-hero h1 em { font-style: normal; color: var(--brand); }
+.home-hero .lede { font-size: clamp(.95rem, 2vw, 1.1rem); color: var(--text-secondary); margin: 0; max-width: 32rem; }
+.home-hero .kicker { margin: 0; }
+
+/* 사주풀이처럼 숫자 하나만 던지지 않고 물가·연봉·목표를 엮어 풀어주는
+   문단 — 타이핑으로 나타난다. min-height는 타이핑 도중 버튼들이
+   아래로 밀렸다 올라왔다 하지 않도록 미리 자리를 잡아 둔다. */
+#homeSummarySub {
+  /* 문장마다 \n으로 줄을 나눠 보내니, 그 줄바꿈을 그대로 살려서
+     한 문장 = 한 줄로 보이게 한다 (기본값인 normal은 \n을 공백 취급해
+     문단이 다시 한 덩어리로 붙어 버린다). */
+  text-align: center; line-height: 1.75; min-height: 4.6em; white-space: pre-line;
+}
+.typing-cursor::after {
+  content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 2px;
+  background: var(--brand); vertical-align: -.15em; animation: caretBlink 1s step-end infinite;
+}
+@keyframes caretBlink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .typing-cursor::after { animation: none; } }
+
+.home-start-btn {
+  appearance: none; border: 0; cursor: pointer; margin-top: .5rem;
+  background: var(--brand); color: #fff; font-family: inherit; font-weight: 700;
+  font-size: 1rem; padding: .85rem 2.1rem; border-radius: var(--radius-sm);
+  transition: filter .15s ease, transform .05s ease;
+}
+.home-start-btn:hover { filter: brightness(1.08); }
+.home-start-btn:active { transform: translateY(1px); }
+.home-secondary-btn {
+  appearance: none; cursor: pointer; margin-top: -.3rem;
+  border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text-secondary);
+  font-family: inherit; font-weight: 600; font-size: .88rem; padding: .6rem 1.4rem; border-radius: var(--radius-sm);
+}
+.home-secondary-btn:hover { border-color: var(--brand); color: var(--brand); }
+
+/* ---------- 공유 카드 ---------- */
+.share-preview {
+  margin-top: 1rem; border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.share-preview img { display: block; width: 100%; height: auto; background: var(--surface-sunk); }
+.share-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
+.share-actions .apply-btn { margin-top: 0; flex: 1; text-align: center; text-decoration: none; }
+.share-actions .ai-explain-btn { margin-top: 0; }
+
+.onboarding-back {
+  appearance: none; border: 0; background: none; cursor: pointer; font: inherit;
+  color: var(--text-muted); font-size: .83rem; padding: .5rem;
+}
+.onboarding-back:hover { color: var(--text-secondary); }
+.home-summary-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .3rem 1rem; }
+.onboarding-skip {
+  appearance: none; border: 1px solid var(--border-strong); background: var(--surface-2); cursor: pointer;
+  font: inherit; color: var(--text-secondary); font-size: .8rem; font-weight: 600;
+  padding: .55rem 1rem; border-radius: var(--radius-sm);
+}
+.onboarding-skip:hover { border-color: var(--brand); color: var(--brand); }
+
+/* 문항 하나가 화면 하나 — 답이 바뀔 때마다 살짝 밀려 들어오게 해서
+   "설문" 대신 "경험"처럼 느껴지게 한다. */
+@keyframes stepIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.onboarding-step {
+  display: flex; flex-direction: column; align-items: center; gap: 1.1rem;
+  animation: stepIn .35s ease;
+}
+.onboarding-step h2 {
+  font-size: clamp(1.4rem, 3.4vw, 2rem); line-height: 1.25; letter-spacing: -.02em;
+  margin: 0; font-weight: 750; color: var(--text-primary);
+}
+/* 카드로 감싸는 이유: input-wrap/persona-grid/seg는 채움색이 --surface-1인데
+   페이지 배경(--page-plane)과 같은 색이라, 카드(--surface-2) 없이 페이지에
+   바로 놓으면 입력 필드 경계가 안 보인다. */
+.onboarding-card { width: min(100%, 440px); text-align: left; }
+.onboarding-card .field-note { text-align: center; }
+.onboarding-nav { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+
+.onboarding-progress-wrap {
+  display: flex; align-items: center; gap: .6rem; width: min(90%, 300px);
+  position: absolute; top: 1.2rem; left: 50%; transform: translateX(-50%);
+}
+.onboarding-progressbar { flex: 1; height: 4px; border-radius: 999px; background: var(--surface-sunk); overflow: hidden; }
+.onboarding-progressbar-fill { height: 100%; background: var(--brand); border-radius: 999px; transition: width .25s ease; }
+.onboarding-progress-text { font-size: .72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#homeOnboarding { position: relative; }
+
+.loading-ring {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 3px solid var(--surface-sunk); border-top-color: var(--brand);
+  animation: loadingSpin .8s linear infinite;
+}
+@keyframes loadingSpin { to { transform: rotate(360deg); } }
+.loading-msg { color: var(--text-secondary); font-size: .95rem; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-step { animation: none; }
+  .loading-ring { animation: none; }
+}
 
 /* ---------- 카드 / 그리드 ---------- */
 .card {
@@ -237,10 +384,6 @@ section { scroll-margin-top: 5rem; }
 .more-fields[open] summary { margin-bottom: .4rem; }
 
 .section-head { display: flex; gap: .7rem; align-items: flex-start; margin-bottom: 1rem; }
-.step-badge {
-  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; background: var(--brand-soft);
-  color: var(--brand); font-size: .74rem; font-weight: 800; display: grid; place-items: center;
-}
 .section-head h2 { margin: 0; font-size: 1.02rem; letter-spacing: -.01em; }
 .section-head p { margin: .15rem 0 0; font-size: .8rem; color: var(--text-muted); }
 
@@ -267,8 +410,47 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
 
 .range-label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: .9rem; }
 .range-label .val { color: var(--brand); font-variant-numeric: tabular-nums; }
-.range-label input[type="range"] { width: 100%; margin: .45rem 0 .1rem; accent-color: var(--brand); }
+.range-label input[type="range"] { width: 100%; margin: .45rem 0 .1rem; }
 .range-scale { display: flex; justify-content: space-between; font-size: .68rem; color: var(--text-muted); }
+
+/* 슬라이더 핸들 — 기본 브라우저 핸들(대략 12~16px)은 모바일 터치로는
+   정밀 조작이 어렵다는 피드백이 있어, 24px 원으로 키우고 트랙도 두껍게 했다.
+   accent-color 대신 트랙·핸들을 직접 그려야 크기를 제어할 수 있다. */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 28px; background: transparent; cursor: pointer;
+  margin: 0; padding: 0;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px; border-radius: 999px; background: var(--gridline);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 24px; height: 24px; margin-top: -9.5px; border-radius: 50%;
+  background: var(--slider-color, var(--brand));
+  border: 3px solid var(--surface-2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+input[type="range"]::-moz-range-track {
+  height: 5px; border-radius: 999px; background: var(--gridline);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--slider-color, var(--brand));
+  border: 3px solid var(--surface-2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--brand); outline-offset: 2px; }
+input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* 다른 탭에서 적용한 값이 이 필드로 넘어왔을 때 잠깐 반짝여서
+   "진짜 바뀌었다"는 걸 눈으로 바로 확인시켜준다. */
+@keyframes fieldFlash {
+  0%   { box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 35%, transparent); border-radius: var(--radius-sm); }
+  100% { box-shadow: 0 0 0 4px transparent; border-radius: var(--radius-sm); }
+}
+.field-flash { animation: fieldFlash 1.8s ease-out; }
+@media (prefers-reduced-motion: reduce) { .field-flash { animation: none; } }
 
 .seg { display: flex; gap: .25rem; background: var(--surface-sunk); border-radius: var(--radius-sm); padding: .22rem; }
 .seg button {
@@ -330,9 +512,15 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
   display: grid;
   gap: .75rem;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  align-items: stretch;
+  /* 기본은 stretch였는데, 같은 행에 놓인 카드끼리 내용 길이가 다르면
+     짧은 쪽 카드 안쪽에 그만큼 빈 칸이 남았다(공백 민원이 반복된 지점).
+     이제 기본은 "내용만큼만"이고, 정말로 늘어나야 하는 두 카드
+     (.bento-contrib/.bento-cum — 안에 flex:1 차트가 있어 늘어난 만큼을
+     차트가 그대로 채워준다)만 아래에서 다시 stretch로 되돌린다. */
+  align-items: start;
 }
 .bento > * { min-width: 0; margin-top: 0 !important; }
+.bento-contrib, .bento-cum { align-self: stretch; }
 
 /* 입력 패널을 왼쪽에 세로로 세우고, 오른쪽을 결과로 채운다.
    세로로 쌓는 것보다 가로 공간을 훨씬 잘 쓴다.
@@ -342,7 +530,12 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
      │ 슬라 │  기여도 분해    │
      │ 이더  ├───────┬───────┤
      │      │ 액션   │ 10년   │
-     └──────┴───────┴───────┘ */
+     └──────┴───────┴───────┘
+   입력 패널은 오른쪽 결과 카드들(차트·표 포함)보다 항상 짧다. 예전엔
+   sticky로 붙여 봤지만, 짧은 입력 카드가 결과보다 먼저 스크롤을 벗어나며
+   다음 섹션 제목과 스쳐 겹쳐 보이는 문제가 있었다. 지금은(기본이
+   align-items:start라) 제 높이만큼만 차지하고 그리드 안 제자리에
+   고정돼 있다 — 움직이지 않으니 겹칠 일도 없다. */
 .bento-input   { grid-column: 1 / span 4;  grid-row: 1 / span 3; }
 .bento-hero    { grid-column: 5 / span 8;  grid-row: 1; }
 .bento-contrib { grid-column: 5 / span 8;  grid-row: 2; }
@@ -363,23 +556,38 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
 .bento-half-b { grid-column: 9 / span 4;  grid-row: 2; }
 .bento-full   { grid-column: 5 / span 8; }
 
+/* 목표 자산 탭은 bento-full이 없어서 오른쪽에 실제로 2행(메인 + 반반)
+   뿐인데, 공용 규칙(입력 패널 span 3)을 그대로 쓰면 존재하지도 않는
+   3번째 행만큼 입력 카드 옆에 빈 칸이 남는다. 실제 행 수에 맞춘다. */
+#panel-goal .bento-input { grid-row: 1 / span 2; }
+/* 자산 타임머신 탭은 오른쪽에 "자산별 성장 경로" 카드 하나(1행)만
+   입력 패널과 나란하다. 나머지(통계·표)는 전체 폭 카드라 그 아래
+   따로 놓인다. 입력 카드는 이 한 행에만 걸치고, 높이도 맞춘다 —
+   차이가 크지 않아(수십 px) 늘려도 안쪽에 빈 티가 나지 않는다. */
+#panel-time .bento-input { grid-row: 1; align-self: stretch; }
+
 @media (max-width: 1240px) {
   .bento-main   { grid-column: 6 / span 7; grid-row: 1; }
   .bento-half-a { grid-column: 6 / span 7; grid-row: 2; }
   .bento-half-b { grid-column: 6 / span 7; grid-row: 3; }
   .bento-full   { grid-column: 1 / span 12; }
+  /* 이 폭에서는 half-a/half-b가 세로로 쌓여 실제로 3행이 된다. 자산
+     타임머신은 이 폭에서도 구조가 안 바뀌니(오른쪽은 여전히 메인
+     카드 하나) 그대로 1행이다. */
+  #panel-goal .bento-input { grid-row: 1 / span 3; }
 }
 
 @media (max-width: 780px) {
   .bento > * { grid-column: span 12 !important; grid-row: auto !important; }
 }
 
-/* 카드 안에서 차트가 남는 높이를 채우도록 */
-.bento-contrib, .bento-cum, .bento-action { display: flex; flex-direction: column; }
+/* 카드 안에서 차트가 남는 높이를 채우도록 — 이 두 카드만 그리드
+   기본값을 stretch로 되돌려 받으므로(위 .bento-contrib, .bento-cum
+   규칙 참고) 늘어난 만큼을 flex:1 차트가 그대로 흡수한다. */
+.bento-contrib, .bento-cum { display: flex; flex-direction: column; }
 .bento-contrib .chart-box, .bento-cum .chart-box { flex: 1; display: flex; align-items: center; }
 .bento .chart-box svg { width: 100%; }
-.bento-input { overflow-y: auto; max-height: calc(100vh - 7rem); }
-.bento-action .verdict, .bento-cum .verdict { margin-top: auto; }
+.bento-cum .verdict { margin-top: auto; }
 .bento-action .apply-btn { margin-top: .8rem; }
 
 /* 베이토 안에서는 카드 여백을 조금 줄여 밀도를 높인다 */
@@ -459,7 +667,15 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
 .spend-details summary::marker { color: var(--brand); }
 .spend-details[open] summary { margin-bottom: .65rem; }
 .spend-details > .field-note { margin: 0 0 .75rem; line-height: 1.5; }
-.spend-row { display: grid; grid-template-columns: minmax(0, 1fr) 104px; gap: .5rem; align-items: center; margin-bottom: .42rem; }
+/* 12개 품목을 한 번에 다 펼치면 카드가 아주 길어져서, 그 옆(또는 위·
+   아래)의 카드들이 그리드 stretch 때문에 억지로 늘어나며 빈 공간이
+   생긴다. 목록 자체를 적당한 높이에서 스크롤되게 잘라 카드 높이가
+   무한정 커지는 걸 막는다. */
+#spendFields { max-height: 280px; overflow-y: auto; padding-right: .3rem; }
+.spend-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 130px;
+  gap: .5rem; align-items: center; margin-bottom: .42rem;
+}
 .spend-row > label { font-size: .8rem; color: var(--text-secondary); min-width: 0; }
 .spend-row > label small { display: block; font-size: .68rem; color: var(--text-muted); }
 .spend-row .rate-chip {
@@ -494,11 +710,31 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
 }
 .ai-explain-btn:hover { filter: brightness(.98); transform: translateY(-1px); }
 .ai-explain-btn:disabled { cursor: not-allowed; opacity: .45; transform: none; }
+.ai-retry-btn {
+  display: inline-flex; align-items: center; margin-top: .5rem; appearance: none; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: 999px; padding: .32rem .75rem;
+  background: var(--surface-2); color: var(--text-secondary); font: inherit; font-size: .74rem; font-weight: 600;
+}
+.ai-retry-btn:hover { color: var(--brand); border-color: var(--brand); }
 .next-step-card {
   border-color: color-mix(in srgb, var(--brand) 28%, var(--border));
   background: linear-gradient(135deg, var(--surface-2), var(--brand-soft));
 }
 .next-step-card .kicker { margin-bottom: .45rem; color: var(--brand); font-weight: 700; }
+
+/* ---------- 마지막 결론 카드 ---------- */
+.final-card {
+  text-align: center; padding: 2.4rem 1.6rem;
+  border-color: color-mix(in srgb, var(--brand) 28%, var(--border));
+  background: linear-gradient(135deg, var(--surface-2), var(--brand-soft));
+}
+.final-card .kicker { color: var(--brand); font-weight: 700; }
+.final-card .report-heading { margin: 0 0 1.2rem; }
+.final-body {
+  max-width: 34rem; margin: 0 auto; text-align: center;
+  font-size: 1rem; line-height: 1.8; color: var(--text-secondary); white-space: pre-line;
+  min-height: 6em;
+}
 
 /* ---------- 차트 ---------- */
 .chart-box { margin-top: .3rem; overflow-x: auto; }
@@ -582,6 +818,27 @@ footer a { color: var(--text-secondary); }
 
 /* ---------- 로딩 / 에러 ---------- */
 .skeleton { color: var(--text-muted); font-size: .85rem; padding: 1.4rem 0; text-align: center; }
+
+/* 데이터를 불러오는 동안 "—"나 안내 문구만 떠 있으면 사이트가 덜 완성된
+   것처럼 보인다는 피드백이 있어, 값이 들어올 자리에 반짝이는 자리표시자를
+   넣는다. 실제 값이 오면 JS가 이 클래스를 지운다. */
+@keyframes skeletonShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton-bar {
+  display: inline-block; color: transparent !important; pointer-events: none;
+  background: linear-gradient(90deg,
+    var(--surface-sunk) 35%, var(--border-strong) 50%, var(--surface-sunk) 65%);
+  background-size: 250% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+span.vs-v.skeleton-bar { width: 4.4em; height: .8em; }
+.tick.skeleton-tick { border-color: transparent; }
+.tick.skeleton-tick .skeleton-bar { height: .9em; border-radius: 999px; }
+@media (prefers-reduced-motion: reduce) { .skeleton-bar { animation: none; } }
+
 .load-error {
   border: 1px solid color-mix(in srgb, var(--critical) 35%, transparent);
   background: color-mix(in srgb, var(--critical) 8%, transparent);
