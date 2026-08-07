@@ -9,6 +9,15 @@
   const { barChart, hBarChart, lineChart } = window.Charts;
   const E = window.Engine;
 
+  // 품목명이 데이터에서 오기 때문에 조사를 고정할 수 없다.
+  // 마지막 글자의 받침 유무로 골라 준다. ("식료품…음료이" 같은 문장 방지)
+  function josa(word, withBatchim, withoutBatchim) {
+    const last = (word || "").trim().slice(-1);
+    const code = last.charCodeAt(0);
+    if (Number.isNaN(code) || code < 0xac00 || code > 0xd7a3) return withoutBatchim;
+    return (code - 0xac00) % 28 ? withBatchim : withoutBatchim;
+  }
+
   const man = (n) => Math.round(n).toLocaleString("ko-KR");
   const pct = (n, d = 1) => `${(n * 100).toFixed(d)}%`;
   const signPct = (n, d = 1) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(d)}%`;
@@ -379,7 +388,8 @@
         note.className = "verdict warn";
         note.innerHTML = `지금은 공식 물가보다 낮은데, 10년 누적으로는 오히려 높습니다.
           ${worst ? `최근 ${worst.latest.yoy >= 0 ? "+" : ""}${worst.latest.yoy.toFixed(1)}%로 잠잠한
-          <b>${worst.name}</b>이 10년 동안은 <b>+${worst.cum10y.toFixed(0)}%</b> 올랐기 때문입니다.` : ""}
+          <b>${worst.name}</b>${josa(worst.name, "이", "가")} 10년 동안은
+          <b>+${worst.cum10y.toFixed(0)}%</b> 올랐기 때문입니다.` : ""}
           최근 한 달의 물가만 보면 놓치는 부분입니다.`;
       } else if (nowDiff > 0.05 && gap < -0.005) {
         note.hidden = false;
