@@ -1,0 +1,9 @@
+# 수집 원본 — transform.py의 중간 산출물이라 커밋하지 않는다.
+# (Actions는 fetch → transform 순으로 돌므로 항상 새로 만들어진다)
+data/_raw.json
+
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+venv/

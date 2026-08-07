@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>샐러리갭 — 연봉은 올랐는데 왜 더 빠듯할까?</title>
+<meta name="description" content="물가를 반영한 내 연봉의 실질 가치를 진단하고, 실제 10년 시장 데이터로 부족분을 메울 자산배분을 설계합니다.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%2324745a'/><text x='16' y='23' font-size='19' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'>₩</text></svg>">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark">₩</span>
+      <span>샐러리갭<small>SNU 핀테크 13기 · 웹 개발 및 시각화</small></span>
+    </a>
+    <span class="topbar-spacer"></span>
+    <button class="theme-toggle" id="themeToggle" type="button">테마</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="ticker" id="ticker" aria-label="실시간 시장 지표">
+    <span class="skeleton" style="padding:.3rem 0">지표 불러오는 중…</span>
+  </div>
+</div>
+
+<main class="wrap" id="top">
+
+  <section class="hero">
+    <span class="eyebrow">Real Income Planner · 2026</span>
+    <h1>연봉은 올랐는데,<br><em>왜 더 빠듯할까요?</em></h1>
+    <p class="lede">
+      명목 연봉이 올라도 물가가 더 오르면 실질 소득은 줄어듭니다.
+      내 연봉의 진짜 가치를 진단하고, <strong>실제 10년 시장 데이터</strong>로 부족분을 메울 방법을 찾아보세요.
+    </p>
+    <div class="hero-steps" aria-label="이용 순서">
+      <span><b>01</b>소득 입력</span><i></i>
+      <span><b>02</b>간극 확인</span><i></i>
+      <span><b>03</b>계획 완성</span>
+    </div>
+  </section>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-gap"  aria-controls="panel-gap"  aria-selected="true">실질임금 진단</button>
+    <button class="tab" role="tab" id="tab-goal" aria-controls="panel-goal" aria-selected="false">목표 자산 모으기</button>
+    <button class="tab" role="tab" id="tab-time" aria-controls="panel-time" aria-selected="false">자산 타임머신</button>
+  </div>
+
+  <!-- ══════════════ 탭 1 · 실질임금 진단 ══════════════ -->
+  <section class="panel" id="panel-gap" role="tabpanel" aria-labelledby="tab-gap">
+    <div class="workspace">
+
+      <aside>
+        <div class="card">
+          <div class="section-head">
+            <span class="step-badge">01</span>
+            <div><h2>나의 소득 조건</h2><p>금액은 만 원 단위로 입력해 주세요.</p></div>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">현재 연봉
+              <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600"><span>만원</span></span>
+            </label>
+            <label class="field">내년 예상 연봉
+              <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750"><span>만원</span></span>
+            </label>
+          </div>
+          <p class="err-text" id="salaryErr" hidden></p>
+
+          <label class="range-label">
+            예상 물가상승률 <span class="val" id="inflVal">2.8%</span>
+            <input type="range" id="inflation" min="0" max="8" step="0.1" value="2.8">
+            <span class="range-scale"><span>0%</span><span>8%</span></span>
+          </label>
+          <p class="field-note" id="inflSource">—</p>
+
+          <label class="range-label" style="margin-top:1rem">
+            월 투자 가능액 <span class="val" id="budgetVal">30만원</span>
+            <input type="range" id="budget" min="0" max="200" step="5" value="30">
+            <span class="range-scale"><span>0</span><span>200만원</span></span>
+          </label>
+
+          <div class="field" style="margin-bottom:.4rem">투자 성향
+            <div class="seg" id="riskSeg" role="group" style="margin-top:.35rem">
+              <button type="button" data-risk="stable" aria-pressed="false">안정형</button>
+              <button type="button" data-risk="balanced" aria-pressed="true">균형형</button>
+              <button type="button" data-risk="aggressive" aria-pressed="false">적극형</button>
+            </div>
+          </div>
+          <p class="field-note" id="riskNote">—</p>
+        </div>
+      </aside>
+
+      <div>
+        <div class="card">
+          <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
+          <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
+          <div class="chart-box" id="salaryChart"></div>
+          <div class="stat-grid" id="gapStats" style="margin-top:1rem"></div>
+          <p class="verdict" id="gapVerdict">—</p>
+        </div>
+
+        <div class="card">
+          <h3 class="block-title">부족분을 메울 자산배분</h3>
+          <p class="block-q">기대수익률은 아래 자산들의 <strong>실제 10년 실현 수익률</strong>로 계산했습니다.</p>
+          <div class="donut-row">
+            <div class="donut" id="donut"><div class="donut-center" id="donutCenter"></div></div>
+            <div style="flex:1;min-width:230px">
+              <div class="stat-grid" id="planStats"></div>
+            </div>
+          </div>
+          <div class="legend" id="planLegend"></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>자산</th><th>비중</th><th class="num">10년 CAGR</th><th class="num">연 변동성</th><th class="num">최대 낙폭</th></tr></thead>
+            <tbody id="planTable"></tbody>
+          </table></div>
+          <span class="src-note" id="planSrc">—</span>
+        </div>
+
+        <div class="card">
+          <h3 class="block-title">연봉 협상 가이드</h3>
+          <p class="block-q">물가를 방어하려면 최소 몇 %를 올려야 하는지 계산합니다.</p>
+          <div class="stat-grid" id="negoStats"></div>
+          <p class="verdict" id="negoVerdict">—</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 탭 2 · 목표 자산 ══════════════ -->
+  <section class="panel" id="panel-goal" role="tabpanel" aria-labelledby="tab-goal" hidden>
+    <div class="workspace">
+      <aside>
+        <div class="card">
+          <div class="section-head">
+            <span class="step-badge">01</span>
+            <div><h2>목표 설정</h2><p>얼마를, 언제까지 모으고 싶나요?</p></div>
+          </div>
+          <div class="field-grid">
+            <label class="field">목표 금액
+              <span class="input-wrap"><input type="number" id="goalAmount" min="0" step="500" value="5000"><span>만원</span></span>
+            </label>
+            <label class="field">목표 기간
+              <span class="input-wrap"><input type="number" id="goalYears" min="1" max="40" step="1" value="3"><span>년</span></span>
+            </label>
+            <label class="field">현재 보유 자산
+              <span class="input-wrap"><input type="number" id="goalCurrent" min="0" step="100" value="800"><span>만원</span></span>
+            </label>
+            <label class="field">월 저축 가능액
+              <span class="input-wrap"><input type="number" id="goalMonthly" min="0" step="10" value="100"><span>만원</span></span>
+            </label>
+          </div>
+          <p class="err-text" id="goalErr" hidden></p>
+
+          <div class="field" style="margin-bottom:.4rem">투자 성향
+            <div class="seg" id="goalRiskSeg" role="group" style="margin-top:.35rem">
+              <button type="button" data-risk="stable" aria-pressed="false">안정형</button>
+              <button type="button" data-risk="balanced" aria-pressed="true">균형형</button>
+              <button type="button" data-risk="aggressive" aria-pressed="false">적극형</button>
+            </div>
+          </div>
+          <p class="field-note" id="goalRiskNote">—</p>
+        </div>
+      </aside>
+
+      <div>
+        <div class="card">
+          <h3 class="block-title">목표까지 얼마가 필요한가</h3>
+          <p class="block-q">현재 저축액으로 목표에 닿는지, 부족하면 얼마나 더 필요한지 보여줍니다.</p>
+          <div class="stat-grid" id="goalStats"></div>
+          <p class="verdict" id="goalVerdict">—</p>
+        </div>
+
+        <div class="card">
+          <h3 class="block-title">시간에 따른 자산 성장</h3>
+          <p class="block-q">곡선이 점선(목표)에 언제 닿는지가 핵심입니다.</p>
+          <div class="chart-box" id="growthChart"></div>
+        </div>
+
+        <div class="card">
+          <h3 class="block-title">투자 성향별 비교</h3>
+          <p class="block-q">같은 목표라도 성향에 따라 필요한 월 저축액이 달라집니다.</p>
+          <div class="chart-box" id="goalScenarioChart"></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>성향</th><th class="num">기대수익률</th><th class="num">필요 월 저축</th><th class="num">예상 최종자산</th></tr></thead>
+            <tbody id="goalScenarioTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 탭 3 · 자산 타임머신 ══════════════ -->
+  <section class="panel" id="panel-time" role="tabpanel" aria-labelledby="tab-time" hidden>
+    <div class="card">
+      <h3 class="block-title">그때 샀다면, 지금 얼마가 됐을까?</h3>
+      <p class="block-q">실제 월말 종가 10년치로 계산합니다. 해외 자산은 원/달러 환율로 환산한 원화 기준입니다.</p>
+
+      <div class="field-grid" style="max-width:520px">
+        <label class="field">투자 시작 시점
+          <span class="input-wrap"><input type="month" id="startMonth"><span></span></span>
+        </label>
+        <label class="field">투자 금액
+          <span class="input-wrap"><input type="number" id="investAmount" min="0" step="100" value="1000"><span>만원</span></span>
+        </label>
+      </div>
+
+      <div class="asset-picks" id="assetPicks"></div>
+      <div class="stat-grid" id="timeStats"></div>
+      <p class="verdict" id="timeVerdict">—</p>
+    </div>
+
+    <div class="card">
+      <h3 class="block-title">자산별 성장 경로</h3>
+      <p class="block-q">회색 점선은 같은 기간 소비자물가입니다. 이 선 아래면 물가를 못 이긴 것입니다.</p>
+      <div class="chart-box" id="timeChart"></div>
+      <div class="legend" id="timeLegend"></div>
+      <span class="src-note" id="timeSrc">—</span>
+    </div>
+
+    <div class="card">
+      <h3 class="block-title">수익률과 위험을 함께 보기</h3>
+      <p class="block-q">수익률만 보면 안 됩니다. 최대 낙폭은 그 수익을 얻기까지 견뎌야 했던 손실입니다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>자산</th><th class="num">누적 수익률</th><th class="num">연평균(CAGR)</th><th class="num">연 변동성</th><th class="num">최대 낙폭</th></tr></thead>
+        <tbody id="timeTable"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 계산 근거 ══════════════ -->
+  <details class="disclosure" id="basis">
+    <summary>계산에 들어간 근거와 데이터 출처</summary>
+    <div class="body">
+      <h4>데이터 출처</h4>
+      <ul id="srcList"><li>불러오는 중…</li></ul>
+
+      <h4>정제 과정에서 제외한 값</h4>
+      <ul id="cleanList"><li>불러오는 중…</li></ul>
+
+      <h4>가정</h4>
+      <ul id="assumeList"><li>불러오는 중…</li></ul>
+
+      <h4>한계</h4>
+      <ul>
+        <li>이 페이지의 모든 값은 입력한 가정에 따른 <strong>추정치</strong>입니다.</li>
+        <li>과거 수익률은 미래 수익을 보장하지 않습니다. 특히 10년은 특정 국면에 치우칠 수 있습니다.</li>
+        <li>세금·거래비용·배당 재투자·환전 수수료는 반영하지 않았습니다.</li>
+        <li>투자 손실 가능성이 있으며, 이 결과는 <strong>투자 권유나 재무·법률 자문이 아닙니다</strong>. 중요한 결정 전에는 자격을 갖춘 전문가와 상의하세요.</li>
+      </ul>
+    </div>
+  </details>
+
+  <footer>
+    <p><strong>샐러리갭 (SalaryGap)</strong> — 서울대학교 빅데이터 핀테크 전문가과정 13기 · 웹 개발 및 시각화 팀 프로젝트</p>
+    <p id="buildInfo">—</p>
+  </footer>
+</main>
+
+<div id="tooltip" hidden></div>
+
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/live.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
