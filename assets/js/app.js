@@ -506,6 +506,11 @@
 
     const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
 
+    // 투자로 만드는 연 수익. 슬라이더 바로 아래 KPI와 결론 문장에 함께 쓴다.
+    // (이 값이 화면 위쪽에 없으면 슬라이더를 움직여도 반응이 없어 보인다)
+    const plan = E.planOf(state.market, state.risk);
+    const annualGain = plan ? budget * 12 * plan.expected_return : 0;
+
     // 막대 3개
     barChart($("#salaryChart"), [
       { label: "현재 연봉", value: cur, color: "var(--baseline)" },
@@ -531,26 +536,38 @@
       <div class="stat"><span class="k">내년 연봉의 체감 가치</span>
         <span class="v">${man(d.realValue)}만원</span>
         <span class="s">올해 물가 기준</span></div>
-      ${workdayStat(next, d)}`;
+      ${workdayStat(next, d)}
+      <div class="stat ${annualGain > 0 ? "is-good" : ""}"><span class="k">투자로 만드는 연 수익</span>
+        <span class="v">${man(annualGain)}만원</span>
+        <span class="s">월 ${man(budget)}만원 · ${plan ? plan.label : ""} ${plan ? pct(plan.expected_return) : ""}</span></div>`;
 
-    // 조작하면 같이 바뀌는 결론
+    // 조작하면 같이 바뀌는 결론.
+    // 부족분은 "매년 되풀이되는 소득 손실"이므로, 이를 메우는 것도 매년 들어오는
+    // 투자 '수익'이어야 한다. 투자 원금(budget×12)과 비교하면 안 된다 —
+    // 원금은 소득에서 저축으로 옮긴 것일 뿐 새로 생긴 돈이 아니다.
     const v = $("#gapVerdict");
     if (d.beatsInflation) {
       v.className = "verdict";
       v.innerHTML = `내년 연봉 <b>${man(next)}만원</b>은 물가 유지선(${man(d.requiredSalary)}만원)을
-        <b>${man(-d.gap)}만원 넘어섭니다.</b> 실질 소득이 늘어나는 구간입니다.`;
+        <b>${man(-d.gap)}만원 넘어섭니다.</b> 실질 소득이 늘어나는 구간입니다.
+        여기에 월 ${man(budget)}만원을 굴리면 연 <b>${man(annualGain)}만원</b>이 더해집니다.`;
     } else {
-      const covered = budget * 12;
-      const rate = d.gap > 0 ? Math.min(100, (covered / d.gap) * 100) : 100;
+      const rate = d.gap > 0 ? Math.min(100, (annualGain / d.gap) * 100) : 100;
       const days = next > 0 ? d.gap / (next / WORKDAYS_PER_YEAR) : 0;
+      const needMonthly = plan && plan.expected_return > 0
+        ? d.gap / plan.expected_return / 12 : null;
       v.className = d.gap > cur * 0.03 ? "verdict bad" : "verdict warn";
       v.innerHTML = `물가를 따라가려면 <b>${man(d.requiredSalary)}만원</b>이 필요한데
         내년 연봉은 ${man(next)}만원입니다. 연 <b>${man(d.gap)}만원</b>(월 ${man(d.monthlyGap)}만원)이 부족합니다.
         <b>작년과 같은 생활을 하려면 ${days.toFixed(1)}일을 더 일해야 하는 셈입니다.</b>
-        지금 설정한 월 ${man(budget)}만원 투자로는 이 부족분의 <b>${rate.toFixed(0)}%</b>를 메울 수 있습니다.`;
+        지금 설정한 월 ${man(budget)}만원 투자로 생기는 연 수익 ${man(annualGain)}만원은
+        이 부족분의 <b>${rate.toFixed(0)}%</b>입니다.` +
+        (needMonthly && rate < 100
+          ? ` 전부 메우려면 월 <b>${man(Math.ceil(needMonthly))}만원</b>을 굴려야 합니다.`
+          : "");
     }
 
-    renderPlan(d, budget);
+    renderPlan(d, budget, plan, annualGain);
     renderTrend(cur, next, d);
     renderNegotiation(cur, d);
   }
@@ -597,8 +614,7 @@
     }
   }
 
-  function renderPlan(d, budget) {
-    const plan = E.planOf(state.market, state.risk);
+  function renderPlan(d, budget, plan, annualGain) {
     if (!plan) return;
 
     $("#riskNote").textContent = plan.desc;
@@ -617,7 +633,6 @@
        <div style="font-size:.68rem;color:var(--text-muted)">연 ${plan.label}</div>`;
 
     const real = plan.expected_return - state.inflation / 100;
-    const annualGain = budget * 12 * plan.expected_return;
     $("#planStats").innerHTML = `
       <div class="stat"><span class="k">기대 수익률</span><span class="v">${pct(plan.expected_return)}</span>
         <span class="s">실제 10년 실현 수익 가중평균</span></div>
