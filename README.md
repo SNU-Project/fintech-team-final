@@ -128,7 +128,32 @@ Yahoo Finance  → CORS 헤더 없음                      ❌ 브라우저에�
 >
 > 요약: ① 데이터를 지어내지 말 것 ② 빌드 도구를 추가하지 말 것 ③ 수치를 하드코딩하지 말 것
 
-## 5. 실행
+## 5. 함께 작업하기
+
+`main`은 보호되어 있습니다. push하면 그 즉시 실서비스가 배포되기 때문에, 브랜치를 만들어 PR로 합칩니다.
+
+```bash
+git checkout main && git pull
+git checkout -b feat/이름-작업내용
+#  ... 작업 ...
+git add -A && git commit -m "무엇을 왜 고쳤는지"
+git push -u origin feat/이름-작업내용
+```
+
+터미널에 뜨는 링크로 PR을 만들면 자동검사가 돌아갑니다. **승인자는 0명**이라 검사만 통과하면 혼자 Merge할 수 있습니다.
+
+PR에서 자동으로 검사하는 것:
+
+| 검사 | 막는 것 |
+|---|---|
+| 가짜 데이터 | `np.random`, `Math.random`, `Math.sin`/`cos` |
+| 빌드 도구 | `package.json`, vite, webpack, tsconfig |
+| 외부 CDN | `<script src="https://...">` |
+| JS 문법 | `node --check` |
+| 데이터 무결성 | 관측치·CAGR·변동성·MDD 범위, 품목 12개 |
+| 하드코딩 수익률 | `RISK_RETURNS = {...}` 패턴 |
+
+## 6. 실행
 
 빌드 도구가 필요 없습니다.
 
@@ -146,7 +171,7 @@ python3 pipeline/fetch_data.py && python3 pipeline/transform.py
 
 ---
 
-## 6. 구조
+## 7. 구조
 
 ```
 ├── CLAUDE.md                   ⚠️ 작업 전 필독 — 절대 규칙·지뢰 목록
@@ -176,7 +201,7 @@ python3 pipeline/fetch_data.py && python3 pipeline/transform.py
 
 ---
 
-## 7. 통합 내역
+## 8. 통합 내역
 
 팀원 각자가 만든 프로토타입을 하나로 합쳤습니다. 살린 것과 버린 것:
 
@@ -192,6 +217,6 @@ python3 pipeline/fetch_data.py && python3 pipeline/transform.py
 
 ---
 
-## 8. 면책
+## 9. 면책
 
 이 페이지의 모든 값은 입력한 가정에 따른 **추정치**입니다. 과거 수익률은 미래 수익을 보장하지 않습니다. 투자 손실 가능성이 있으며, 이 결과는 **투자 권유나 재무·법률 자문이 아닙니다**. 중요한 결정 전에는 자격을 갖춘 전문가와 상의하세요.
