@@ -1,0 +1,79 @@
+name: Update market data
+
+# Yahoo Finance는 CORS를 열어 주지 않아 브라우저에서 직접 못 부른다.
+# 그래서 여기서 매일 받아 data/*.json으로 커밋한다.
+# (물가·환율·비트코인은 CORS가 열려 있어 페이지가 직접 실시간 조회한다)
+
+on:
+  schedule:
+    - cron: "0 21 * * *"   # UTC 21:00 = KST 06:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 수집
+        run: python pipeline/fetch_data.py
+
+      - name: 정제
+        run: python pipeline/transform.py
+
+      - name: 검증
+        run: |
+          python - <<'PY'
+          import json, sys
+
+          market = json.load(open("data/market.json"))
+          cpi = json.load(open("data/cpi.json"))
+
+          problems = []
+          for a in market["assets"]:
+              if a.get("assumed"):
+                  continue
+              if a["months"] < 24:
+                  problems.append(f"{a['name']}: 관측치 {a['months']}개월")
+              # 자릿수 오류가 남아 있으면 여기서 걸린다
+              if abs(a["cagr"]) > 3:
+                  problems.append(f"{a['name']}: CAGR {a['cagr']:.1%} — 비정상")
+              if a["volatility"] > 5:
+                  problems.append(f"{a['name']}: 변동성 {a['volatility']:.1%} — 비정상")
+              if a["mdd"] and a["mdd"]["depth"] <= -0.99:
+                  problems.append(f"{a['name']}: MDD {a['mdd']['depth']:.1%} — 오류 틱 의심")
+
+          if len(cpi["index"]) < 24:
+              problems.append(f"CPI 관측치 {len(cpi['index'])}개월")
+
+          if problems:
+              print("::error::검증 실패")
+              for p in problems:
+                  print(f"  - {p}")
+              sys.exit(1)
+
+          print(f"검증 통과 — 자산 {len(market['assets'])}종, CPI {len(cpi['index'])}개월")
+          PY
+
+      - name: 변경사항 커밋
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --staged --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "chore(data): 시세·물가 스냅샷 갱신 ($(date -u +%Y-%m-%d))"
+            git push
+          fi
