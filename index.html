@@ -127,10 +127,9 @@
 
   <!-- ══════════════ 탭 1 · 실질임금 진단 ══════════════ -->
   <section class="panel" id="panel-gap" role="tabpanel" aria-labelledby="tab-gap" hidden>
-    <div class="workspace">
+    <div class="bento">
 
-      <aside>
-        <div class="card">
+      <div class="card bento-input">
           <div class="section-head">
             <span class="step-badge">01</span>
             <div><h2>나의 소득 조건</h2><p>금액은 만 원 단위로 입력해 주세요.</p></div>
@@ -167,61 +166,54 @@
             </div>
           </div>
           <p class="field-note" id="riskNote">—</p>
-        </div>
-      </aside>
-
-      <div>
-        <div class="card">
-          <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
-          <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
-          <div class="chart-box" id="salaryChart"></div>
-          <div class="stat-grid" id="gapStats" style="margin-top:1rem"></div>
-          <p class="verdict" id="gapVerdict">—</p>
-        </div>
-
       </div>
-    </div>
 
-    <div class="result-grid">
-      <div class="card">
+      <div class="card bento-main">
+        <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
+        <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
+        <div class="chart-box" id="salaryChart"></div>
+        <div class="stat-grid" id="gapStats"></div>
+        <p class="verdict" id="gapVerdict">—</p>
+      </div>
+
+      <div class="card bento-half-a">
         <h3 class="block-title">격차는 해마다 벌어집니다</h3>
-        <p class="block-q">지금 인상률과 물가가 유지된다면, 두 선의 간격이 매년 얼마나 커지는지 보여줍니다.</p>
+        <p class="block-q">지금 조건이 유지되면 간격이 매년 얼마나 커지는지.</p>
         <div class="chart-box" id="trendChart"></div>
         <div class="legend" id="trendLegend"></div>
         <p class="verdict" id="trendVerdict">—</p>
       </div>
 
-      <div class="card">
+      <div class="card bento-half-b">
         <h3 class="block-title">연봉 협상 가이드</h3>
-        <p class="block-q">물가를 방어하려면 최소 몇 %를 올려야 하는지 계산합니다.</p>
+        <p class="block-q">물가를 방어하려면 최소 몇 %를 올려야 하는지.</p>
         <div class="stat-grid" id="negoStats"></div>
         <p class="verdict" id="negoVerdict">—</p>
       </div>
-    </div>
 
-    <div class="card">
-      <h3 class="block-title">부족분을 메울 자산배분</h3>
-      <p class="block-q">기대수익률은 아래 자산들의 <strong>실제 10년 실현 수익률</strong>로 계산했습니다.</p>
-      <div class="donut-row">
-        <div class="donut" id="donut"><div class="donut-center" id="donutCenter"></div></div>
-        <div style="flex:1;min-width:230px">
-          <div class="stat-grid" id="planStats"></div>
+      <div class="card bento-full">
+        <h3 class="block-title">부족분을 메울 자산배분</h3>
+        <p class="block-q">기대수익률은 아래 자산들의 <strong>실제 10년 실현 수익률</strong>로 계산했습니다.</p>
+        <div class="donut-row">
+          <div class="donut" id="donut"><div class="donut-center" id="donutCenter"></div></div>
+          <div style="flex:1;min-width:230px">
+            <div class="stat-grid" id="planStats"></div>
+          </div>
         </div>
+        <div class="legend" id="planLegend"></div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>자산</th><th>비중</th><th class="num">10년 CAGR</th><th class="num">연 변동성</th><th class="num">최대 낙폭</th></tr></thead>
+          <tbody id="planTable"></tbody>
+        </table></div>
+        <span class="src-note" id="planSrc">—</span>
       </div>
-      <div class="legend" id="planLegend"></div>
-      <div class="table-scroll"><table>
-        <thead><tr><th>자산</th><th>비중</th><th class="num">10년 CAGR</th><th class="num">연 변동성</th><th class="num">최대 낙폭</th></tr></thead>
-        <tbody id="planTable"></tbody>
-      </table></div>
-      <span class="src-note" id="planSrc">—</span>
     </div>
   </section>
 
   <!-- ══════════════ 탭 2 · 목표 자산 ══════════════ -->
   <section class="panel" id="panel-goal" role="tabpanel" aria-labelledby="tab-goal" hidden>
-    <div class="workspace">
-      <aside>
-        <div class="card">
+    <div class="bento">
+      <div class="card bento-input">
           <div class="section-head">
             <span class="step-badge">01</span>
             <div><h2>목표 설정</h2><p>얼마를, 언제까지 모으고 싶나요?</p></div>
@@ -250,28 +242,22 @@
             </div>
           </div>
           <p class="field-note" id="goalRiskNote">—</p>
-        </div>
-      </aside>
-
-      <div>
-        <div class="card">
-          <h3 class="block-title">목표까지 얼마가 필요한가</h3>
-          <p class="block-q">현재 저축액으로 목표에 닿는지, 부족하면 얼마나 더 필요한지 보여줍니다.</p>
-          <div class="stat-grid" id="goalStats"></div>
-          <p class="verdict" id="goalVerdict">—</p>
-        </div>
-
       </div>
-    </div>
 
-    <div class="result-grid">
-      <div class="card">
+      <div class="card bento-main">
+        <h3 class="block-title">목표까지 얼마가 필요한가</h3>
+        <p class="block-q">현재 저축액으로 목표에 닿는지, 부족하면 얼마나 더 필요한지 보여줍니다.</p>
+        <div class="stat-grid" id="goalStats"></div>
+        <p class="verdict" id="goalVerdict">—</p>
+      </div>
+
+      <div class="card bento-half-a">
         <h3 class="block-title">시간에 따른 자산 성장</h3>
         <p class="block-q">곡선이 점선(목표)에 언제 닿는지가 핵심입니다.</p>
         <div class="chart-box" id="growthChart"></div>
       </div>
 
-      <div class="card">
+      <div class="card bento-half-b">
         <h3 class="block-title">투자 성향별 비교</h3>
         <p class="block-q">같은 목표라도 성향에 따라 필요한 월 저축액이 달라집니다.</p>
         <div class="chart-box" id="goalScenarioChart"></div>
@@ -285,39 +271,47 @@
 
   <!-- ══════════════ 탭 3 · 자산 타임머신 ══════════════ -->
   <section class="panel" id="panel-time" role="tabpanel" aria-labelledby="tab-time" hidden>
-    <div class="card">
-      <h3 class="block-title">그때 샀다면, 지금 얼마가 됐을까?</h3>
-      <p class="block-q">실제 월말 종가 10년치로 계산합니다. 해외 자산은 원/달러 환율로 환산한 원화 기준입니다.</p>
+    <div class="bento">
 
-      <div class="field-grid" style="max-width:520px">
+      <div class="card bento-input">
+        <div class="section-head">
+          <span class="step-badge">01</span>
+          <div><h2>그때 샀다면?</h2><p>시작 시점과 금액을 고르세요.</p></div>
+        </div>
+
         <label class="field">투자 시작 시점
           <span class="input-wrap"><input type="month" id="startMonth"><span></span></span>
         </label>
         <label class="field">투자 금액
           <span class="input-wrap"><input type="number" id="investAmount" min="0" step="100" value="1000"><span>만원</span></span>
         </label>
+
+        <div class="field" style="margin-bottom:.3rem">비교할 자산</div>
+        <div class="asset-picks" id="assetPicks"></div>
+        <p class="field-note">실제 월말 종가 10년치로 계산합니다. 해외 자산은 원/달러 환율로 환산한 원화 기준입니다.</p>
       </div>
 
-      <div class="asset-picks" id="assetPicks"></div>
-      <div class="stat-grid" id="timeStats"></div>
-      <p class="verdict" id="timeVerdict">—</p>
-    </div>
+      <div class="card bento-main">
+        <h3 class="block-title">자산별 성장 경로</h3>
+        <p class="block-q">회색 점선은 같은 기간 소비자물가입니다. 이 선 아래면 물가를 못 이긴 것입니다.</p>
+        <div class="chart-box" id="timeChart"></div>
+        <div class="legend" id="timeLegend"></div>
+        <span class="src-note" id="timeSrc">—</span>
+      </div>
 
-    <div class="card">
-      <h3 class="block-title">자산별 성장 경로</h3>
-      <p class="block-q">회색 점선은 같은 기간 소비자물가입니다. 이 선 아래면 물가를 못 이긴 것입니다.</p>
-      <div class="chart-box" id="timeChart"></div>
-      <div class="legend" id="timeLegend"></div>
-      <span class="src-note" id="timeSrc">—</span>
-    </div>
+      <div class="card bento-full">
+        <div class="stat-grid" id="timeStats"></div>
+        <p class="verdict" id="timeVerdict">—</p>
+      </div>
 
-    <div class="card">
-      <h3 class="block-title">수익률과 위험을 함께 보기</h3>
-      <p class="block-q">수익률만 보면 안 됩니다. 최대 낙폭은 그 수익을 얻기까지 견뎌야 했던 손실입니다.</p>
-      <div class="table-scroll"><table>
-        <thead><tr><th>자산</th><th class="num">누적 수익률</th><th class="num">연평균(CAGR)</th><th class="num">연 변동성</th><th class="num">최대 낙폭</th></tr></thead>
-        <tbody id="timeTable"></tbody>
-      </table></div>
+      <div class="card bento-full">
+        <h3 class="block-title">수익률과 위험을 함께 보기</h3>
+        <p class="block-q">수익률만 보면 안 됩니다. 최대 낙폭은 그 수익을 얻기까지 견뎌야 했던 손실입니다.</p>
+        <div class="table-scroll"><table>
+          <thead><tr><th>자산</th><th class="num">누적 수익률</th><th class="num">연평균(CAGR)</th><th class="num">연 변동성</th><th class="num">최대 낙폭</th></tr></thead>
+          <tbody id="timeTable"></tbody>
+        </table></div>
+      </div>
     </div>
   </section>
 

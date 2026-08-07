@@ -339,6 +339,20 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
   .bento-action  { grid-column: 6 / span 7; grid-row: 3; }
   .bento-cum     { grid-column: 1 / span 12; grid-row: 4; }
 }
+/* 나머지 탭도 같은 격자를 쓴다.
+   왼쪽에 입력, 오른쪽에 결과 — 탭을 옮겨도 눈이 같은 곳을 본다. */
+.bento-main   { grid-column: 5 / span 8;  grid-row: 1; }
+.bento-half-a { grid-column: 5 / span 4;  grid-row: 2; }
+.bento-half-b { grid-column: 9 / span 4;  grid-row: 2; }
+.bento-full   { grid-column: 5 / span 8; }
+
+@media (max-width: 1240px) {
+  .bento-main   { grid-column: 6 / span 7; grid-row: 1; }
+  .bento-half-a { grid-column: 6 / span 7; grid-row: 2; }
+  .bento-half-b { grid-column: 6 / span 7; grid-row: 3; }
+  .bento-full   { grid-column: 1 / span 12; }
+}
+
 @media (max-width: 780px) {
   .bento > * { grid-column: span 12 !important; grid-row: auto !important; }
 }
