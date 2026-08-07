@@ -158,6 +158,39 @@ python3 pipeline/fetch_data.py && python3 pipeline/transform.py
 - [ ] 입력 엣지 케이스: 0, 음수, 극단값
 - [ ] 새 수치를 넣었다면 **외부 사실과 교차 검증** (예: 금 2021.08→2026.08은 USD +140% × 환율 +22% ≈ +193%, 화면값 +194.4% ✅)
 
+### 브랜치와 PR — `main`에 직접 push할 수 없습니다
+
+`main`은 보호되어 있습니다. push하면 그 즉시 실서비스가 배포되기 때문에, 반드시 브랜치를 만들어 PR로 합칩니다.
+
+```bash
+git checkout main && git pull            # 최신 상태로 맞추기
+git checkout -b feat/이름-작업내용         # 내 브랜치 만들기
+#  ... 작업 ...
+git add -A && git commit -m "무엇을 왜 고쳤는지"
+git push -u origin feat/이름-작업내용
+#  터미널에 뜨는 링크로 PR 생성 → 자동검사 통과하면 Merge
+```
+
+브랜치 이름은 `feat/`(기능), `fix/`(버그), `docs/`(문서) 뒤에 본인 이름과 작업을 붙입니다.
+예: `feat/somin-차트툴팁`, `fix/yeju-모바일레이아웃`
+
+**승인자는 0명**이라 검사만 통과하면 혼자 Merge할 수 있습니다. 다만 다른 사람 영역을 건드렸다면 한 번 물어보세요.
+
+### PR 자동검사 (`.github/workflows/pr-check.yml`)
+
+PR을 올리면 아래를 자동으로 검사합니다. 하나라도 실패하면 합칠 수 없습니다.
+
+| 검사 | 막는 것 |
+|---|---|
+| 가짜 데이터 | `np.random`, `Math.random`, `Math.sin`/`cos` |
+| 빌드 도구 | `package.json`, vite, webpack, tsconfig 등 |
+| 외부 CDN | `<script src="https://...">` |
+| JS 문법 | `node --check` |
+| 데이터 무결성 | 관측치·CAGR·변동성·MDD 범위, 품목 12개 |
+| 하드코딩 수익률 | `RISK_RETURNS = {...}` 같은 패턴 |
+
+검사에 걸렸다면 **우회하지 말고 원인을 고치세요.** 이 검사들은 실제로 이 프로젝트에서 터졌던 문제들입니다.
+
 ### 커밋
 
 - 커밋 메시지에 **왜 그렇게 했는지**를 적으세요. 이 리포에는 대화 기록이 없어서 커밋 메시지가 유일한 맥락입니다.

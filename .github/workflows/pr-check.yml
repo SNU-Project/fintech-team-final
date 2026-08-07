@@ -1,0 +1,144 @@
+name: PR check
+
+# main으로 합치기 전에 자동으로 확인한다.
+# 특히 "데이터를 지어내는 코드"를 막는 게 이 워크플로의 존재 이유다.
+# 이 프로젝트는 팀원 5명의 프로토타입에서 난수·사인파로 만든 가짜 데이터를
+# 3건 걷어내고 만들어졌다. 같은 게 다시 들어오면 결과물의 신뢰가 무너진다.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ── 1. 데이터를 지어내는 코드가 들어왔는가 ──────────────────
+      - name: 가짜 데이터 생성 코드 검사
+        run: |
+          set +e
+          FOUND=0
+
+          check() {
+            local pattern="$1" label="$2"
+            local hits
+            hits=$(grep -rnE "$pattern" assets/js pipeline 2>/dev/null)
+            if [ -n "$hits" ]; then
+              echo "::error::$label"
+              echo "$hits" | sed 's/^/    /'
+              FOUND=1
+            fi
+          }
+
+          check 'np\.random|numpy\.random'  '난수로 데이터를 만들고 있습니다. 수집 실패 시 값을 지어내지 말고 예외를 던지세요.'
+          check 'Math\.random'               'Math.random()이 있습니다. 표시할 데이터를 난수로 만들면 안 됩니다.'
+          check 'Math\.sin|Math\.cos'        '삼각함수로 시계열을 만들고 있을 수 있습니다. 과거 성과는 반드시 실제 종가를 쓰세요.'
+
+          if [ "$FOUND" = "1" ]; then
+            echo ""
+            echo "자세한 내용은 CLAUDE.md의 '절대 하지 말 것' 절을 보세요."
+            exit 1
+          fi
+          echo "통과 — 데이터를 지어내는 코드가 없습니다."
+
+      # ── 2. 빌드 도구가 들어왔는가 ──────────────────────────────
+      - name: 빌드 도구 검사
+        run: |
+          set -e
+          BAD=""
+          for f in package.json package-lock.json yarn.lock pnpm-lock.yaml \
+                   vite.config.ts vite.config.js webpack.config.js tsconfig.json; do
+            [ -e "$f" ] && BAD="$BAD $f"
+          done
+          if [ -n "$BAD" ]; then
+            echo "::error::빌드 도구가 추가됐습니다:$BAD"
+            echo "이 프로젝트는 빌드 없는 정적 사이트입니다. 발표 당일 CI가 깨지면 복구할 시간이 없습니다."
+            exit 1
+          fi
+          echo "통과 — 빌드 도구 없음."
+
+      # ── 3. 외부 CDN 의존이 들어왔는가 ──────────────────────────
+      - name: 외부 스크립트 검사
+        run: |
+          set -e
+          HITS=$(grep -nE '<script[^>]+src="https?://' index.html || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::외부 CDN 스크립트가 추가됐습니다."
+            echo "$HITS" | sed 's/^/    /'
+            echo "차트는 assets/js/charts.js로 직접 그립니다. 라이브러리를 추가하지 마세요."
+            exit 1
+          fi
+          echo "통과 — 외부 스크립트 없음."
+
+      # ── 4. JS 문법 ────────────────────────────────────────────
+      - name: JavaScript 문법 검사
+        run: |
+          set -e
+          for f in assets/js/*.js; do
+            node --check "$f" || { echo "::error::$f 문법 오류"; exit 1; }
+          done
+          echo "통과 — JS 문법 정상."
+
+      # ── 5. 데이터 파일 무결성 ─────────────────────────────────
+      - name: 데이터 검증
+        run: |
+          python - <<'PY'
+          import json, sys
+
+          problems = []
+          try:
+              market = json.load(open("data/market.json"))
+              cpi = json.load(open("data/cpi.json"))
+              json.load(open("data/meta.json"))
+          except Exception as exc:
+              print(f"::error::데이터 파일을 읽을 수 없습니다: {exc}")
+              sys.exit(1)
+
+          for a in market["assets"]:
+              if a.get("assumed"):
+                  continue
+              if a["months"] < 24:
+                  problems.append(f"{a['name']}: 관측치 {a['months']}개월")
+              if abs(a["cagr"]) > 3:
+                  problems.append(f"{a['name']}: CAGR {a['cagr']:.1%} — 비정상")
+              if a["volatility"] > 5:
+                  problems.append(f"{a['name']}: 변동성 {a['volatility']:.1%} — 비정상")
+              if a["mdd"] and a["mdd"]["depth"] <= -0.99:
+                  problems.append(f"{a['name']}: MDD {a['mdd']['depth']:.1%} — 오류 틱 의심")
+
+          if len(cpi["index"]) < 24:
+              problems.append(f"CPI 관측치 {len(cpi['index'])}개월")
+          if len(cpi.get("categories", [])) != 12:
+              problems.append(f"품목별 물가 {len(cpi.get('categories', []))}개 (12개여야 함)")
+
+          if problems:
+              print("::error::데이터 검증 실패")
+              for p in problems:
+                  print(f"  - {p}")
+              sys.exit(1)
+
+          print(f"통과 — 자산 {len(market['assets'])}종, CPI {len(cpi['index'])}개월, "
+                f"품목 {len(cpi['categories'])}개")
+          PY
+
+      # ── 6. 하드코딩된 수익률 ──────────────────────────────────
+      - name: 하드코딩 수익률 검사
+        run: |
+          set +e
+          HITS=$(grep -rnE '(RISK_RETURNS|EXPECTED_RETURN|expectedReturn)\s*=\s*\{' assets/js 2>/dev/null)
+          if [ -n "$HITS" ]; then
+            echo "::error::수익률이 하드코딩된 것 같습니다. data/market.json에서 읽으세요."
+            echo "$HITS" | sed 's/^/    /'
+            exit 1
+          fi
+          echo "통과 — 하드코딩된 수익률 없음."
