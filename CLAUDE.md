@@ -54,7 +54,7 @@ const RISK_RETURNS = { stable: 0.03, balanced: 0.06, aggressive: 0.09 };
 
 물가를 반영한 내 연봉의 실질 가치를 진단하고, 실제 10년 시장 데이터로 부족분을 메울 자산배분을 설계하는 정적 웹앱입니다.
 
-- 라이브: https://snu-project.github.io/fintech-team-final/
+- 라이브: https://fintech-team-final.vercel.app/
 - 서울대 빅데이터 핀테크 13기 · 웹 개발 및 시각화 팀 프로젝트
 - 팀원 5명의 개별 프로토타입을 하나로 통합한 결과물 (통합 내역은 `README.md` 6절)
 
@@ -106,7 +106,7 @@ docs/
 **새 데이터 소스를 추가할 때는 반드시 CORS부터 실측하세요:**
 
 ```bash
-curl -sI -H "Origin: https://snu-project.github.io" "<API_URL>" | grep -i access-control-allow-origin
+curl -sI -H "Origin: https://fintech-team-final.vercel.app" "<API_URL>" | grep -i access-control-allow-origin
 ```
 
 헤더가 없으면 브라우저에서 못 씁니다. `pipeline/`에 넣어 스냅샷으로 처리하세요. **프록시 서비스를 끼워 넣지 마세요** — 발표날 죽으면 대책이 없습니다.
@@ -129,7 +129,7 @@ API 키가 필요한 서비스도 피하세요. 현재 **키 없이** 전부 돌
 
 5. **필요 저축액은 올림하세요.** 내림하면 "100만원이면 된다"고 해놓고 정작 100만원으로는 목표에 못 닿는 모순이 생깁니다.
 
-6. **로컬(`localhost`)에서는 OECD 실시간 조회가 실패합니다 — 버그가 아닙니다.** OECD는 허용된 출처에만 CORS 헤더를 돌려주는데, 배포 도메인(`https://snu-project.github.io`)은 통과하고 `http://localhost:5173`은 막힙니다. 로컬에서는 콘솔에 CORS 에러가 뜨고 스냅샷 폴백으로 그려지는 게 정상 동작입니다. **실시간 동작을 확인하려면 배포본에서 보세요.** 이걸 "고치겠다고" 프록시를 끼워 넣지 마세요.
+6. **로컬(`localhost`)에서는 OECD 실시간 조회가 실패합니다 — 버그가 아닙니다.** OECD는 허용된 출처에만 CORS 헤더를 돌려주는데, 배포 도메인(`https://fintech-team-final.vercel.app`)은 통과하고 `http://localhost:5173`은 막힙니다. 로컬에서는 콘솔에 CORS 에러가 뜨고 스냅샷 폴백으로 그려지는 게 정상 동작입니다. **실시간 동작을 확인하려면 배포본에서 보세요.** 이걸 "고치겠다고" 프록시를 끼워 넣지 마세요.
 
 ---
 
