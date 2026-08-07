@@ -207,11 +207,14 @@ section { scroll-margin-top: 5rem; }
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 1.2rem 1.3rem; box-shadow: var(--shadow);
 }
-.card + .card { margin-top: 1rem; }
+/* 패널 안의 박스(카드/워크스페이스/결과그리드 등)는 종류와 무관하게
+   전부 1rem 간격으로 통일한다. 개별 요소마다 margin-top을 따로 주면
+   .card 뒤에 .workspace가 오는 경우처럼 규칙이 안 걸려 간격이 들쭉날쭉해진다. */
+.panel > * + * { margin-top: 1rem; }
 /* minmax(0, …)를 쓰는 이유: 그냥 1fr은 minmax(auto, 1fr)이라
    자식의 min-content(숫자 input의 기본 폭)만큼 컬럼이 늘어나 모바일에서
    페이지 전체에 가로 스크롤이 생긴다. */
-.workspace { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 1.2rem; align-items: start; }
+.workspace { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 1rem; align-items: start; }
 .workspace > * { min-width: 0; }
 @media (max-width: 900px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
 
@@ -219,7 +222,7 @@ section { scroll-margin-top: 5rem; }
    아래 내용을 아예 못 본다. */
 .result-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  gap: 1rem; margin-top: 1rem; align-items: start;
+  gap: 1rem; align-items: start;
 }
 .result-grid > * { min-width: 0; margin-top: 0; }
 
