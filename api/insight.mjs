@@ -99,15 +99,28 @@ export async function POST(request) {
         ],
       }),
     });
-    if (!gatewayResponse.ok) throw new Error(`gateway ${gatewayResponse.status}`);
+    if (!gatewayResponse.ok) {
+      return Response.json({
+        error: "AI 해설을 불러오지 못했습니다.",
+        code: `gateway-${gatewayResponse.status}`,
+      }, { status: 502 });
+    }
     const output = await gatewayResponse.json();
     const text = safeText(output?.choices?.[0]?.message?.content, input);
-    if (!text) throw new Error("unsafe model output");
+    if (!text) {
+      return Response.json({
+        error: "AI 해설을 불러오지 못했습니다.",
+        code: "model-output-rejected",
+      }, { status: 502 });
+    }
     return Response.json({ text, model: MODEL }, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (_error) {
-    return Response.json({ error: "AI 해설을 불러오지 못했습니다." }, { status: 502 });
+    return Response.json({
+      error: "AI 해설을 불러오지 못했습니다.",
+      code: "gateway-unreachable",
+    }, { status: 502 });
   }
 }
 
