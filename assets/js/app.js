@@ -19,12 +19,40 @@
   };
   const colorOf = (id) => ASSET_COLOR[id] || "var(--text-muted)";
 
+  // 프리셋은 통계가 아니라 예시 페르소나다. 화면에도 그렇게 밝힌다.
+  // 숫자는 월 지출액(만원).
+  // 가구 규모가 아니라 라이프스타일로 나눴다. 물가 체감의 차이를 만드는 건
+  // 식구 수가 아니라 "돈을 어디에 쓰느냐"이기 때문이다.
+  const PRESETS = {
+    car: {
+      label: "차로 출퇴근",
+      spending: { food: 22, alcohol: 6, clothing: 12, housing: 55, household: 5,
+                  health: 5, transport: 55, comm: 8, leisure: 25, education: 0,
+                  dining: 45, misc: 12 },
+    },
+    dining: {
+      label: "외식·구독 많은 1인",
+      spending: { food: 12, alcohol: 8, clothing: 14, housing: 58, household: 4,
+                  health: 4, transport: 12, comm: 8, leisure: 38, education: 0,
+                  dining: 60, misc: 14 },
+    },
+    home: {
+      label: "집밥·대중교통",
+      spending: { food: 48, alcohol: 4, clothing: 6, housing: 52, household: 5,
+                  health: 7, transport: 8, comm: 7, leisure: 6, education: 0,
+                  dining: 14, misc: 7 },
+    },
+  };
+
   const state = {
     market: null, cpi: null, meta: null,
     risk: "balanced", goalRisk: "balanced",
     inflation: 2.8, inflationLive: false,
     picks: new Set(["kodex200", "sp500", "gold"]),
     startMonth: null,
+    spending: { ...PRESETS.car.spending },
+    preset: "car",
+    personalRate: null,
   };
 
   /* ══════════════ 부팅 ══════════════ */
@@ -51,6 +79,7 @@
     $("#inflation").value = state.inflation.toFixed(1);
 
     setupTabs();
+    setupMineTab();
     setupGapTab();
     setupGoalTab();
     setupTimeTab();
@@ -146,6 +175,253 @@
       localStorage.setItem("theme", next);
       renderAll();
     });
+  }
+
+  /* ══════════════ 탭 0 · 내 물가 ══════════════ */
+  function setupMineTab() {
+    const cats = state.cpi.categories || [];
+    if (!cats.length) {
+      $("#panel-mine").innerHTML =
+        `<div class="load-error">품목별 물가 데이터가 없습니다. 파이프라인을 다시 실행해 주세요.</div>`;
+      return;
+    }
+
+    // 지출 입력 행 — 품목별 현재 물가를 칩으로 같이 보여준다.
+    // 어떤 항목이 비싸지고 있는지 입력하면서 바로 알 수 있게.
+    $("#spendFields").innerHTML = cats.map((c) => {
+      const r = c.latest.yoy;
+      const cls = r >= 4 ? "rate-hot" : (r <= 1 ? "rate-cool" : "rate-mild");
+      return `<div class="spend-row">
+        <label for="sp-${c.id}">${c.name}
+          <span class="rate-chip ${cls}">${r >= 0 ? "+" : ""}${r.toFixed(1)}%</span>
+          <small>${c.hint}</small>
+        </label>
+        <span class="input-wrap">
+          <input type="number" id="sp-${c.id}" min="0" step="1" value="${state.spending[c.id] ?? 0}">
+          <span>만원</span>
+        </span>
+      </div>`;
+    }).join("");
+
+    cats.forEach((c) => {
+      $(`#sp-${c.id}`).addEventListener("input", (e) => {
+        state.spending[c.id] = Math.max(0, +e.target.value || 0);
+        $$("#presetSeg button").forEach((b) => b.setAttribute("aria-pressed", "false"));
+        state.preset = null;
+        renderMine();
+      });
+    });
+
+    $$("#presetSeg button").forEach((b) => {
+      b.addEventListener("click", () => {
+        const p = PRESETS[b.dataset.preset];
+        if (!p) return;
+        state.preset = b.dataset.preset;
+        state.spending = { ...p.spending };
+        $$("#presetSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        cats.forEach((c) => { $(`#sp-${c.id}`).value = state.spending[c.id] ?? 0; });
+        renderMine();
+      });
+    });
+
+    $("#applyToSalary").addEventListener("click", () => {
+      if (state.personalRate == null) return;
+      state.inflation = state.personalRate;
+      state.inflationLive = false;
+      $("#inflation").value = state.personalRate.toFixed(1);
+      $("#inflSource").innerHTML =
+        `<b>내 물가 ${state.personalRate.toFixed(1)}%</b>를 적용했습니다. ` +
+        `공식 물가(${state.cpi.latest.yoy.toFixed(1)}%) 대신 내 지출 기준으로 진단합니다.`;
+      $("#tab-gap").click();
+      $("#panel-gap").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function renderMine() {
+    const cats = state.cpi.categories || [];
+    if (!cats.length) return;
+
+    const result = E.personalInflation(state.spending, cats);
+    const official = state.cpi.latest.yoy;
+
+    if (!result) {
+      $("#personalRate").textContent = "—";
+      $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
+      $("#spendTotal").textContent = "0만원";
+      return;
+    }
+
+    state.personalRate = result.rate;
+    const diff = result.rate - official;
+
+    $("#officialRate").textContent = `${official.toFixed(1)}%`;
+    $("#officialMonth").textContent = `${state.cpi.latest.month} 기준`;
+    $("#personalRate").textContent = `${result.rate.toFixed(1)}%`;
+    $("#spendTotal").textContent = `${man(result.total)}만원`;
+
+    const mid = $("#vsGap");
+    const side = $("#vsRow").querySelector(".vs-side.accent");
+    if (Math.abs(diff) < 0.05) {
+      mid.className = "vs-mid"; mid.textContent = "거의 같음";
+      side.classList.remove("under");
+    } else if (diff > 0) {
+      mid.className = "vs-mid over"; mid.textContent = `+${diff.toFixed(1)}%p 높음`;
+      side.classList.remove("under");
+    } else {
+      mid.className = "vs-mid under"; mid.textContent = `${diff.toFixed(1)}%p 낮음`;
+      side.classList.add("under");
+    }
+
+    // 결론 문장 — 조작하면 같이 바뀐다
+    const sorted = [...result.contributions].sort((a, b) => b.contribution - a.contribution);
+    const top = sorted[0];
+    const v = $("#mineVerdict");
+    if (diff > 0.05) {
+      v.className = "verdict warn";
+      v.innerHTML = `당신의 물가는 공식 통계보다 <b>${diff.toFixed(1)}%p 높습니다.</b>
+        가장 크게 밀어올린 건 <b>${top.name}</b>(지출의 ${(top.weight * 100).toFixed(0)}%,
+        이 품목만 ${top.rate >= 0 ? "+" : ""}${top.rate.toFixed(1)}%)입니다.`;
+    } else if (diff < -0.05) {
+      v.className = "verdict";
+      v.innerHTML = `당신의 물가는 공식 통계보다 <b>${Math.abs(diff).toFixed(1)}%p 낮습니다.</b>
+        물가가 덜 오른 품목에 지출이 몰려 있습니다.`;
+    } else {
+      v.className = "verdict";
+      v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 공식 통계와 거의 같습니다.`;
+    }
+
+    const sp = state.cpi.spread;
+    if (sp) {
+      $("#spreadNote").innerHTML =
+        `같은 달인데도 <b>${sp.high.name} +${sp.high.yoy.toFixed(1)}%</b>,
+         <b>${sp.low.name} +${sp.low.yoy.toFixed(1)}%</b>로 ${sp.gap.toFixed(1)}%p 벌어져 있습니다.
+         "물가 ${official.toFixed(1)}%"는 아무의 물가도 아닙니다.`;
+    }
+
+    // 기여도 분해
+    Charts.contributionChart($("#contribChart"),
+      sorted.filter((c) => c.amount > 0).map((c) => ({
+        ...c, color: c.rate >= official ? "var(--series-2)" : "var(--series-3)",
+      })));
+    $("#mineSrc").textContent =
+      `OECD 한국 소비자물가 COICOP 12분류 · ${result.month} 기준 · 브라우저에서 실시간 조회`;
+
+    renderCumulative(result);
+    renderMineAction(result, official);
+  }
+
+  function renderCumulative(result) {
+    const cats = state.cpi.categories;
+    const mine = E.personalIndexPath(state.spending, cats);
+    if (!mine) return;
+
+    // 공식 지수도 같은 구간으로 잘라 100 기준으로 맞춘다
+    const officialIdx = state.cpi.index;
+    const months = mine.months.filter((m) => officialIdx[m] != null);
+    if (months.length < 2) return;
+    const oBase = officialIdx[months[0]];
+    const officialPath = months.map((m) => ({
+      x: E.monthToNum(m), y: (officialIdx[m] / oBase) * 100, meta: E.monthLabel(m),
+    }));
+    const minePath = mine.path
+      .filter((p) => months.includes(p.month))
+      .map((p) => ({ x: E.monthToNum(p.month), y: p.value, meta: E.monthLabel(p.month) }));
+
+    const labels = [];
+    const x0 = E.monthToNum(months[0]), x1 = E.monthToNum(months[months.length - 1]);
+    for (let x = x0; x <= x1; x += 24) labels.push({ at: x, text: `${Math.floor(x / 12)}` });
+
+    lineChart($("#cumChart"), {
+      series: [
+        { id: "official", label: "공식 물가", color: "var(--text-muted)", dashed: true, points: officialPath },
+        { id: "mine", label: "내 물가", color: "var(--accent, #b76442)", points: minePath },
+      ],
+      xLabels: labels,
+      yFormat: (val) => `${val.toFixed(0)}`,
+    });
+
+    $("#cumLegend").innerHTML =
+      `<span class="legend-item"><span class="legend-swatch" style="background:var(--text-muted)"></span>공식 물가</span>
+       <span class="legend-item"><span class="legend-swatch" style="background:var(--accent,#b76442)"></span>내 물가</span>`;
+
+    const mineCum = mine.cumulative;
+    const officialCum = officialIdx[months[months.length - 1]] / oBase - 1;
+    const gap = mineCum - officialCum;
+    const years = months.length / 12;
+
+    // 10년 누적 차이를 실제 돈으로 환산하면 얼마인가
+    const monthlySpend = result.total;
+    const extraPerYear = monthlySpend * 12 * gap;
+
+    $("#cumStats").innerHTML = `
+      <div class="stat"><span class="k">내 물가 누적</span><span class="v">${signPct(mineCum, 1)}</span>
+        <span class="s">${E.monthLabel(months[0])} ~ ${E.monthLabel(months[months.length - 1])}</span></div>
+      <div class="stat"><span class="k">공식 물가 누적</span><span class="v">${signPct(officialCum, 1)}</span>
+        <span class="s">같은 기간</span></div>
+      <div class="stat ${gap > 0 ? "is-bad" : "is-good"}"><span class="k">차이</span>
+        <span class="v">${gap >= 0 ? "+" : ""}${(gap * 100).toFixed(1)}%p</span>
+        <span class="s">${years.toFixed(0)}년 누적</span></div>
+      <div class="stat ${gap > 0 ? "is-bad" : "is-good"}"><span class="k">돈으로 환산하면</span>
+        <span class="v">${gap >= 0 ? "" : "−"}${man(Math.abs(extraPerYear))}만원</span>
+        <span class="s">현재 지출 기준 연간 ${gap >= 0 ? "더 냄" : "덜 냄"}</span></div>`;
+
+    // 현재 물가와 10년 누적의 방향이 엇갈릴 때가 있다. 화면만 보면 오류처럼
+    // 보이므로 왜 그런지 짚어 준다. (예: 식료품은 지금 +0.9%지만 10년간 +43%)
+    const nowDiff = state.personalRate - state.cpi.latest.yoy;
+    const note = $("#cumNote");
+    if (note) {
+      if (nowDiff < -0.05 && gap > 0.005) {
+        const cats = state.cpi.categories;
+        const worst = [...cats]
+          .filter((c) => (state.spending[c.id] || 0) > 0 && c.cum10y != null)
+          .sort((a, b) => b.cum10y - a.cum10y)[0];
+        note.hidden = false;
+        note.className = "verdict warn";
+        note.innerHTML = `지금은 공식 물가보다 낮은데, 10년 누적으로는 오히려 높습니다.
+          ${worst ? `최근 ${worst.latest.yoy >= 0 ? "+" : ""}${worst.latest.yoy.toFixed(1)}%로 잠잠한
+          <b>${worst.name}</b>이 10년 동안은 <b>+${worst.cum10y.toFixed(0)}%</b> 올랐기 때문입니다.` : ""}
+          최근 한 달의 물가만 보면 놓치는 부분입니다.`;
+      } else if (nowDiff > 0.05 && gap < -0.005) {
+        note.hidden = false;
+        note.className = "verdict";
+        note.innerHTML = `지금은 공식 물가보다 높지만, 10년 누적으로는 낮습니다.
+          최근 오른 품목에 지출이 몰려 있을 뿐 장기적으로는 유리한 구성이었습니다.`;
+      } else {
+        note.hidden = true;
+      }
+    }
+  }
+
+  function renderMineAction(result, official) {
+    const rate = result.rate;
+    const hl = E.halfLife(rate / 100);
+    const plans = Object.keys(state.market.portfolios).map((k) => E.planOf(state.market, k));
+    const enough = plans.filter((p) => p.expected_return * 100 >= rate);
+    const minPlan = enough.length ? enough[0] : null;
+
+    $("#mineActionStats").innerHTML = `
+      <div class="stat"><span class="k">최소 연봉 인상률</span><span class="v">${rate.toFixed(1)}%</span>
+        <span class="s">이만큼 올려야 본전</span></div>
+      <div class="stat"><span class="k">필요 투자 수익률</span><span class="v">${rate.toFixed(1)}%</span>
+        <span class="s">굴려서 방어하려면</span></div>
+      <div class="stat ${hl && hl < 20 ? "is-warn" : ""}"><span class="k">구매력 반감기</span>
+        <span class="v">${hl ? `${hl.toFixed(1)}년` : "—"}</span>
+        <span class="s">지금 돈의 가치가 절반 되는 시점</span></div>
+      <div class="stat ${minPlan ? "is-good" : "is-bad"}"><span class="k">방어 가능한 최소 포트폴리오</span>
+        <span class="v">${minPlan ? minPlan.label : "없음"}</span>
+        <span class="s">${minPlan ? `기대 ${pct(minPlan.expected_return)}` : "적극형으로도 부족"}</span></div>`;
+
+    const a = $("#mineAction");
+    if (minPlan) {
+      a.className = "verdict";
+      a.innerHTML = `내 물가 <b>${rate.toFixed(1)}%</b>를 넘기려면 연봉을 그만큼 올려받거나,
+        <b>${minPlan.label}</b> 이상으로 굴려야 합니다(실제 10년 실현 기준 ${pct(minPlan.expected_return)}).
+        아무것도 안 하면 지금 돈의 가치는 <b>${hl.toFixed(1)}년 뒤 절반</b>이 됩니다.`;
+    } else {
+      a.className = "verdict bad";
+      a.innerHTML = `내 물가 <b>${rate.toFixed(1)}%</b>는 적극형 포트폴리오의 기대수익률로도 방어가 어렵습니다.
+        지출 구조를 바꾸거나 소득을 늘리는 쪽을 함께 봐야 합니다.`;
+    }
   }
 
   /* ══════════════ 탭 1 · 실질임금 진단 ══════════════ */
@@ -571,6 +847,7 @@
   /* ══════════════ 전체 렌더 ══════════════ */
   function renderAll() {
     if (!state.market) return;
+    renderMine();
     renderGap();
     renderGoal();
     renderTime();

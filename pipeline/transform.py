@@ -203,10 +203,57 @@ def main() -> None:
         "notes": notes,
     }
 
+    # 품목별 물가 — "내 물가" 계산용.
+    # 각 품목의 최근 상승률과 10년 평균을 함께 넘겨, 화면에서 지출 비중만
+    # 곱하면 개인 물가가 나오도록 한다.
+    categories = []
+    for cat in raw["cpi"].get("categories", []):
+        yoy = cat["yoy"]
+        index = cat.get("index") or {}
+        if not yoy:
+            notes.append(f"{cat['name']}: 품목별 물가 데이터 없음")
+            continue
+        months = sorted(yoy)
+        latest_m = months[-1]
+        recent12 = [yoy[m] for m in months[-12:]]
+
+        # 누적 궤적용 지수는 첫 달을 100으로 정규화해 넘긴다.
+        # (품목마다 기준연도가 달라 그대로 쓰면 서로 비교가 안 된다)
+        idx_months = sorted(index)
+        norm_index = {}
+        if idx_months and index[idx_months[0]] > 0:
+            base = index[idx_months[0]]
+            norm_index = {m: round(index[m] / base * 100, 3) for m in idx_months}
+
+        categories.append({
+            "id": cat["id"],
+            "code": cat["code"],
+            "name": cat["name"],
+            "hint": cat["hint"],
+            "yoy": {m: round(yoy[m], 3) for m in months},
+            "index": norm_index,
+            "latest": {"month": latest_m, "yoy": round(yoy[latest_m], 3)},
+            "avg12m": round(sum(recent12) / len(recent12), 3),
+            "avg10y": round(sum(yoy.values()) / len(yoy), 3),
+            "cum10y": round((norm_index[idx_months[-1]] / 100 - 1) * 100, 2) if norm_index else None,
+        })
+
+    spread = None
+    if categories:
+        highs = max(categories, key=lambda c: c["latest"]["yoy"])
+        lows = min(categories, key=lambda c: c["latest"]["yoy"])
+        spread = {
+            "high": {"name": highs["name"], "yoy": highs["latest"]["yoy"]},
+            "low": {"name": lows["name"], "yoy": lows["latest"]["yoy"]},
+            "gap": round(highs["latest"]["yoy"] - lows["latest"]["yoy"], 3),
+        }
+
     cpi = {
         "index": cpi_index,
         "yoy": cpi_yoy,
         "latest": {"month": latest_cpi_month, "yoy": round(latest_inflation, 3)},
+        "categories": categories,
+        "spread": spread,
         "source": "OECD SDMX · Consumer Price Index, Korea",
     }
 

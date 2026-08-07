@@ -115,6 +115,76 @@
     return { ...plan, key: riskKey, items };
   }
 
+  /* ---------- 6. 내 물가 ----------
+     공식 물가(2.8%)는 전국 평균 지출 비중으로 가중한 값이다.
+     같은 달에도 교통은 +7.7%, 통신은 +0.7%라 사람마다 체감이 다르다.
+     여기서는 사용자가 입력한 실제 지출액으로 가중치를 만들어
+     "그 사람의 물가"를 계산한다.                                       */
+
+  // spending: { categoryId: 월 지출액(만원) }
+  function personalInflation(spending, categories) {
+    const total = Object.values(spending).reduce((a, b) => a + (b || 0), 0);
+    if (total <= 0) return null;
+
+    const contributions = categories.map((cat) => {
+      const amount = spending[cat.id] || 0;
+      const weight = amount / total;
+      const rate = cat.latest.yoy;
+      return {
+        id: cat.id, name: cat.name, hint: cat.hint,
+        amount, weight, rate,
+        contribution: weight * rate,   // %p 단위 기여도
+      };
+    });
+
+    const rate = contributions.reduce((sum, c) => sum + c.contribution, 0);
+    return { rate, total, contributions, month: categories[0].latest.month };
+  }
+
+  // 지출 비중을 고정한 채 10년을 되돌려 누적 물가를 계산한다.
+  // 품목별 지수를 가중평균하므로 고정가중 라스파이레스 방식이다.
+  function personalIndexPath(spending, categories) {
+    const total = Object.values(spending).reduce((a, b) => a + (b || 0), 0);
+    if (total <= 0) return null;
+
+    const usable = categories.filter((c) => c.index && Object.keys(c.index).length);
+    if (!usable.length) return null;
+
+    // 모든 품목이 공통으로 가진 월만 사용
+    let months = Object.keys(usable[0].index);
+    for (const c of usable.slice(1)) {
+      const has = new Set(Object.keys(c.index));
+      months = months.filter((m) => has.has(m));
+    }
+    months.sort();
+    if (months.length < 2) return null;
+
+    const path = months.map((m) => {
+      let acc = 0, w = 0;
+      for (const cat of usable) {
+        const amount = spending[cat.id] || 0;
+        if (!amount) continue;
+        acc += (amount / total) * cat.index[m];
+        w += amount / total;
+      }
+      return { month: m, value: w > 0 ? acc / w : 100 };
+    });
+
+    const base = path[0].value;
+    const norm = path.map((p) => ({ month: p.month, value: (p.value / base) * 100 }));
+    return {
+      path: norm,
+      months,
+      cumulative: norm[norm.length - 1].value / 100 - 1,
+    };
+  }
+
+  // 구매력이 절반이 되기까지 걸리는 시간
+  function halfLife(annualRate) {
+    if (annualRate <= 0) return null;
+    return Math.log(2) / Math.log(1 + annualRate);
+  }
+
   /* ---------- 유틸 ---------- */
   const monthToNum = (m) => {
     const [y, mm] = m.split("-").map(Number);
@@ -132,6 +202,7 @@
   global.Engine = {
     diagnose, negotiate, project, requiredMonthly,
     backtest, inflationPath, planOf,
+    personalInflation, personalIndexPath, halfLife,
     monthToNum, monthLabel, addMonths,
   };
 })(window);

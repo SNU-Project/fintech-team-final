@@ -50,8 +50,26 @@ YAHOO_URL = (
 OECD_CPI_URL = (
     "https://sdmx.oecd.org/public/rest/data/"
     "OECD.SDD.TPS,DSD_PRICES@DF_PRICES_ALL,1.0/"
-    "KOR.M.N.CPI.{measure}._T.N.{transform}?startPeriod={start}"
+    "KOR.M.N.CPI.{measure}.{expenditure}.N.{transform}?startPeriod={start}"
 )
+
+# COICOP 12대 분류. "내 물가"는 이 품목별 상승률을 사용자의 지출 비중으로
+# 가중평균해 계산한다. 공식 물가(2.8%)는 전국 평균 가중치를 쓴 값이라
+# 개인의 체감과 다를 수밖에 없다는 것이 이 기능의 출발점이다.
+CPI_CATEGORIES = [
+    {"code": "CP01", "id": "food",      "name": "식료품·비주류음료", "hint": "장보기, 집에서 먹는 식재료"},
+    {"code": "CP02", "id": "alcohol",   "name": "주류·담배",        "hint": "술, 담배"},
+    {"code": "CP03", "id": "clothing",  "name": "의류·신발",        "hint": "옷, 신발, 세탁"},
+    {"code": "CP04", "id": "housing",   "name": "주거·수도·광열",   "hint": "월세, 관리비, 전기·가스·수도"},
+    {"code": "CP05", "id": "household", "name": "가정용품·가사서비스", "hint": "가구, 생활용품, 청소·세탁 서비스"},
+    {"code": "CP06", "id": "health",    "name": "보건",             "hint": "병원비, 약값, 건강보조"},
+    {"code": "CP07", "id": "transport", "name": "교통",             "hint": "기름값, 대중교통, 차량 유지"},
+    {"code": "CP08", "id": "comm",      "name": "통신",             "hint": "휴대폰 요금, 인터넷"},
+    {"code": "CP09", "id": "leisure",   "name": "오락·문화",        "hint": "여행, 취미, 구독 서비스"},
+    {"code": "CP10", "id": "education", "name": "교육",             "hint": "학원, 등록금, 교재"},
+    {"code": "CP11", "id": "dining",    "name": "음식·숙박",        "hint": "외식, 배달, 카페, 숙박"},
+    {"code": "CP12", "id": "misc",      "name": "기타 상품·서비스", "hint": "미용, 보험, 금융수수료"},
+]
 
 
 class DataFetchError(RuntimeError):
@@ -144,9 +162,14 @@ def reject_outliers(series: dict[str, float], label: str,
     return {m: v for m, v in series.items() if m not in bad}, dropped
 
 
-def fetch_oecd_cpi(measure: str, transform: str, start: str) -> dict[str, float]:
-    """OECD SDMX에서 한국 CPI 월별 시리즈를 가져온다."""
-    url = OECD_CPI_URL.format(measure=measure, transform=transform, start=start)
+def fetch_oecd_cpi(measure: str, transform: str, start: str,
+                   expenditure: str = "_T") -> dict[str, float]:
+    """OECD SDMX에서 한국 CPI 월별 시리즈를 가져온다.
+
+    expenditure="_T"면 전체 품목(공식 물가), CP01~CP12면 해당 품목만.
+    """
+    url = OECD_CPI_URL.format(measure=measure, transform=transform,
+                              start=start, expenditure=expenditure)
     text = _get(url, accept="application/vnd.sdmx.data+csv").decode("utf-8")
     reader = csv.DictReader(io.StringIO(text))
 
@@ -164,6 +187,37 @@ def fetch_oecd_cpi(measure: str, transform: str, start: str) -> dict[str, float]
     if len(series) < 24:
         raise DataFetchError(f"OECD CPI({measure}/{transform}): 관측치 {len(series)}개뿐")
     return dict(sorted(series.items()))
+
+
+def fetch_oecd_cpi_by_category(measure: str, transform: str, start: str,
+                               codes: list[str]) -> dict[str, dict[str, float]]:
+    """12개 품목을 한 번의 요청으로 받아 품목코드별로 갈라 돌려준다.
+
+    품목마다 따로 부르면 24회 연속 호출이 되어 OECD가 429로 막는다.
+    SDMX는 `CP01+CP02+...` 형태로 여러 코드를 한 번에 받으므로 그걸 쓴다.
+    """
+    joined = "+".join(codes)
+    url = OECD_CPI_URL.format(measure=measure, transform=transform,
+                              start=start, expenditure=joined)
+    text = _get(url, accept="application/vnd.sdmx.data+csv").decode("utf-8")
+    reader = csv.DictReader(io.StringIO(text))
+
+    out: dict[str, dict[str, float]] = {c: {} for c in codes}
+    for row in reader:
+        code = (row.get("EXPENDITURE") or "").strip()
+        period = (row.get("TIME_PERIOD") or "").strip()
+        value = (row.get("OBS_VALUE") or "").strip()
+        if code not in out or not period or not value:
+            continue
+        try:
+            out[code][period] = float(value)
+        except ValueError:
+            continue
+
+    empty = [c for c, s in out.items() if len(s) < 24]
+    if empty:
+        raise DataFetchError(f"품목별 물가 부족: {', '.join(empty)}")
+    return {c: dict(sorted(s.items())) for c, s in out.items()}
 
 
 def to_krw(series: dict[str, float], fx: dict[str, float], asset_id: str) -> dict[str, float]:
@@ -212,12 +266,25 @@ def main() -> None:
         raw_series[asset["id"]] = series
         print(f"    · {asset['name']:<18} {len(series):>3}개월{note}")
 
-    print("[3/3] 한국 소비자물가지수 수집 (OECD)")
+    print("[3/4] 한국 소비자물가지수 수집 (OECD)")
     start = f"{fetched_at.year - YEARS}-01"
     cpi_index = fetch_oecd_cpi("IX", "_Z", start)
     cpi_yoy = fetch_oecd_cpi("PA", "GY", start)
     print(f"    · 지수 {len(cpi_index)}개월, 전년동월비 {len(cpi_yoy)}개월 "
           f"({min(cpi_index)} ~ {max(cpi_index)})")
+
+    print("[4/4] 품목별 물가 수집 (COICOP 12분류) — 요청 2회로 일괄 수신")
+    codes = [c["code"] for c in CPI_CATEGORIES]
+    yoy_by_code = fetch_oecd_cpi_by_category("PA", "GY", start, codes)
+    idx_by_code = fetch_oecd_cpi_by_category("IX", "_Z", start, codes)
+
+    categories = []
+    for cat in CPI_CATEGORIES:
+        yoy = yoy_by_code[cat["code"]]
+        latest_month = max(yoy)
+        categories.append({**cat, "yoy": yoy, "index": idx_by_code[cat["code"]]})
+        print(f"    · {cat['name']:<16} {len(yoy):>3}개월  "
+              f"최근 {yoy[latest_month]:+.2f}%")
 
     payload = {
         "fetched_at": fetched_at.isoformat(timespec="seconds"),
@@ -226,7 +293,7 @@ def main() -> None:
             {**asset, "series": raw_series[asset["id"]]}
             for asset in ASSETS
         ],
-        "cpi": {"index": cpi_index, "yoy": cpi_yoy},
+        "cpi": {"index": cpi_index, "yoy": cpi_yoy, "categories": categories},
         "cleaning_log": cleaning_log,
     }
 

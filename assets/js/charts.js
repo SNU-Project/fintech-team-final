@@ -214,5 +214,60 @@
     mount.replaceChildren(svg);
   }
 
-  global.Charts = { barChart, hBarChart, lineChart, fmtMan, pct };
+  /* ---------- 기여도 분해 (내 물가) ----------
+     각 품목이 내 물가를 몇 %p 밀어올렸는지 보여준다.
+     막대 길이 = 지출비중 × 그 품목의 물가상승률                        */
+  function contributionChart(mount, rows, opts = {}) {
+    const { officialRate = null, personalRate = null } = opts;
+    const W = 680, rowH = 30, padL = 132, padR = 96, padT = 26, padB = 8;
+    const H = padT + rows.length * rowH + padB;
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+
+    const maxC = Math.max(...rows.map((r) => Math.abs(r.contribution)), 0.05);
+    const trackW = W - padL - padR;
+    const zeroX = padL + (rows.some((r) => r.contribution < 0) ? trackW * 0.16 : 0);
+    const scale = (rows.some((r) => r.contribution < 0) ? trackW * 0.84 : trackW) / maxC;
+
+    // 0 기준선
+    svg.appendChild(el("line", {
+      x1: zeroX, y1: padT - 6, x2: zeroX, y2: H - padB, class: "axis-line",
+    }));
+    const zt = el("text", { x: zeroX, y: padT - 12, "text-anchor": "middle", class: "axis-text" });
+    zt.textContent = "0%p";
+    svg.appendChild(zt);
+
+    rows.forEach((r, i) => {
+      const y = padT + i * rowH;
+      const w = Math.abs(r.contribution) * scale;
+      const x = r.contribution >= 0 ? zeroX : zeroX - w;
+      const positive = r.contribution >= 0;
+
+      const lab = el("text", { x: padL - 10, y: y + 15, "text-anchor": "end", class: "axis-text" });
+      lab.textContent = r.name;
+      svg.appendChild(lab);
+
+      const bar = el("rect", {
+        x, y: y + 4, width: Math.max(w, 1.5), height: 17, rx: 4,
+        fill: positive ? r.color : "var(--series-1)",
+        opacity: r.weight > 0 ? 1 : 0.25,
+      });
+      bindTip(bar,
+        `<b>${r.name}</b><br>` +
+        `지출 비중 ${(r.weight * 100).toFixed(1)}% (${fmtMan(r.amount)}만원)<br>` +
+        `이 품목 물가 ${r.rate >= 0 ? "+" : ""}${r.rate.toFixed(2)}%<br>` +
+        `→ 내 물가에 <b>${r.contribution >= 0 ? "+" : ""}${r.contribution.toFixed(2)}%p</b> 기여`);
+      svg.appendChild(bar);
+
+      const val = el("text", {
+        x: positive ? x + w + 8 : x - 8, y: y + 17,
+        "text-anchor": positive ? "start" : "end", class: "bar-value",
+      });
+      val.textContent = `${r.contribution >= 0 ? "+" : ""}${r.contribution.toFixed(2)}%p`;
+      svg.appendChild(val);
+    });
+
+    mount.replaceChildren(svg);
+  }
+
+  global.Charts = { barChart, hBarChart, lineChart, contributionChart, fmtMan, pct };
 })(window);
