@@ -68,31 +68,38 @@
       <div class="card bento-input">
         <div class="section-head">
           <span class="step-badge">01</span>
-          <div><h2>내 한 달 지출</h2><p>총액을 넣고 비율을 밀어보세요.</p></div>
+          <div><h2>나와 가까운 생활 유형</h2><p>한 번만 고르면 통계 기준으로 시작합니다.</p></div>
         </div>
 
-        <label class="total-field">
-          <span>월 총 지출</span>
-          <span class="input-wrap">
-            <input type="number" id="spendTotalInput" min="0" step="10" value="250">
-            <span>만원</span>
-          </span>
+        <div class="persona-grid" id="personaSeg" role="group" aria-label="생활 유형 선택">
+          <button type="button" data-persona="solo" aria-pressed="true">
+            <b>혼자 생활비를 관리해요</b><span>1인 가구 통계</span>
+          </button>
+          <button type="button" data-persona="couple" aria-pressed="false">
+            <b>둘이 생활비를 함께 써요</b><span>2인 가구 통계</span>
+          </button>
+          <button type="button" data-persona="family" aria-pressed="false">
+            <b>가족과 목표를 준비해요</b><span>4인 가구 통계</span>
+          </button>
+        </div>
+
+        <p class="field-note persona-basis" id="personaBasis"></p>
+
+        <label class="field total-field">내 월 생활비
+          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="decimal"><span>만원</span></span>
         </label>
+        <p class="field-note">총액을 바꾸면 선택한 생활 유형의 비중은 유지됩니다.</p>
 
-        <div class="seg" id="presetSeg" role="group">
-          <button type="button" data-preset="car" aria-pressed="true">차로 출퇴근</button>
-          <button type="button" data-preset="dining" aria-pressed="false">외식·구독</button>
-          <button type="button" data-preset="home" aria-pressed="false">집밥·대중교통</button>
-        </div>
-
-        <div class="mix-bar" id="mixBar" aria-label="지출 구성"></div>
-
-        <div id="spendFields"></div>
-
-        <details class="more-fields">
-          <summary>나머지 항목 <span id="moreCount"></span></summary>
-          <div id="spendFieldsMore"></div>
+        <details class="spend-details">
+          <summary>내 지출에 맞게 세부 금액 수정</summary>
+          <p class="field-note">정확히 몰라도 괜찮습니다. 자주 쓰는 항목만 고치면 결과가 바로 바뀝니다.</p>
+          <div id="spendFields"></div>
         </details>
+
+        <div class="spend-total">
+          <span>계산에 반영한 월 지출</span>
+          <b id="spendTotal">—</b>
+        </div>
       </div>
 
       <!-- 기여도 분해 -->
@@ -312,6 +319,23 @@
           <tbody id="timeTable"></tbody>
         </table></div>
       </div>
+
+      <div class="card bento-full">
+        <h3 class="block-title">시작 달이 조금 달랐다면?</h3>
+        <p class="block-q">한 날짜만 고르면 코로나 급락이나 랠리 같은 특수한 시점에 결과가 치우칠 수 있습니다. 선택한 달 앞뒤 6개월의 실제 결과를 함께 비교합니다.</p>
+        <div class="table-scroll"><table>
+          <thead><tr><th>자산</th><th class="num">앞뒤 6개월 범위</th><th class="num">중앙값</th><th class="num">선택한 달</th></tr></thead>
+          <tbody id="timingTable"></tbody>
+        </table></div>
+        <p class="verdict" id="timingVerdict">—</p>
+      </div>
+
+      <div class="card bento-full next-step-card">
+        <p class="kicker">과거는 답안이 아니라 참고자료입니다</p>
+        <h3 class="block-title">“그때 살걸”에서 멈추지 않고, 오늘부터의 계획으로</h3>
+        <p class="block-q">타임머신의 투자금액을 현재 자산으로 옮겨 목표 기간과 월 저축액을 조정해 보세요.</p>
+        <button class="apply-btn" id="startFuturePlan" type="button">이 금액으로 미래 계획 시작하기 →</button>
+      </div>
     </div>
   </section>
 
@@ -349,6 +373,7 @@
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/engine.js"></script>
 <script src="assets/js/live.js"></script>
+<script src="assets/js/personas.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>

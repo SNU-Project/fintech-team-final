@@ -277,6 +277,23 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
 }
 .seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--brand); box-shadow: var(--shadow); }
 
+.persona-grid { display: grid; gap: .42rem; }
+.persona-grid button {
+  appearance: none; width: 100%; text-align: left; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-1); color: var(--text-primary); padding: .68rem .75rem;
+  font-family: inherit;
+}
+.persona-grid button b { display: block; font-size: .82rem; line-height: 1.35; }
+.persona-grid button span { display: block; margin-top: .12rem; font-size: .68rem; color: var(--text-muted); }
+.persona-grid button[aria-pressed="true"] {
+  border-color: var(--brand); background: var(--brand-soft); box-shadow: 0 0 0 2px var(--brand-soft);
+}
+.persona-grid button[aria-pressed="true"] b { color: var(--brand); }
+.persona-basis { line-height: 1.55; margin: .65rem 0 .9rem; }
+.persona-basis a { color: var(--text-secondary); text-underline-offset: 2px; }
+.total-field { margin-top: .1rem; }
+
 .field-note { font-size: .73rem; color: var(--text-muted); margin: .35rem 0 0; }
 .err-text { font-size: .73rem; color: var(--critical-text); margin: .3rem 0 0; }
 .input-wrap.invalid { border-color: var(--critical); }
@@ -434,6 +451,14 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
 }
 
 /* 지출 입력 */
+.spend-details {
+  margin-top: .9rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  padding: .72rem 0;
+}
+.spend-details summary { cursor: pointer; color: var(--brand); font-size: .8rem; font-weight: 700; }
+.spend-details summary::marker { color: var(--brand); }
+.spend-details[open] summary { margin-bottom: .65rem; }
+.spend-details > .field-note { margin: 0 0 .75rem; line-height: 1.5; }
 .spend-row { display: grid; grid-template-columns: minmax(0, 1fr) 104px; gap: .5rem; align-items: center; margin-bottom: .42rem; }
 .spend-row > label { font-size: .8rem; color: var(--text-secondary); min-width: 0; }
 .spend-row > label small { display: block; font-size: .68rem; color: var(--text-muted); }
@@ -459,6 +484,11 @@ label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--t
 }
 .apply-btn:hover { filter: brightness(1.06); }
 .apply-btn:active { transform: translateY(1px); }
+.next-step-card {
+  border-color: color-mix(in srgb, var(--brand) 28%, var(--border));
+  background: linear-gradient(135deg, var(--surface-2), var(--brand-soft));
+}
+.next-step-card .kicker { margin-bottom: .45rem; color: var(--brand); font-weight: 700; }
 
 /* ---------- 차트 ---------- */
 .chart-box { margin-top: .3rem; overflow-x: auto; }
@@ -520,7 +550,10 @@ tr.cat-row td { background: var(--surface-sunk); }
 .disclosure h4 { margin: 1.1rem 0 .35rem; font-size: .85rem; color: var(--text-primary); }
 .disclosure ul { margin: .3rem 0; padding-left: 1.1rem; }
 .disclosure li { margin: .22rem 0; }
+.disclosure a, .src-note a { color: var(--text-secondary); text-underline-offset: 2px; }
 .disclosure code { background: var(--surface-sunk); padding: .08rem .3rem; border-radius: 4px; font-size: .93em; }
+
+.table-sub { display: block; margin-top: .12rem; font-size: .66rem; font-weight: 400; color: var(--text-muted); }
 
 footer {
   margin-top: 3rem; padding: 1.8rem 0 2.6rem; border-top: 1px solid var(--border);

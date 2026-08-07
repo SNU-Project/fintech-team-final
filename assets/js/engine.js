@@ -64,6 +64,7 @@
   /* ---------- 4. 백테스트 (자산 타임머신) ---------- */
   // 실제 월말 종가 인덱스를 그대로 사용한다. 곡선을 만들어내지 않는다.
   function backtest(asset, startMonth, amount) {
+    if (!asset || !Number.isFinite(amount) || amount <= 0) return null;
     const idx = asset.index || {};
     const months = Object.keys(idx).sort().filter((m) => m >= startMonth);
     if (months.length < 2) return null;
@@ -89,6 +90,44 @@
     }
 
     return { path, finalValue, totalReturn, cagr, mdd, months, years };
+  }
+
+  // 특정 시작 달 하나의 우연을 결과로 오해하지 않도록 앞뒤 달의 실제 결과도
+  // 함께 계산한다. 결측 월은 보간하지 않고, 실제 관측치가 있는 달만 쓴다.
+  function backtestWindow(asset, startMonth, amount, radius = 6) {
+    const byObservedMonth = new Map();
+    for (let offset = -radius; offset <= radius; offset++) {
+      const requested = addMonths(startMonth, offset);
+      const bt = backtest(asset, requested, amount);
+      if (!bt) continue;
+      const observed = bt.months[0];
+      if (!byObservedMonth.has(observed)) {
+        byObservedMonth.set(observed, {
+          startMonth: observed,
+          finalValue: bt.finalValue,
+          totalReturn: bt.totalReturn,
+        });
+      }
+    }
+
+    const samples = Array.from(byObservedMonth.values())
+      .sort((a, b) => a.finalValue - b.finalValue);
+    if (samples.length < 2) return null;
+
+    const mid = Math.floor(samples.length / 2);
+    const median = samples.length % 2
+      ? samples[mid].finalValue
+      : (samples[mid - 1].finalValue + samples[mid].finalValue) / 2;
+    const selected = backtest(asset, startMonth, amount);
+
+    return {
+      samples,
+      count: samples.length,
+      min: samples[0].finalValue,
+      max: samples[samples.length - 1].finalValue,
+      median,
+      selected: selected ? selected.finalValue : null,
+    };
   }
 
   // 소비자물가지수도 같은 방식으로 환산해 "물가선"을 만든다.
@@ -201,7 +240,7 @@
 
   global.Engine = {
     diagnose, negotiate, project, requiredMonthly,
-    backtest, inflationPath, planOf,
+    backtest, backtestWindow, inflationPath, planOf,
     personalInflation, personalIndexPath, halfLife,
     monthToNum, monthLabel, addMonths,
   };
