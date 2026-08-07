@@ -36,11 +36,18 @@ function validate(body) {
   };
 }
 
-function safeText(value) {
+function safeText(value, input) {
   if (typeof value !== "string") return null;
   const text = value.trim().replace(/[*#`]/g, "").slice(0, 500);
-  // 정확한 숫자는 클라이언트가 직접 표시한다. AI가 새 숫자를 만들면 응답을 버린다.
-  if (!text || /[0-9０-９%₩$€]/.test(text)) return null;
+  if (!text || /[₩$€]/.test(text)) return null;
+  // 모델이 전달받은 값을 반복하는 것은 허용하되, 없던 숫자를 만들면 응답을 버린다.
+  const allowed = [
+    input.officialRate, input.personalRate, input.gapPp,
+    input.topSharePct, input.topRatePct,
+  ].map(Number);
+  const mentioned = text.match(/-?\d+(?:\.\d+)?/g) || [];
+  if (mentioned.some((token) =>
+    !allowed.some((number) => Math.abs(Number(token) - number) < 0.051))) return null;
   return text;
 }
 
@@ -94,7 +101,7 @@ export async function POST(request) {
     });
     if (!gatewayResponse.ok) throw new Error(`gateway ${gatewayResponse.status}`);
     const output = await gatewayResponse.json();
-    const text = safeText(output?.choices?.[0]?.message?.content);
+    const text = safeText(output?.choices?.[0]?.message?.content, input);
     if (!text) throw new Error("unsafe model output");
     return Response.json({ text, model: MODEL }, {
       headers: { "Cache-Control": "no-store" },
