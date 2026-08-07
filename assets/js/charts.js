@@ -242,8 +242,16 @@
       const x = r.contribution >= 0 ? zeroX : zeroX - w;
       const positive = r.contribution >= 0;
 
+      // 오렌지(평균보다 빨리 오름)/그린(평균보다 천천히 오름) 색 대비만으로 구분하면
+      // 색약 사용자는 못 읽는다. 라벨에 방향 기호를 같이 붙여 색 없이도 구분되게 한다.
       const lab = el("text", { x: padL - 10, y: y + 15, "text-anchor": "end", class: "axis-text" });
-      lab.textContent = r.name;
+      if (r.hot != null) {
+        const arrow = document.createElementNS(NS, "tspan");
+        arrow.setAttribute("fill", r.color);
+        arrow.textContent = r.hot ? "▲ " : "▼ ";
+        lab.appendChild(arrow);
+      }
+      lab.appendChild(document.createTextNode(r.name));
       svg.appendChild(lab);
 
       const bar = el("rect", {

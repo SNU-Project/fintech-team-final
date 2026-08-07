@@ -96,6 +96,11 @@
     setupGapTab();
     setupGoalTab();
     setupTimeTab();
+    // 월 투자 가능액(실질임금 진단)과 월 저축 가능액(목표 자산)은 같은 값으로 시작한다.
+    $("#goalMonthly").value = $("#budget").value;
+    setupHomeFlow();
+    setupShareCard();
+    setupFinalConclusion();
     renderBasis();
     renderAll();
 
@@ -123,6 +128,18 @@
          저장된 스냅샷 · ${state.cpi.latest.month} 기준 ${state.cpi.latest.yoy.toFixed(1)}%
          (실시간 조회 실패)`;
     }
+
+    // 비트코인 실시간 시세는 전체 요약바가 아니라, 실제로 관련 있는
+    // 자산 타임머신 탭 안에서만 보여준다 — 첫인상에서 주제가 흩어지지 않게.
+    if (res.btc.ok) {
+      const d = res.btc.data;
+      const dir = d.delta == null ? "" :
+        `<span class="delta ${d.delta >= 0 ? "up" : "down"}">${d.delta >= 0 ? "▲" : "▼"}${Math.abs(d.delta).toFixed(2)}%</span>`;
+      $("#btcLiveNote").hidden = false;
+      $("#btcLiveNote").innerHTML =
+        `<span class="live-dot" style="display:inline-block;vertical-align:middle"></span>
+         실시간 비트코인 시세 <b>${man(d.value / 10000)}만원</b> ${dir} (24시간)`;
+    }
   }
 
   function renderTicker(res) {
@@ -145,14 +162,6 @@
         <b>${man(d.value)}원</b><span class="lbl">${d.date}</span></span>`);
     }
 
-    if (res.btc.ok) {
-      const d = res.btc.data;
-      const dir = d.delta == null ? "" :
-        `<span class="delta ${d.delta >= 0 ? "up" : "down"}">${d.delta >= 0 ? "▲" : "▼"}${Math.abs(d.delta).toFixed(2)}%</span>`;
-      items.push(`<span class="tick"><span class="live-dot"></span><span class="lbl">비트코인</span>
-        <b>${man(d.value / 10000)}만원</b>${dir}</span>`);
-    }
-
     const snap = new Date(state.market.source_fetched_at);
     items.push(`<span class="tick"><span class="live-dot stale"></span><span class="lbl">시세 스냅샷</span>
       <b>${snap.getFullYear()}.${String(snap.getMonth() + 1).padStart(2, "0")}.${String(snap.getDate()).padStart(2, "0")}</b>
@@ -162,17 +171,385 @@
   }
 
   /* ══════════════ 탭 ══════════════ */
+  // 탭은 더 이상 패널을 숨기지 않는다 — 내 물가부터 자산 타임머신까지
+  // 전부 리포트처럼 항상 이어져 보이고, 탭은 그 안의 위치로 스크롤만
+  // 시켜주는 앵커 링크(<a href="#panel-x">)다. 여기서는 지금 화면에
+  // 걸쳐 있는 섹션이 어떤 탭인지만 aria-current로 표시해 준다.
   function setupTabs() {
     const tabs = $$(".tab");
-    tabs.forEach((tab) => {
-      tab.addEventListener("click", () => {
-        tabs.forEach((t) => {
-          const on = t === tab;
-          t.setAttribute("aria-selected", String(on));
-          $("#" + t.getAttribute("aria-controls")).hidden = !on;
-        });
-        renderAll();
+    const tabBySection = new Map(tabs.map((t) => [t.getAttribute("href").slice(1), t]));
+    const sections = $$(".panel").filter((p) => tabBySection.has(p.id));
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        tabs.forEach((t) => t.removeAttribute("aria-current"));
+        tabBySection.get(entry.target.id).setAttribute("aria-current", "true");
       });
+    }, { rootMargin: "-40% 0px -55% 0px", threshold: 0 });
+
+    sections.forEach((s) => observer.observe(s));
+  }
+
+  /* ══════════════ 홈 · 온보딩 → 로딩 → 요약 ══════════════
+     Q1~Q5을 순서대로 물어보고, 답을 각 섹션의 실제 입력(persona 버튼·
+     월 생활비·연봉 필드·투자성향 세그먼트·목표 필드)에 그대로 반영한다.
+     설문 중에는 리포트 4개 섹션과 탭을 전부 숨겨 둔다 — 아직 안 끝난
+     설문 아래로 결과가 미리 보이면 안 된다. 설문을 마치면(또는
+     재방문자면) 한꺼번에 드러낸다. 한 번 마치면 localStorage에 저장해
+     재방문 시 다시 묻지 않는다. */
+  const ONBOARD_KEY = "salarygap-profile";
+  const TOTAL_STEPS = 5;
+  const REPORT_PANEL_IDS = ["panel-mine", "panel-gap", "panel-goal", "panel-time", "panel-final"];
+
+  function setReportVisible(visible) {
+    REPORT_PANEL_IDS.forEach((id) => { $(`#${id}`).hidden = !visible; });
+    $("#mainTabs").hidden = !visible;
+    $("#ticker").hidden = !visible;
+    $("#basis").hidden = !visible;
+  }
+
+  const personaDefaultTotal = (persona) =>
+    spendingTotal((PERSONAS[persona] || PERSONAS[DEFAULT_PERSONA]).spending);
+
+  function setInputAndFire(sel, value) {
+    if (value == null) return;
+    $(sel).value = value;
+    $(sel).dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function freshDraft() {
+    return {
+      persona: DEFAULT_PERSONA,
+      monthlySpend: personaDefaultTotal(DEFAULT_PERSONA),
+      curSalary: 3600, nextSalary: 3750,
+      risk: "balanced",
+      goalAmount: 5000, goalYears: 3, goalCurrent: 800,
+    };
+  }
+
+  // 문항에서 받은 답을 실제 리포트 입력(내 물가·실질임금 진단·목표 자산)에
+  // 그대로 반영한다. persona부터 눌러야 월 생활비 스케일링이 그 지출
+  // 비중을 기준으로 계산된다.
+  function applyOnboardProfile(profile) {
+    const personaBtn = $(`#personaSeg button[data-persona="${profile.persona || DEFAULT_PERSONA}"]`);
+    if (personaBtn) personaBtn.click();
+
+    if (profile.monthlySpend != null) setInputAndFire("#monthlySpend", profile.monthlySpend);
+    setInputAndFire("#curSalary", profile.curSalary);
+    setInputAndFire("#nextSalary", profile.nextSalary);
+    setInputAndFire("#goalAmount", profile.goalAmount);
+    setInputAndFire("#goalYears", profile.goalYears);
+    setInputAndFire("#goalCurrent", profile.goalCurrent);
+
+    if (profile.risk) {
+      const riskBtn = $(`#riskSeg button[data-risk="${profile.risk}"]`);
+      if (riskBtn) riskBtn.click();
+      const goalRiskBtn = $(`#goalRiskSeg button[data-risk="${profile.risk}"]`);
+      if (goalRiskBtn) goalRiskBtn.click();
+    }
+    renderAll();
+  }
+
+  // 리포트 맨 위에 놓을 한 줄 요약 — "당신의 체감 물가는 2.9%, 공식보다 0.1%p 높아요"
+  function homeSummaryText() {
+    const rate = state.personalRate;
+    if (rate == null) return { headline: "물가를 계산할 수 없어요" };
+    return { headline: `당신의 체감 물가는 ${rate.toFixed(1)}%` };
+  }
+
+  // 사주풀이처럼 숫자 하나만 던지지 않고, 물가·연봉·목표를 하나의
+  // 이야기로 엮어서 풀어준다. 각 문장은 실제 계산 결과(요약 화면에
+  // 도달했다는 건 renderAll이 이미 다 채워 놨다는 뜻)를 그대로 쓴다.
+  // 문장마다 줄을 바꿔서(\n) 반환한다 — 한 단락으로 흘려 쓰면 읽기
+  // 힘들어서, 한 문장 = 한 줄로 끊어 가독성을 높인다. CSS의
+  // white-space:pre-line이 이 줄바꿈을 그대로 살린다.
+  function buildNarrative() {
+    const official = state.cpi.latest.yoy;
+    const rate = state.personalRate;
+    if (rate == null) {
+      return "아직 지출 정보가 없어서 풀이를 시작할 수 없어요.\n리포트에서 월 생활비를 입력하면 여기서부터 다시 풀어드릴게요.";
+    }
+
+    const diff = rate - official;
+    const lines = [
+      Math.abs(diff) < 0.05
+        ? `당신의 체감 물가는 ${rate.toFixed(1)}%로, 공식 통계와 거의 같아요.`
+        : diff > 0
+          ? `당신의 체감 물가는 ${rate.toFixed(1)}%로, 공식 통계보다 ${diff.toFixed(1)}%p 높아요.`
+          : `당신의 체감 물가는 ${rate.toFixed(1)}%로, 공식 통계보다 ${Math.abs(diff).toFixed(1)}%p 낮아요.`,
+    ];
+
+    const cur = Math.max(0, +$("#curSalary").value || 0);
+    const next = Math.max(0, +$("#nextSalary").value || 0);
+    if (cur > 0) {
+      const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
+      lines.push(d.beatsInflation
+        ? "다행히 내년 연봉은 물가를 이기고 있어서, 실질 소득이 조금씩 늘어나는 흐름이에요."
+        : `하지만 내년 연봉은 물가를 다 따라가지 못해서, 실질적으로는 연 ${man(d.gap)}만원만큼 뒷걸음질 치고 있어요.`);
+    }
+
+    const goalAmount = Math.max(0, +$("#goalAmount").value || 0);
+    const goalYears = Math.max(1, Math.min(40, +$("#goalYears").value || 1));
+    const goalCurrent = Math.max(0, +$("#goalCurrent").value || 0);
+    const goalMonthly = Math.max(0, +$("#goalMonthly").value || 0);
+    if (goalAmount > goalCurrent) {
+      const plan = E.planOf(state.market, state.goalRisk);
+      if (plan) {
+        const path = E.project({ initial: goalCurrent, monthly: goalMonthly, months: goalYears * 12, annualReturn: plan.expected_return });
+        const gdiff = path[path.length - 1].value - goalAmount;
+        lines.push(gdiff >= 0
+          ? `지금 페이스를 유지하면 목표 자산에도 ${goalYears}년 뒤 ${man(gdiff)}만원 여유 있게 도착할 것 같아요.`
+          : `다만 지금 페이스로는 목표 자산에 ${man(-gdiff)}만원 정도 못 미칠 것으로 보여요.`);
+      }
+    }
+
+    lines.push("아래에서 하나씩 풀어드릴게요.");
+    return lines.join("\n");
+  }
+
+  // 문장이 한 글자씩 나타나는 연출 — 결과를 "읽어주는" 느낌을 준다.
+  // 요약 화면 문단과 마지막 결론 문단, 두 곳에서 동시에 쓰일 수 있어
+  // 타이머를 변수 하나로 공유하면 한쪽이 다른 쪽을 끊어버릴 수 있다.
+  // WeakMap으로 대상 엘리먼트마다 자기 타이머를 따로 가지게 한다.
+  const typewriterTimers = new WeakMap();
+  function typewriter(el, text, speed = 22) {
+    clearInterval(typewriterTimers.get(el));
+    el.classList.remove("typing-cursor");
+    el.textContent = "";
+    if (!text) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      el.textContent = text;
+      return;
+    }
+    el.classList.add("typing-cursor");
+    let i = 0;
+    const timer = setInterval(() => {
+      i++;
+      el.textContent = text.slice(0, i);
+      if (i >= text.length) {
+        clearInterval(timer);
+        el.classList.remove("typing-cursor");
+      }
+    }, speed);
+    typewriterTimers.set(el, timer);
+  }
+
+  // 리포트 맨 끝의 결론 — 4개 섹션 결과를 한데 모아 정리한다.
+  // 투자 권유로 읽히면 안 되므로 단정 대신 "~해볼 만해요" 같은 선택지
+  // 톤을 쓰고, 마지막 줄에서 참고자료라는 점을 다시 한 번 짚는다.
+  function buildFinalConclusion() {
+    const rate = state.personalRate;
+    if (rate == null) {
+      return "아직 결과를 계산할 수 없어요.\n리포트에서 값을 입력하면 여기서 정리해 드릴게요.";
+    }
+
+    const lines = [];
+
+    const plans = Object.keys(state.market.portfolios).map((k) => E.planOf(state.market, k));
+    const enough = plans.filter((p) => p.expected_return * 100 >= rate);
+    const minPlan = enough.length ? enough[0] : null;
+    lines.push(minPlan
+      ? `체감 물가 ${rate.toFixed(1)}%를 방어하려면 최소 ${minPlan.label} 이상의 포트폴리오가 필요해요.`
+      : `체감 물가 ${rate.toFixed(1)}%는 적극형 포트폴리오로도 방어가 쉽지 않은 수준이에요.`);
+
+    const cur = Math.max(0, +$("#curSalary").value || 0);
+    const next = Math.max(0, +$("#nextSalary").value || 0);
+    if (cur > 0) {
+      const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
+      lines.push(d.beatsInflation
+        ? "내년 연봉은 물가를 이기고 있어서, 지금 페이스라면 실질 소득은 지켜지고 있어요."
+        : "내년 연봉은 물가를 다 따라가지 못하고 있어서, 그 차이를 투자나 협상으로 메워야 해요.");
+    }
+
+    const goalAmount = Math.max(0, +$("#goalAmount").value || 0);
+    const goalYears = Math.max(1, Math.min(40, +$("#goalYears").value || 1));
+    const goalCurrent = Math.max(0, +$("#goalCurrent").value || 0);
+    const goalMonthly = Math.max(0, +$("#goalMonthly").value || 0);
+    if (goalAmount > goalCurrent) {
+      const plan = E.planOf(state.market, state.goalRisk);
+      if (plan) {
+        const months = goalYears * 12;
+        const path = E.project({ initial: goalCurrent, monthly: goalMonthly, months, annualReturn: plan.expected_return });
+        const gdiff = path[path.length - 1].value - goalAmount;
+        if (gdiff >= 0) {
+          lines.push(`목표 자산도 지금 페이스로 ${goalYears}년 안에 닿을 것으로 보여요.`);
+        } else {
+          const need = Math.ceil(E.requiredMonthly({ goal: goalAmount, current: goalCurrent, months, annualReturn: plan.expected_return }));
+          lines.push(`목표 자산에 닿으려면 월 저축액을 ${man(need)}만원 정도로 올리거나, 기간을 늘리는 방법을 함께 고려해볼 만해요.`);
+        }
+      }
+    }
+
+    lines.push("과거 데이터는 참고 자료일 뿐, 결정은 늘 본인의 몫입니다.");
+    return lines.join("\n");
+  }
+
+  // 스크롤로 맨 아래 결론 카드에 처음 닿는 순간에만 타이핑한다 —
+  // 스크롤을 왔다갔다 할 때마다 다시 타이핑되면 산만하다.
+  function setupFinalConclusion() {
+    const target = $("#panel-final");
+    const body = $("#finalBody");
+    let typed = false;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting || typed || target.hidden) return;
+        typed = true;
+        typewriter(body, buildFinalConclusion());
+        observer.disconnect();
+      });
+    }, { threshold: 0.35 });
+    observer.observe(target);
+  }
+
+  function setupHomeFlow() {
+    const loadingView = $("#homeLoading");
+    const summaryView = $("#homeSummary");
+    const wizardView = $("#homeOnboarding");
+    const steps = $$(".onboarding-step");
+    const progressWrap = $("#onboardProgressWrap");
+    const progressFill = $("#onbProgressFill");
+    const progressText = $("#onbProgressText");
+    let stepIndex = 0;
+    let draft = freshDraft();
+
+    const loadSaved = () => {
+      try { return JSON.parse(localStorage.getItem(ONBOARD_KEY)); } catch { return null; }
+    };
+
+    // 문항 내용에 따라 다음/이전 버튼 높이가 달라질 수 있고, 짧은 화면에서는
+    // 버튼을 누르려고 스크롤한 채로 다음 화면(로딩·요약)으로 넘어갈 수 있다.
+    // 그 상태로 두면 스크롤 위치가 다음 화면의 엉뚱한 지점(그 아래 리포트
+    // 섹션)을 가리키게 되므로, 상태가 바뀔 때마다 홈 섹션 맨 위로 되돌린다.
+    function scrollHomeToTop() {
+      $("#panel-home").scrollIntoView({ behavior: "auto", block: "start" });
+    }
+
+    function showStep(i) {
+      stepIndex = i;
+      steps.forEach((s) => { s.hidden = Number(s.dataset.step) !== i; });
+      progressWrap.hidden = i === 0;
+      if (i > 0) {
+        progressFill.style.width = `${(i / TOTAL_STEPS) * 100}%`;
+        progressText.textContent = `${i} / ${TOTAL_STEPS}`;
+      }
+      // 방금 고른 생활 유형의 평균값을 미리 채워 둔다 — 사용자는 그대로 두거나 고칠 수 있다.
+      if (i === 2) $("#onbMonthlySpend").value = draft.monthlySpend;
+      scrollHomeToTop();
+    }
+
+    function renderSummary() {
+      const { headline } = homeSummaryText();
+      $("#homeSummaryHeadline").textContent = headline;
+      typewriter($("#homeSummarySub"), buildNarrative());
+      summaryView.hidden = false;
+      // 첫 화면에는 타이틀·설명·시작하기만 보여야 한다. 리포트 4개 섹션과
+      // 탭은 설문이 끝나고 포트폴리오가 준비된 뒤에야 의미가 생기므로
+      // 그때 한꺼번에 드러낸다.
+      setReportVisible(true);
+      scrollHomeToTop();
+    }
+
+    // 실제로는 즉시 계산되지만, 문항에 답한 뒤 결과가 "만들어지는" 느낌을
+    // 잠깐 줘서 다음 화면(리포트)에 무게감을 싣는다.
+    function showLoadingThenSummary() {
+      wizardView.hidden = true;
+      loadingView.hidden = false;
+      scrollHomeToTop();
+      const messages = ["당신의 물가를 계산하는 중…", "실질임금을 진단하는 중…", "리포트를 준비하는 중…"];
+      let i = 0;
+      $("#loadingMsg").textContent = messages[0];
+      const msgTimer = setInterval(() => {
+        i = (i + 1) % messages.length;
+        $("#loadingMsg").textContent = messages[i];
+      }, 550);
+      setTimeout(() => {
+        clearInterval(msgTimer);
+        loadingView.hidden = true;
+        renderSummary();
+      }, 1650);
+    }
+
+    function finish(finalDraft) {
+      localStorage.setItem(ONBOARD_KEY, JSON.stringify(finalDraft));
+      applyOnboardProfile(finalDraft);
+      showLoadingThenSummary();
+    }
+
+    // ---- 진입: 저장된 답이 있으면 온보딩을 건너뛰고 요약만 보여준다 ----
+    const saved = loadSaved();
+    if (saved) {
+      wizardView.hidden = true;
+      applyOnboardProfile(saved);
+      renderSummary();
+    } else {
+      wizardView.hidden = false;
+      showStep(0);
+    }
+
+    // ---- 0 · 인트로 ----
+    $("#onbStart").addEventListener("click", () => showStep(1));
+    $("#onbSkipAll").addEventListener("click", () => finish(freshDraft()));
+
+    // ---- 1 · 생활 유형 ----
+    $$("#onbPersonaGrid button").forEach((b) => {
+      b.addEventListener("click", () => {
+        draft.persona = b.dataset.persona;
+        draft.monthlySpend = personaDefaultTotal(draft.persona);
+        $$("#onbPersonaGrid button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      });
+    });
+    $("#onbNext1").addEventListener("click", () => showStep(2));
+
+    // ---- 2 · 월 생활비 ----
+    $("#onbNext2").addEventListener("click", () => {
+      draft.monthlySpend = Math.max(0, +$("#onbMonthlySpend").value || 0);
+      showStep(3);
+    });
+
+    // ---- 3 · 연봉 ----
+    $("#onbNext3").addEventListener("click", () => {
+      draft.curSalary = Math.max(0, +$("#onbCurSalary").value || 0);
+      draft.nextSalary = Math.max(0, +$("#onbNextSalary").value || 0);
+      showStep(4);
+    });
+
+    // ---- 4 · 투자 성향 (건너뛰기 가능) ----
+    $$("#onbRiskSeg button").forEach((b) => {
+      b.addEventListener("click", () => {
+        draft.risk = b.dataset.risk;
+        $$("#onbRiskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      });
+    });
+    $("#onbNext4").addEventListener("click", () => showStep(5));
+    $("#onbSkip4").addEventListener("click", () => showStep(5));
+
+    // ---- 5 · 목표 자산 (건너뛰기 가능 — 기본값 그대로 완료) ----
+    function collectGoalAndFinish() {
+      draft.goalAmount = Math.max(0, +$("#onbGoalAmount").value || 0);
+      draft.goalYears = Math.max(1, Math.min(40, +$("#onbGoalYears").value || 1));
+      draft.goalCurrent = Math.max(0, +$("#onbGoalCurrent").value || 0);
+      finish(draft);
+    }
+    $("#onbFinish").addEventListener("click", collectGoalAndFinish);
+    $("#onbSkip5").addEventListener("click", collectGoalAndFinish);
+
+    // ---- 뒤로가기 (모든 문항 공통) ----
+    $$("[data-back]").forEach((b) => {
+      b.addEventListener("click", () => showStep(Math.max(0, stepIndex - 1)));
+    });
+
+    // ---- 요약 화면 ----
+    $("#homeReportBtn").addEventListener("click", () => $("#tab-mine").click());
+    $("#homeRestartBtn").addEventListener("click", () => {
+      localStorage.removeItem(ONBOARD_KEY);
+      summaryView.hidden = true;
+      setReportVisible(false);
+      draft = freshDraft();
+      $$("#onbPersonaGrid button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.persona === DEFAULT_PERSONA)));
+      $$("#onbRiskSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.risk === "balanced")));
+      wizardView.hidden = false;
+      showStep(0);
     });
   }
 
@@ -284,11 +661,19 @@
       $("#inflSource").innerHTML =
         `<b>내 물가 ${state.personalRate.toFixed(1)}%</b>를 적용했습니다. ` +
         `공식 물가(${state.cpi.latest.yoy.toFixed(1)}%) 대신 내 지출 기준으로 진단합니다.`;
+      renderGap();
       $("#tab-gap").click();
-      $("#panel-gap").scrollIntoView({ behavior: "smooth", block: "start" });
+      // 탭 전환 + 작은 안내 문구만으로는 값이 실제로 넘어갔는지 확신하기 어렵다는
+      // 피드백이 있어, 적용된 필드를 잠깐 반짝여 눈에 띄게 한다.
+      const inflLabel = $("#inflLabel");
+      inflLabel.classList.remove("field-flash");
+      void inflLabel.offsetWidth;
+      inflLabel.classList.add("field-flash");
+      setTimeout(() => inflLabel.classList.remove("field-flash"), 1800);
     });
 
     $("#aiExplainBtn").addEventListener("click", openAIInsight);
+    $("#aiRetryBtn").addEventListener("click", openAIInsight);
     $("#aiCloseBtn").addEventListener("click", () => $("#aiInsightDialog").close());
     $("#aiInsightDialog").addEventListener("click", (event) => {
       if (event.target === $("#aiInsightDialog")) $("#aiInsightDialog").close();
@@ -309,8 +694,10 @@
       state.aiContext = null;
       $("#aiExplainBtn").disabled = true;
       $("#officialRate").textContent = `${official.toFixed(1)}%`;
+      $("#officialRate").classList.remove("skeleton-bar");
       $("#officialMonth").textContent = `${state.cpi.latest.month} 기준`;
       $("#personalRate").textContent = "—";
+      $("#personalRate").classList.remove("skeleton-bar");
       $("#vsGap").className = "vs-mid";
       $("#vsGap").textContent = "입력 필요";
       $("#mineVerdict").className = "verdict";
@@ -331,8 +718,10 @@
     const diff = result.rate - official;
 
     $("#officialRate").textContent = `${official.toFixed(1)}%`;
+    $("#officialRate").classList.remove("skeleton-bar");
     $("#officialMonth").textContent = `${state.cpi.latest.month} 기준`;
     $("#personalRate").textContent = `${result.rate.toFixed(1)}%`;
+    $("#personalRate").classList.remove("skeleton-bar");
 
     const mid = $("#vsGap");
     const side = $("#vsRow").querySelector(".vs-side.accent");
@@ -384,9 +773,11 @@
     }
 
     // 기여도 분해
+    // 품목이 전체 평균보다 빨리 오르는지는 막대 색(오렌지/그린)만으로 표시했었다.
+    // 색약 사용자를 위해 방향 기호(▲/▼)도 라벨에 같이 붙인다.
     Charts.contributionChart($("#contribChart"),
       sorted.filter((c) => c.amount > 0).map((c) => ({
-        ...c, color: c.rate >= official ? "var(--series-2)" : "var(--series-3)",
+        ...c, hot: c.rate >= official, color: c.rate >= official ? "var(--series-2)" : "var(--series-3)",
       })));
     $("#mineSrc").textContent =
       `OECD 한국 소비자물가 COICOP 12분류 · ${result.month} 기준 · 브라우저에서 실시간 조회`;
@@ -418,6 +809,7 @@
     body.textContent = fallbackInsight(context);
     body.classList.add("is-loading");
     status.textContent = "Gemini가 계산 결과를 쉬운 말로 정리하고 있어요…";
+    $("#aiRetryBtn").hidden = true;
     if (!dialog.open) dialog.showModal();
 
     const payload = {
@@ -452,10 +844,172 @@
       status.textContent = "Gemini 해설 · 계산은 샐러리갭 엔진이 수행했습니다.";
     } catch (_error) {
       status.textContent = "AI 연결이 늦어 검증된 기본 해설을 보여드립니다.";
+      $("#aiRetryBtn").hidden = false;
     } finally {
       clearTimeout(timeout);
       body.classList.remove("is-loading");
     }
+  }
+
+  /* ══════════════ 공유 카드 ══════════════
+     MBTI류 사이트의 "당신은?" 결과 카드를 캔버스로 직접 그린다.
+     외부 이미지 라이브러리 없이 <canvas>만으로 그리고, PNG로 내보낸다. */
+  function roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function buildShareCard() {
+    const rate = state.personalRate;
+    const official = state.cpi && state.cpi.latest ? state.cpi.latest.yoy : null;
+    if (rate == null || official == null) return null;
+    const diff = rate - official;
+    const topCategory = state.aiContext ? state.aiContext.topCategory : null;
+
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark" ||
+      (!document.documentElement.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+    const bg = isDark ? "#141412" : "#f7f7f4";
+    const bg2 = isDark ? "#1c2620" : "#e6f0ea";
+    const ink = isDark ? "#f5f5f2" : "#141412";
+    const sub = isDark ? "#b7b6ae" : "#63625c";
+    const brand = isDark ? "#4fae8b" : "#24745a";
+    const track = isDark ? "#33322d" : "#e3e2db";
+    const accent = diff > 0 ? "#b76442" : "#1f7a4d";
+    const FONT = "-apple-system, 'Apple SD Gothic Neo', sans-serif";
+
+    const SIZE = 1080;
+    const canvas = document.createElement("canvas");
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext("2d");
+
+    const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE);
+    grad.addColorStop(0, bg);
+    grad.addColorStop(1, bg2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    // 브랜드 마크
+    ctx.fillStyle = brand;
+    roundRectPath(ctx, 80, 84, 76, 76, 20);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = `800 42px ${FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("₩", 118, 126);
+
+    ctx.fillStyle = ink;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = `800 40px ${FONT}`;
+    ctx.fillText("샐러리갭", 176, 138);
+
+    ctx.fillStyle = sub;
+    ctx.font = `600 30px ${FONT}`;
+    ctx.fillText("나의 연봉 성적표", 80, 260);
+
+    ctx.fillStyle = ink;
+    ctx.font = `800 164px ${FONT}`;
+    ctx.fillText(`${rate.toFixed(1)}%`, 76, 470);
+
+    ctx.fillStyle = sub;
+    ctx.font = `600 40px ${FONT}`;
+    ctx.fillText("내 체감 물가", 80, 530);
+
+    ctx.fillStyle = accent;
+    ctx.font = `700 38px ${FONT}`;
+    const verdict = Math.abs(diff) < 0.05
+      ? "공식 물가와 거의 같아요"
+      : `공식 물가보다 ${Math.abs(diff).toFixed(1)}%p ${diff > 0 ? "높아요" : "낮아요"}`;
+    ctx.fillText(verdict, 80, 590);
+
+    const barX = 80, barW = 920;
+    const maxVal = Math.max(rate, official, 0.1) * 1.25;
+    function bar(y, label, value, color) {
+      ctx.fillStyle = sub;
+      ctx.font = `600 26px ${FONT}`;
+      ctx.fillText(label, barX, y - 14);
+      ctx.fillStyle = track;
+      roundRectPath(ctx, barX, y, barW, 22, 11);
+      ctx.fill();
+      ctx.fillStyle = color;
+      const w = Math.max(14, (Math.max(value, 0) / maxVal) * barW);
+      roundRectPath(ctx, barX, y, w, 22, 11);
+      ctx.fill();
+      ctx.fillStyle = ink;
+      ctx.font = `700 26px ${FONT}`;
+      ctx.fillText(`${value.toFixed(1)}%`, barX + w + 16, y + 18);
+    }
+    bar(700, "공식 물가", official, isDark ? "#6b6a63" : "#c3c2b7");
+    bar(772, "내 물가", rate, brand);
+
+    if (topCategory) {
+      ctx.fillStyle = sub;
+      ctx.font = `500 28px ${FONT}`;
+      ctx.fillText(`가장 크게 영향을 준 항목 · ${topCategory}`, 80, 862);
+    }
+
+    ctx.strokeStyle = track;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(80, 920);
+    ctx.lineTo(1000, 920);
+    ctx.stroke();
+
+    ctx.fillStyle = brand;
+    ctx.font = `700 34px ${FONT}`;
+    ctx.fillText("당신의 체감 물가는 몇 %인가요?", 80, 975);
+    ctx.fillStyle = sub;
+    ctx.font = `500 26px ${FONT}`;
+    ctx.fillText(location.host || "salarygap", 80, 1015);
+
+    return canvas;
+  }
+
+  function setupShareCard() {
+    const btn = $("#shareCardBtn");
+    if (!btn) return;
+    const dialog = $("#shareDialog");
+    const img = $("#shareCardImg");
+    const downloadBtn = $("#shareDownloadBtn");
+    const nativeBtn = $("#shareNativeBtn");
+
+    btn.addEventListener("click", () => {
+      const canvas = buildShareCard();
+      if (!canvas) return;
+      const dataUrl = canvas.toDataURL("image/png");
+      img.src = dataUrl;
+      downloadBtn.href = dataUrl;
+
+      nativeBtn.hidden = true;
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const file = new File([blob], "salarygap-card.png", { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          nativeBtn.hidden = false;
+          nativeBtn.onclick = () => {
+            navigator.share({
+              files: [file],
+              title: "내 연봉 성적표",
+              text: "내 체감 물가를 확인해봤어요 — 샐러리갭",
+            }).catch(() => {});
+          };
+        }
+      });
+
+      if (!dialog.open) dialog.showModal();
+    });
+
+    $("#shareCloseBtn").addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
   }
 
   function renderCumulative(result) {
@@ -582,14 +1136,23 @@
           state.inflationLive = false;
           $("#inflSource").textContent = "직접 조정한 값으로 계산 중입니다.";
         }
+        // "월 투자 가능액"과 목표 자산 탭의 "월 저축 가능액"은 같은 돈이다.
+        // 탭을 옮길 때마다 다시 입력하지 않도록 값을 그대로 맞춰준다.
+        if (sel === "#budget") {
+          $("#goalMonthly").value = $("#budget").value;
+          renderGoal();
+        }
         renderGap();
       });
     });
     $$("#riskSeg button").forEach((b) => {
       b.addEventListener("click", () => {
         state.risk = b.dataset.risk;
+        state.goalRisk = b.dataset.risk;
         $$("#riskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        $$("#goalRiskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.risk === b.dataset.risk)));
         renderGap();
+        renderGoal();
       });
     });
   }
@@ -826,12 +1389,22 @@
   /* ══════════════ 탭 2 · 목표 자산 ══════════════ */
   function setupGoalTab() {
     ["#goalAmount", "#goalYears", "#goalCurrent", "#goalMonthly"].forEach((sel) =>
-      $(sel).addEventListener("input", renderGoal));
+      $(sel).addEventListener("input", () => {
+        // 실질임금 진단의 "월 투자 가능액"과 같은 돈이다 — 여기서 바꿔도 맞춰준다.
+        if (sel === "#goalMonthly") {
+          $("#budget").value = $("#goalMonthly").value;
+          renderGap();
+        }
+        renderGoal();
+      }));
     $$("#goalRiskSeg button").forEach((b) => {
       b.addEventListener("click", () => {
         state.goalRisk = b.dataset.risk;
+        state.risk = b.dataset.risk;
         $$("#goalRiskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        $$("#riskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.risk === b.dataset.risk)));
         renderGoal();
+        renderGap();
       });
     });
   }
@@ -962,9 +1535,8 @@
         return;
       }
       $("#goalCurrent").value = amount;
-      $("#tab-goal").click();
       renderGoal();
-      $("#panel-goal").scrollIntoView({ behavior: "smooth", block: "start" });
+      $("#tab-goal").click();
     });
   }
 
