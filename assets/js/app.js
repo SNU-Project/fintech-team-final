@@ -19,6 +19,7 @@
   }
 
   const man = (n) => Math.round(n).toLocaleString("ko-KR");
+  const man1 = (n) => Number(n).toLocaleString("ko-KR", { maximumFractionDigits: 1 });
   const pct = (n, d = 1) => `${(n * 100).toFixed(d)}%`;
   const signPct = (n, d = 1) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(d)}%`;
 
@@ -28,37 +29,31 @@
   };
   const colorOf = (id) => ASSET_COLOR[id] || "var(--text-muted)";
 
-  // 프리셋은 통계가 아니라 예시 페르소나다. 화면에도 그렇게 밝힌다.
-  // 숫자는 월 지출액(만원).
-  // 가구 규모가 아니라 라이프스타일로 나눴다. 물가 체감의 차이를 만드는 건
-  // 식구 수가 아니라 "돈을 어디에 쓰느냐"이기 때문이다.
-  const PRESETS = {
-    car: {
-      label: "차로 출퇴근",
-      spending: { food: 22, alcohol: 6, clothing: 12, housing: 55, household: 5,
-                  health: 5, transport: 55, comm: 8, leisure: 25, education: 0,
-                  dining: 45, misc: 12 },
-    },
-    dining: {
-      label: "외식·구독 많은 1인",
-      spending: { food: 12, alcohol: 8, clothing: 14, housing: 58, household: 4,
-                  health: 4, transport: 12, comm: 8, leisure: 38, education: 0,
-                  dining: 60, misc: 14 },
-    },
-    home: {
-      label: "집밥·대중교통",
-      spending: { food: 48, alcohol: 4, clothing: 6, housing: 52, household: 5,
-                  health: 7, transport: 8, comm: 7, leisure: 6, education: 0,
-                  dining: 14, misc: 7 },
-    },
-  };
+  const PERSONA_DATA = window.Personas;
+  const PERSONAS = PERSONA_DATA.profiles;
+  const DEFAULT_PERSONA = "solo";
+  const spendingTotal = (spending) =>
+    Object.values(spending).reduce((sum, value) => sum + (Number(value) || 0), 0);
 
-  // 품목별 색 — 누적 막대와 슬라이더에서 같은 색을 쓴다.
-  const CAT_COLOR = {
-    housing: "#2a78d6", food: "#1baf7a", dining: "#eb6834", transport: "#d64550",
-    leisure: "#8d6fb0", comm: "#0f9bb3", clothing: "#eda100", household: "#7a8b3f",
-    health: "#4a9d7c", education: "#c2739b", alcohol: "#8a6b4f", misc: "#909090",
-  };
+  // 총액은 체감하기 쉬운 입력이고, 개인 물가는 지출 비중으로 계산된다.
+  // 그래서 총액을 바꿀 때는 통계에서 온 비중을 유지한 채 모든 항목을 같이 조정한다.
+  function scaleSpending(spending, nextTotal) {
+    const current = spendingTotal(spending);
+    if (current <= 0 || nextTotal <= 0) {
+      return Object.fromEntries(Object.keys(spending).map((key) => [key, 0]));
+    }
+    const scale = nextTotal / current;
+    const scaled = Object.fromEntries(Object.entries(spending).map(([key, value]) =>
+      [key, Math.round(value * scale * 10) / 10]));
+    // 항목별 0.1만 원 반올림 뒤 생기는 오차는 가장 큰 항목에 합쳐
+    // 사용자가 입력한 총액과 화면 합계가 정확히 같게 만든다.
+    const largest = Object.keys(scaled).sort((a, b) => scaled[b] - scaled[a])[0];
+    const roundingGap = Math.round((nextTotal - spendingTotal(scaled)) * 10) / 10;
+    if (largest && roundingGap) {
+      scaled[largest] = Math.max(0, Math.round((scaled[largest] + roundingGap) * 10) / 10);
+    }
+    return scaled;
+  }
 
   const state = {
     market: null, cpi: null, meta: null,
@@ -66,44 +61,12 @@
     inflation: 2.8, inflationLive: false,
     picks: new Set(["kodex200", "sp500", "gold"]),
     startMonth: null,
-    total: 250,          // 월 총 지출(만원)
-    ratios: {},          // { 품목id: 0~1 }, 합이 1
-    preset: "car",
+    spending: { ...PERSONAS[DEFAULT_PERSONA].spending },
+    persona: DEFAULT_PERSONA,
     personalRate: null,
+    aiContext: null,
+    aiCache: new Map(),
   };
-
-  // 지출액을 비율로 환산. 프리셋은 금액으로 적어두는 게 읽기 쉬워서
-  // 여기서 한 번만 비율로 바꾼다.
-  function ratiosFrom(amounts) {
-    const total = Object.values(amounts).reduce((a, b) => a + b, 0) || 1;
-    return Object.fromEntries(Object.entries(amounts).map(([k, v]) => [k, v / total]));
-  }
-  const totalOf = (amounts) => Object.values(amounts).reduce((a, b) => a + b, 0);
-
-  // 현재 비율 × 총액 = 품목별 금액
-  function spendingNow() {
-    return Object.fromEntries(
-      Object.entries(state.ratios).map(([k, r]) => [k, r * state.total])
-    );
-  }
-
-  /* 슬라이더 하나를 움직이면 나머지가 비례해서 줄거나 늘어 합이 항상 100%가 된다.
-     이렇게 안 하면 사용자가 12개를 일일이 맞춰야 하고, 합이 100%를 넘어가 버린다. */
-  function setRatio(id, next) {
-    const ids = Object.keys(state.ratios);
-    const others = ids.filter((k) => k !== id);
-    const clamped = Math.max(0, Math.min(1, next));
-    const remaining = 1 - clamped;
-    const otherSum = others.reduce((s, k) => s + state.ratios[k], 0);
-
-    if (otherSum <= 0) {
-      // 나머지가 전부 0이면 균등 분배 말고는 방법이 없다
-      others.forEach((k) => { state.ratios[k] = remaining / others.length; });
-    } else {
-      others.forEach((k) => { state.ratios[k] = state.ratios[k] / otherSum * remaining; });
-    }
-    state.ratios[id] = clamped;
-  }
 
   /* ══════════════ 부팅 ══════════════ */
   async function boot() {
@@ -228,6 +191,38 @@
   }
 
   /* ══════════════ 탭 0 · 내 물가 ══════════════ */
+  function syncSpendingFields(cats, syncTotal = true) {
+    cats.forEach((c) => {
+      const input = $(`#sp-${c.id}`);
+      if (input) input.value = (state.spending[c.id] || 0).toFixed(1).replace(/\.0$/, "");
+    });
+    if (syncTotal) {
+      $("#monthlySpend").value = spendingTotal(state.spending).toFixed(1).replace(/\.0$/, "");
+    }
+  }
+
+  function renderPersonaBasis() {
+    const source = PERSONA_DATA.source;
+    const p = state.persona ? PERSONAS[state.persona] : null;
+    $("#personaBasis").innerHTML = p
+      ? `<b>${p.basis}</b>으로 채웠습니다. 개인 상황에 맞게 바꿀 수 있습니다.<br>
+         <a href="${source.url}">${source.label} · ${source.table} ↗</a>`
+      : `세부 금액을 직접 수정한 상태입니다.<br>
+         시작값 출처: <a href="${source.url}">${source.label} ↗</a>`;
+  }
+
+  function applyPersona(key, cats) {
+    const p = PERSONAS[key];
+    if (!p) return;
+    state.persona = key;
+    state.spending = { ...p.spending };
+    $$("#personaSeg button").forEach((button) =>
+      button.setAttribute("aria-pressed", String(button.dataset.persona === key)));
+    syncSpendingFields(cats);
+    renderPersonaBasis();
+    renderMine();
+  }
+
   function setupMineTab() {
     const cats = state.cpi.categories || [];
     if (!cats.length) {
@@ -236,66 +231,50 @@
       return;
     }
 
-    state.total = totalOf(PRESETS.car.spending);
-    state.ratios = ratiosFrom(PRESETS.car.spending);
-    $("#spendTotalInput").value = Math.round(state.total);
-
-    // 금액을 12번 타이핑하는 대신 비율 슬라이더로 조정한다.
-    // 총액은 숫자로 한 번만 넣고, 각 품목은 밀어서 맞춘다.
-    // 품목별 현재 물가를 칩으로 같이 보여줘, 미는 동안 어떤 항목이
-    // 비싸지고 있는지 바로 알 수 있게 했다.
-    const PRIMARY = ["housing", "food", "dining", "transport", "leisure", "comm"];
     const row = (c) => {
-      const r = c.latest.yoy;
-      const cls = r >= 4 ? "rate-hot" : (r <= 1 ? "rate-cool" : "rate-mild");
-      const color = CAT_COLOR[c.id] || "var(--brand)";
-      return `<div class="mix-row" style="--slider-color:${color}">
-        <div class="mix-head">
-          <span class="legend-swatch" style="background:${color}"></span>
-          <span class="mix-name">${c.name}</span>
-          <span class="rate-chip ${cls}">${r >= 0 ? "+" : ""}${r.toFixed(1)}%</span>
-          <span class="spacer"></span>
-          <span class="mix-pct" id="pct-${c.id}">—</span>
-          <span class="mix-won" id="won-${c.id}">—</span>
-        </div>
-        <input type="range" id="sp-${c.id}" min="0" max="60" step="0.5"
-               value="${(state.ratios[c.id] ?? 0) * 100}"
-               aria-label="${c.name} 지출 비중">
+      return `<div class="spend-row">
+        <label for="sp-${c.id}">
+          <b>${c.name}</b>
+          <small>${c.hint}</small>
+        </label>
+        <span class="input-wrap">
+          <input type="number" id="sp-${c.id}" min="0" step="1" inputmode="decimal" value="${state.spending[c.id] ?? 0}">
+          <span>만원</span>
+        </span>
       </div>`;
     };
 
-    const primary = cats.filter((c) => PRIMARY.includes(c.id));
-    const secondary = cats.filter((c) => !PRIMARY.includes(c.id));
-    $("#spendFields").innerHTML = primary.map(row).join("");
-    $("#spendFieldsMore").innerHTML = secondary.map(row).join("");
-    $("#moreCount").textContent = `(${secondary.length}개)`;
+    $("#spendFields").innerHTML = cats.map(row).join("");
 
     cats.forEach((c) => {
       $(`#sp-${c.id}`).addEventListener("input", (e) => {
-        setRatio(c.id, (+e.target.value || 0) / 100);
-        $$("#presetSeg button").forEach((b) => b.setAttribute("aria-pressed", "false"));
-        state.preset = null;
+        state.spending[c.id] = Math.max(0, +e.target.value || 0);
+        $$("#personaSeg button").forEach((b) => b.setAttribute("aria-pressed", "false"));
+        state.persona = null;
+        $("#monthlySpend").value = spendingTotal(state.spending).toFixed(1).replace(/\.0$/, "");
+        renderPersonaBasis();
         renderMine();
       });
     });
 
-    $("#spendTotalInput").addEventListener("input", (e) => {
-      state.total = Math.max(0, +e.target.value || 0);
+    $$("#personaSeg button").forEach((b) => {
+      b.addEventListener("click", () => {
+        applyPersona(b.dataset.persona, cats);
+      });
+    });
+
+    $("#monthlySpend").addEventListener("input", (e) => {
+      const nextTotal = Math.max(0, +e.target.value || 0);
+      const base = spendingTotal(state.spending) > 0
+        ? state.spending
+        : (state.persona ? PERSONAS[state.persona].spending : PERSONAS[DEFAULT_PERSONA].spending);
+      state.spending = scaleSpending(base, nextTotal);
+      syncSpendingFields(cats, false);
       renderMine();
     });
 
-    $$("#presetSeg button").forEach((b) => {
-      b.addEventListener("click", () => {
-        const p = PRESETS[b.dataset.preset];
-        if (!p) return;
-        state.preset = b.dataset.preset;
-        state.total = totalOf(p.spending);
-        state.ratios = ratiosFrom(p.spending);
-        $("#spendTotalInput").value = Math.round(state.total);
-        $$("#presetSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-        renderMine();
-      });
-    });
+    syncSpendingFields(cats);
+    renderPersonaBasis();
 
     $("#applyToSalary").addEventListener("click", () => {
       if (state.personalRate == null) return;
@@ -308,46 +287,47 @@
       $("#tab-gap").click();
       $("#panel-gap").scrollIntoView({ behavior: "smooth", block: "start" });
     });
+
+    $("#aiExplainBtn").addEventListener("click", openAIInsight);
+    $("#aiCloseBtn").addEventListener("click", () => $("#aiInsightDialog").close());
+    $("#aiInsightDialog").addEventListener("click", (event) => {
+      if (event.target === $("#aiInsightDialog")) $("#aiInsightDialog").close();
+    });
   }
 
   function renderMine() {
     const cats = state.cpi.categories || [];
     if (!cats.length) return;
 
-    const spending = spendingNow();
-
-    // 슬라이더 위치·비율·금액 라벨을 현재 상태에 맞춘다.
-    // (한 슬라이더를 밀면 나머지 비율도 바뀌므로 전부 다시 그려야 한다)
-    cats.forEach((c) => {
-      const ratio = state.ratios[c.id] ?? 0;
-      const slider = $(`#sp-${c.id}`);
-      if (slider && document.activeElement !== slider) {
-        slider.value = (ratio * 100).toFixed(1);
-      }
-      const pct = $(`#pct-${c.id}`), won = $(`#won-${c.id}`);
-      if (pct) pct.textContent = `${(ratio * 100).toFixed(1)}%`;
-      if (won) won.textContent = `${man(spending[c.id] || 0)}만`;
-    });
-
-    // 구성 누적 막대 — 비중이 0인 품목은 넣지 않는다
-    $("#mixBar").innerHTML = cats
-      .filter((c) => (state.ratios[c.id] ?? 0) > 0.002)
-      .map((c) => {
-        const w = (state.ratios[c.id] * 100).toFixed(2);
-        return `<span style="width:${w}%;background:${CAT_COLOR[c.id] || "var(--brand)"}"
-                 title="${c.name} ${w}%"></span>`;
-      }).join("");
+    const spending = state.spending;
 
     const result = E.personalInflation(spending, cats);
     const official = state.cpi.latest.yoy;
 
     if (!result) {
+      state.personalRate = null;
+      state.aiContext = null;
+      $("#aiExplainBtn").disabled = true;
+      $("#officialRate").textContent = `${official.toFixed(1)}%`;
+      $("#officialMonth").textContent = `${state.cpi.latest.month} 기준`;
       $("#personalRate").textContent = "—";
-      $("#mineVerdict").textContent = "월 총 지출을 입력해 주세요.";
+      $("#vsGap").className = "vs-mid";
+      $("#vsGap").textContent = "입력 필요";
+      $("#mineVerdict").className = "verdict";
+      $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
+      $("#spendTotal").textContent = "0만원";
+      $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
+      $("#cumChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 10년 누적 물가를 계산합니다.</p>`;
+      $("#cumLegend").innerHTML = "";
+      $("#cumStats").innerHTML = "";
+      $("#mineActionStats").innerHTML = "";
+      $("#mineAction").className = "verdict";
+      $("#mineAction").textContent = "월 생활비를 입력하면 필요한 소득·수익률 기준을 계산합니다.";
       return;
     }
 
     state.personalRate = result.rate;
+    $("#spendTotal").textContent = `${man1(result.total)}만원`;
     const diff = result.rate - official;
 
     $("#officialRate").textContent = `${official.toFixed(1)}%`;
@@ -370,6 +350,16 @@
     // 결론 문장 — 조작하면 같이 바뀐다
     const sorted = [...result.contributions].sort((a, b) => b.contribution - a.contribution);
     const top = sorted[0];
+    state.aiContext = {
+      officialRate: official,
+      personalRate: result.rate,
+      gapPp: diff,
+      topCategoryId: top.id,
+      topCategory: top.name,
+      topSharePct: top.weight * 100,
+      topRatePct: top.rate,
+    };
+    $("#aiExplainBtn").disabled = false;
     const v = $("#mineVerdict");
     if (diff > 0.05) {
       v.className = "verdict warn";
@@ -405,9 +395,72 @@
     renderMineAction(result, official);
   }
 
+  function fallbackInsight(context) {
+    if (context.gapPp > 0.05) {
+      return `공식 평균보다 체감 물가가 높은 편이에요. ${context.topCategory} 지출을 조금 바꿔 보며 내 물가가 얼마나 달라지는지 확인해 보세요.`;
+    }
+    if (context.gapPp < -0.05) {
+      return `공식 평균보다 체감 물가가 낮은 편이에요. 지금의 지출 구성이 장기 누적에서도 같은 흐름인지 아래 그래프로 함께 확인해 보세요.`;
+    }
+    return `지금의 지출 구성은 전국 평균과 비슷해요. 세부 지출을 실제 금액에 맞게 바꾸면 나에게 더 가까운 결과를 볼 수 있습니다.`;
+  }
+
+  async function openAIInsight() {
+    const context = state.aiContext;
+    if (!context) return;
+
+    const dialog = $("#aiInsightDialog");
+    const body = $("#aiInsightBody");
+    const status = $("#aiInsightStatus");
+    $("#aiOfficialRate").textContent = `${context.officialRate.toFixed(1)}%`;
+    $("#aiPersonalRate").textContent = `${context.personalRate.toFixed(1)}%`;
+    $("#aiTopCategory").textContent = context.topCategory;
+    body.textContent = fallbackInsight(context);
+    body.classList.add("is-loading");
+    status.textContent = "Gemini가 계산 결과를 쉬운 말로 정리하고 있어요…";
+    if (!dialog.open) dialog.showModal();
+
+    const payload = {
+      officialRate: context.officialRate,
+      personalRate: context.personalRate,
+      gapPp: context.gapPp,
+      topCategoryId: context.topCategoryId,
+      topSharePct: context.topSharePct,
+      topRatePct: context.topRatePct,
+    };
+    const cacheKey = JSON.stringify(payload);
+    if (state.aiCache.has(cacheKey)) {
+      body.textContent = state.aiCache.get(cacheKey);
+      body.classList.remove("is-loading");
+      status.textContent = "Gemini 해설 · 계산은 샐러리갭 엔진이 수행했습니다.";
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const response = await fetch("/api/insight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: cacheKey,
+        signal: controller.signal,
+      });
+      const data = await response.json();
+      if (!response.ok || typeof data.text !== "string") throw new Error("AI 응답 오류");
+      state.aiCache.set(cacheKey, data.text);
+      body.textContent = data.text;
+      status.textContent = "Gemini 해설 · 계산은 샐러리갭 엔진이 수행했습니다.";
+    } catch (_error) {
+      status.textContent = "AI 연결이 늦어 검증된 기본 해설을 보여드립니다.";
+    } finally {
+      clearTimeout(timeout);
+      body.classList.remove("is-loading");
+    }
+  }
+
   function renderCumulative(result) {
     const cats = state.cpi.categories;
-    const mine = E.personalIndexPath(spendingNow(), cats);
+    const mine = E.personalIndexPath(state.spending, cats);
     if (!mine) return;
 
     // 공식 지수도 같은 구간으로 잘라 100 기준으로 맞춘다
@@ -468,7 +521,7 @@
       if (nowDiff < -0.05 && gap > 0.005) {
         const cats = state.cpi.categories;
         const worst = [...cats]
-          .filter((c) => (state.ratios[c.id] || 0) > 0 && c.cum10y != null)
+          .filter((c) => (state.spending[c.id] || 0) > 0 && c.cum10y != null)
           .sort((a, b) => b.cum10y - a.cum10y)[0];
         note.hidden = false;
         note.className = "verdict warn";
@@ -901,6 +954,18 @@
         renderTime();
       });
     });
+
+    $("#startFuturePlan").addEventListener("click", () => {
+      const amount = Math.max(0, +$("#investAmount").value || 0);
+      if (amount <= 0) {
+        $("#investAmount").focus();
+        return;
+      }
+      $("#goalCurrent").value = amount;
+      $("#tab-goal").click();
+      renderGoal();
+      $("#panel-goal").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function renderTime() {
@@ -914,13 +979,17 @@
       $("#timeTable").innerHTML = "";
       $("#timeVerdict").textContent = "—";
       $("#timeLegend").innerHTML = "";
+      $("#timingTable").innerHTML = "";
+      $("#timingVerdict").textContent = "자산을 하나 이상 선택해 주세요.";
       return;
     }
 
     const results = picked.map((a) => ({ asset: a, bt: E.backtest(a, start, amount) }))
       .filter((r) => r.bt);
     if (!results.length) {
-      $("#timeChart").innerHTML = `<p class="skeleton">선택한 기간에 데이터가 없습니다.</p>`;
+      $("#timeChart").innerHTML = `<p class="skeleton">투자금액을 입력하고, 데이터가 있는 시작 시점을 골라 주세요.</p>`;
+      $("#timingTable").innerHTML = "";
+      $("#timingVerdict").textContent = "계산할 수 있는 실제 관측치가 없습니다.";
       return;
     }
 
@@ -951,7 +1020,8 @@
     v.innerHTML = `${E.monthLabel(start)}에 <b>${man(amount)}만원</b>을 넣었다면,
       ${best.asset.name}은 지금 <b>${man(best.bt.finalValue)}만원</b>입니다
       (연평균 ${signPct(best.bt.cagr)}, 최대 낙폭 ${signPct(best.bt.mdd)}).
-      선택한 ${results.length}개 중 <b>${beat.length}개</b>가 같은 기간 물가상승을 이겼습니다.`;
+      선택한 ${results.length}개 중 <b>${beat.length}개</b>가 같은 기간 물가상승을 이겼습니다.
+      다만 이것은 선택한 한 시작 달의 기록이지, 앞으로의 수익을 약속하는 숫자는 아닙니다.`;
 
     // 차트
     const series = results.map((r) => ({
@@ -995,16 +1065,61 @@
         <td class="num">${signPct(r.bt.cagr)}</td>
         <td class="num">${pct(r.asset.volatility)}</td>
         <td class="num">${signPct(r.bt.mdd)}</td></tr>`).join("");
+
+    renderTiming(results, amount, start);
+  }
+
+  function renderTiming(results, amount, start) {
+    const windows = results.map((r) => ({
+      asset: r.asset,
+      result: E.backtestWindow(r.asset, start, amount, 6),
+    })).filter((item) => item.result);
+
+    if (!windows.length) {
+      $("#timingTable").innerHTML = "";
+      $("#timingVerdict").textContent = "앞뒤 기간을 비교할 관측치가 충분하지 않습니다.";
+      return;
+    }
+
+    $("#timingTable").innerHTML = windows.map(({ asset, result }) => {
+      const delta = result.selected == null ? null : result.selected / result.median - 1;
+      const tag = delta == null ? "—" :
+        (Math.abs(delta) < 0.03 ? "중앙값과 비슷" : (delta > 0 ? `중앙값보다 +${(delta * 100).toFixed(1)}%` : `중앙값보다 ${(delta * 100).toFixed(1)}%`));
+      return `<tr>
+        <td>${asset.name}<span class="table-sub">실제 시작 달 ${result.count}개</span></td>
+        <td class="num">${man(result.min)}~${man(result.max)}만원</td>
+        <td class="num">${man(result.median)}만원</td>
+        <td class="num">${man(result.selected)}만원<span class="table-sub">${tag}</span></td>
+      </tr>`;
+    }).join("");
+
+    const sensitive = [...windows].sort((a, b) =>
+      ((b.result.max - b.result.min) / b.result.median) -
+      ((a.result.max - a.result.min) / a.result.median))[0];
+    const spread = (sensitive.result.max - sensitive.result.min) / sensitive.result.median;
+    $("#timingVerdict").innerHTML = `<b>${sensitive.asset.name}</b>은 시작 달을 앞뒤 6개월만 옮겨도
+      지금 가치가 <b>${man(sensitive.result.min)}만~${man(sensitive.result.max)}만원</b>으로 달라집니다
+      (중앙값 대비 범위 ${(spread * 100).toFixed(0)}%). 따라서 가장 좋은 한 날짜보다 <b>범위와 중앙값</b>을 함께 보는 편이 안전합니다.`;
   }
 
   /* ══════════════ 계산 근거 ══════════════ */
   function renderBasis() {
-    $("#srcList").innerHTML = state.meta.sources.map((s) =>
-      `<li><strong>${s.name}</strong> — ${s.use}
-       ${s.live_in_browser
-        ? '<span class="risk-badge risk-low">브라우저에서 실시간 조회</span>'
-        : `<span class="risk-badge risk-mid">일 1회 스냅샷</span> <span style="color:var(--text-muted)">${s.reason || ""}</span>`}
-       </li>`).join("");
+    const personaSource = {
+      name: "국가데이터처 가계동향조사",
+      use: "생활 유형별 월평균 소비지출 시작값",
+      url: PERSONA_DATA.source.url,
+      reference: true,
+    };
+    const sources = [...state.meta.sources, personaSource];
+    $("#srcList").innerHTML = sources.map((s) => {
+      const badge = s.reference
+        ? '<span class="risk-badge risk-low">공식 통계 기준값</span>'
+        : (s.live_in_browser
+          ? '<span class="risk-badge risk-low">브라우저에서 실시간 조회</span>'
+          : `<span class="risk-badge risk-mid">일 1회 스냅샷</span> <span style="color:var(--text-muted)">${s.reason || ""}</span>`);
+      return `<li><strong><a href="${s.url}">${s.name} ↗</a></strong>
+        — ${s.use} ${badge}</li>`;
+    }).join("");
 
     const clean = state.meta.notes || [];
     $("#cleanList").innerHTML = clean.length
