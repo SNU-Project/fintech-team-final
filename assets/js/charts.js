@@ -37,7 +37,7 @@
 
   /* ---------- 세로 막대 (연봉 비교) ---------- */
   function barChart(mount, bars) {
-    const W = 620, H = 260, padT = 34, padB = 42, padX = 20;
+    const W = 620, H = 214, padT = 28, padB = 40, padX = 20;
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
     const max = Math.max(...bars.map((b) => b.value), 1) * 1.16;
     const plotH = H - padT - padB;
