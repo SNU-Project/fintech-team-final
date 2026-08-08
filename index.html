@@ -67,7 +67,6 @@
       <h1 id="homeSummaryHeadline">—</h1>
       <p class="lede" id="homeSummarySub">—</p>
       <button class="home-start-btn" id="homeReportBtn" type="button">리포트 보기 ↓</button>
-      <button class="home-secondary-btn" id="shareCardBtn" type="button">공유 카드 만들기</button>
       <div class="home-summary-links">
         <button class="onboarding-back" id="homeRestartBtn" type="button">처음부터 다시 입력하기</button>
       </div>
@@ -153,7 +152,6 @@
         </div>
         <div class="onboarding-nav">
           <button class="onboarding-back" data-back type="button">← 이전</button>
-          <button class="onboarding-skip" id="onbSkip4" type="button">건너뛰기</button>
           <button class="home-start-btn" id="onbNext4" type="button">다음 →</button>
         </div>
       </div>
@@ -177,7 +175,6 @@
         </div>
         <div class="onboarding-nav">
           <button class="onboarding-back" data-back type="button">← 이전</button>
-          <button class="onboarding-skip" id="onbSkip5" type="button">건너뛰고 리포트 보기</button>
           <button class="home-start-btn" id="onbFinish" type="button">리포트 보기 →</button>
         </div>
       </div>
@@ -193,6 +190,48 @@
     <h2 class="report-heading">내 물가</h2>
     <p class="report-intro">먼저, 당신의 체감 물가부터 짚어볼게요.</p>
     <div class="bento">
+
+      <!-- 지출 입력 — "당신이 답한 내용"이 먼저 나오고, 그 아래에 결과가
+           이어져야 "이렇게 답해서 → 이런 결과" 흐름이 보인다. -->
+      <div class="card bento-input">
+        <div class="section-head">
+          <div><h2>나와 가까운 생활 유형</h2><p>설문에서 답하신 내용이에요.</p></div>
+        </div>
+
+        <div class="persona-grid is-locked" id="personaSeg" role="group" aria-label="생활 유형 선택">
+          <button type="button" data-persona="solo" aria-pressed="true" tabindex="-1">
+            <b>혼자 생활비를 관리해요</b><span>1인 가구 통계</span>
+          </button>
+          <button type="button" data-persona="couple" aria-pressed="false" tabindex="-1">
+            <b>둘이 생활비를 함께 써요</b><span>2인 가구 통계</span>
+          </button>
+          <button type="button" data-persona="family" aria-pressed="false" tabindex="-1">
+            <b>가족과 목표를 준비해요</b><span>4인 가구 통계</span>
+          </button>
+        </div>
+
+        <p class="field-note persona-basis" id="personaBasis"></p>
+
+        <label class="field total-field">내 월 생활비
+          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="decimal" readonly placeholder="입력된 값 없음"><span>만원</span></span>
+        </label>
+        <p class="field-note">설문에서 답하신 월 생활비예요. 세부 항목은 아래에서 조정할 수 있어요.</p>
+
+        <details class="spend-details">
+          <summary>내 지출에 맞게 세부 금액 수정</summary>
+          <p class="field-note">정확히 몰라도 괜찮습니다. 자주 쓰는 항목만 고치면 결과가 바로 바뀝니다.</p>
+          <div class="spend-scroll">
+            <div id="spendFields"></div>
+          </div>
+        </details>
+
+        <div class="spend-total">
+          <span>계산에 반영한 월 지출</span>
+          <b id="spendTotal">—</b>
+        </div>
+
+        <p class="answer-bridge">이 답변으로 아래 결과를 계산했어요 ↓</p>
+      </div>
 
       <!-- 헤드라인: 공식 vs 내 물가 -->
       <div class="card bento-hero">
@@ -214,43 +253,6 @@
         <button class="ai-explain-btn" id="aiExplainBtn" type="button" disabled>
           <span aria-hidden="true">✦</span> AI로 쉽게 풀어보기
         </button>
-      </div>
-
-      <!-- 지출 입력 -->
-      <div class="card bento-input">
-        <div class="section-head">
-          <div><h2>나와 가까운 생활 유형</h2><p>한 번만 고르면 통계 기준으로 시작합니다.</p></div>
-        </div>
-
-        <div class="persona-grid" id="personaSeg" role="group" aria-label="생활 유형 선택">
-          <button type="button" data-persona="solo" aria-pressed="true">
-            <b>혼자 생활비를 관리해요</b><span>1인 가구 통계</span>
-          </button>
-          <button type="button" data-persona="couple" aria-pressed="false">
-            <b>둘이 생활비를 함께 써요</b><span>2인 가구 통계</span>
-          </button>
-          <button type="button" data-persona="family" aria-pressed="false">
-            <b>가족과 목표를 준비해요</b><span>4인 가구 통계</span>
-          </button>
-        </div>
-
-        <p class="field-note persona-basis" id="personaBasis"></p>
-
-        <label class="field total-field">내 월 생활비
-          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="decimal"><span>만원</span></span>
-        </label>
-        <p class="field-note">총액을 바꾸면 선택한 생활 유형의 비중은 유지됩니다.</p>
-
-        <details class="spend-details">
-          <summary>내 지출에 맞게 세부 금액 수정</summary>
-          <p class="field-note">정확히 몰라도 괜찮습니다. 자주 쓰는 항목만 고치면 결과가 바로 바뀝니다.</p>
-          <div id="spendFields"></div>
-        </details>
-
-        <div class="spend-total">
-          <span>계산에 반영한 월 지출</span>
-          <b id="spendTotal">—</b>
-        </div>
       </div>
 
       <!-- 기여도 분해 -->
@@ -291,15 +293,15 @@
 
       <div class="card bento-input">
           <div class="section-head">
-            <div><h2>나의 소득 조건</h2><p>금액은 만 원 단위로 입력해 주세요.</p></div>
+            <div><h2>나의 소득 조건</h2><p>설문에서 답하신 연봉이에요.</p></div>
           </div>
 
           <div class="field-grid">
             <label class="field">현재 연봉
-              <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600" readonly placeholder="입력된 값 없음"><span>만원</span></span>
             </label>
             <label class="field">내년 예상 연봉
-              <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750" readonly placeholder="입력된 값 없음"><span>만원</span></span>
             </label>
           </div>
           <p class="err-text" id="salaryErr" hidden></p>
@@ -319,14 +321,16 @@
           <p class="field-note">목표 자산 모으기의 월 저축 가능액과 같은 값을 씁니다.</p>
 
           <div class="field" style="margin-bottom:.4rem">투자 성향
-            <div class="seg" id="riskSeg" role="group" style="margin-top:.35rem">
-              <button type="button" data-risk="stable" aria-pressed="false">안정형</button>
-              <button type="button" data-risk="balanced" aria-pressed="true">균형형</button>
-              <button type="button" data-risk="aggressive" aria-pressed="false">적극형</button>
+            <div class="seg is-locked" id="riskSeg" role="group" style="margin-top:.35rem">
+              <button type="button" data-risk="stable" aria-pressed="false" tabindex="-1">안정형</button>
+              <button type="button" data-risk="balanced" aria-pressed="true" tabindex="-1">균형형</button>
+              <button type="button" data-risk="aggressive" aria-pressed="false" tabindex="-1">적극형</button>
             </div>
           </div>
           <p class="field-note" id="riskNote">—</p>
-          <p class="field-note">목표 자산 모으기의 투자 성향과 함께 바뀝니다.</p>
+          <p class="field-note">설문에서 답하신 투자 성향이에요.</p>
+
+          <p class="answer-bridge">이 내용으로 아래 결과를 계산했어요 ↓</p>
       </div>
 
       <div class="card bento-main">
@@ -378,34 +382,37 @@
     <div class="bento">
       <div class="card bento-input">
           <div class="section-head">
-            <div><h2>목표 설정</h2><p>얼마를, 언제까지 모으고 싶나요?</p></div>
+            <div><h2>목표 설정</h2><p>설문에서 답하신 목표예요.</p></div>
           </div>
           <div class="field-grid">
             <label class="field">목표 금액
-              <span class="input-wrap"><input type="number" id="goalAmount" min="0" step="500" value="0"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="goalAmount" min="0" step="500" readonly placeholder="입력된 값 없음"><span>만원</span></span>
             </label>
             <label class="field">목표 기간
-              <span class="input-wrap"><input type="number" id="goalYears" min="1" max="40" step="1"><span>년</span></span>
+              <span class="input-wrap"><input type="number" id="goalYears" min="1" max="40" step="1" readonly placeholder="입력된 값 없음"><span>년</span></span>
             </label>
             <label class="field">현재 보유 자산
-              <span class="input-wrap"><input type="number" id="goalCurrent" min="0" step="100" value="0"><span>만원</span></span>
-            </label>
-            <label class="field">월 저축 가능액
-              <span class="input-wrap"><input type="number" id="goalMonthly" min="0" step="10" value="0"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="goalCurrent" min="0" step="100" readonly placeholder="입력된 값 없음"><span>만원</span></span>
             </label>
           </div>
-          <p class="field-note">실질임금 진단의 월 투자 가능액과 같은 값을 씁니다.</p>
           <p class="err-text" id="goalErr" hidden></p>
 
+          <label class="field" style="margin-top:1rem">월 저축 가능액
+            <span class="input-wrap"><input type="number" id="goalMonthly" min="0" step="10" value="0"><span>만원</span></span>
+          </label>
+          <p class="field-note">실질임금 진단의 월 투자 가능액과 같은 값을 씁니다.</p>
+
           <div class="field" style="margin-bottom:.4rem">투자 성향
-            <div class="seg" id="goalRiskSeg" role="group" style="margin-top:.35rem">
-              <button type="button" data-risk="stable" aria-pressed="false">안정형</button>
-              <button type="button" data-risk="balanced" aria-pressed="true">균형형</button>
-              <button type="button" data-risk="aggressive" aria-pressed="false">적극형</button>
+            <div class="seg is-locked" id="goalRiskSeg" role="group" style="margin-top:.35rem">
+              <button type="button" data-risk="stable" aria-pressed="false" tabindex="-1">안정형</button>
+              <button type="button" data-risk="balanced" aria-pressed="true" tabindex="-1">균형형</button>
+              <button type="button" data-risk="aggressive" aria-pressed="false" tabindex="-1">적극형</button>
             </div>
           </div>
           <p class="field-note" id="goalRiskNote">—</p>
-          <p class="field-note">실질임금 진단의 투자 성향과 함께 바뀝니다.</p>
+          <p class="field-note">설문에서 답하신 투자 성향이에요.</p>
+
+          <p class="answer-bridge">이 내용으로 아래 결과를 계산했어요 ↓</p>
       </div>
 
       <div class="card bento-main">
@@ -558,26 +565,6 @@
   <p class="ai-status" id="aiInsightStatus">검증된 계산 결과만 해설합니다.</p>
   <button class="ai-retry-btn" id="aiRetryBtn" type="button" hidden>다시 시도</button>
   <p class="ai-privacy">개인정보·지출 금액은 보내지 않습니다 · 투자 권유가 아닙니다</p>
-</dialog>
-
-<dialog class="ai-dialog share-dialog" id="shareDialog" aria-labelledby="shareDialogTitle">
-  <div class="ai-dialog-head">
-    <div>
-      <span class="ai-eyebrow">공유 카드</span>
-      <h2 id="shareDialogTitle">내 연봉 성적표</h2>
-    </div>
-    <button class="ai-close" id="shareCloseBtn" type="button" aria-label="공유 카드 닫기">×</button>
-  </div>
-  <div class="share-preview">
-    <img id="shareCardImg" alt="내 체감 물가와 공식 물가를 비교한 공유 카드 미리보기">
-  </div>
-  <div class="share-actions">
-    <a class="apply-btn" id="shareDownloadBtn" download="salarygap-card.png">이미지 저장</a>
-    <button class="ai-explain-btn" id="shareNativeBtn" type="button" hidden>
-      <span aria-hidden="true">↗</span> 공유하기
-    </button>
-  </div>
-  <p class="ai-privacy">카드는 이 브라우저 안에서만 만들어지고, 서버로 전송되지 않습니다.</p>
 </dialog>
 
 <script src="assets/js/charts.js"></script>

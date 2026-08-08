@@ -99,8 +99,8 @@
     // 월 투자 가능액(실질임금 진단)과 월 저축 가능액(목표 자산)은 같은 값으로 시작한다.
     $("#goalMonthly").value = $("#budget").value;
     setupHomeFlow();
-    setupShareCard();
     setupFinalConclusion();
+    setupScrollReveal();
     renderBasis();
     renderAll();
 
@@ -215,7 +215,10 @@
 
   function setInputAndFire(sel, value) {
     if (value == null) return;
-    $(sel).value = value;
+    // 이 값들(연봉·목표 금액 등)은 0이 "진짜 0원"이 아니라 "설문에서
+    // 안 채웠다"는 뜻이다. 0을 그대로 보여주면 값이 있는 것처럼 보이니
+    // 빈 값으로 둬서, 아래 CSS의 placeholder("입력된 값 없음")가 뜨게 한다.
+    $(sel).value = value === 0 ? "" : value;
     $(sel).dispatchEvent(new Event("input", { bubbles: true }));
   }
 
@@ -418,6 +421,24 @@
     observer.observe(target);
   }
 
+  // 리포트를 스크롤해서 내려갈 때 섹션이 하나씩 나타나게 한다 — 설문
+  // 중엔 패널 자체가 hidden이라 관찰해도 안 걸리다가, 리포트가 공개된
+  // 뒤 스크롤하면서 순서대로 걸린다. 한 번 나타난 블록은 다시 안 건드림
+  // (스크롤을 왔다갔다 할 때마다 깜빡이면 산만하다 — setupFinalConclusion과
+  // 같은 이유).
+  function setupScrollReveal() {
+    const targets = $$(".bento > *");
+    if (!targets.length) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.1, rootMargin: "0px 0px -60px 0px" });
+    targets.forEach((el) => observer.observe(el));
+  }
+
   function setupHomeFlow() {
     const loadingView = $("#homeLoading");
     const summaryView = $("#homeSummary");
@@ -537,9 +558,8 @@
       });
     });
     $("#onbNext4").addEventListener("click", () => showStep(5));
-    $("#onbSkip4").addEventListener("click", () => showStep(5));
 
-    // ---- 5 · 목표 자산 (건너뛰기 가능 — 기본값 그대로 완료) ----
+    // ---- 5 · 목표 자산 ----
     function collectGoalAndFinish() {
       draft.goalAmount = Math.max(0, +$("#onbGoalAmount").value || 0);
       draft.goalYears = Math.max(1, Math.min(40, +$("#onbGoalYears").value || 1));
@@ -547,7 +567,6 @@
       finish(draft);
     }
     $("#onbFinish").addEventListener("click", collectGoalAndFinish);
-    $("#onbSkip5").addEventListener("click", collectGoalAndFinish);
 
     // ---- 뒤로가기 (모든 문항 공통) ----
     $$("[data-back]").forEach((b) => {
@@ -557,7 +576,7 @@
     // ---- 요약 화면 ----
     $("#homeReportBtn").addEventListener("click", () => $("#tab-mine").click());
     $("#homeRestartBtn").addEventListener("click", () => {
-      // 바로 위 "공유 카드 만들기" 버튼과 가까이 있어 오클릭하기 쉬운데,
+      // 바로 위 "리포트 보기" 버튼과 가까이 있어 오클릭하기 쉬운데,
       // 이 버튼은 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라
       // 한 번 더 확인한다.
       if (!confirm("처음부터 다시 입력할까요? 지금까지 입력한 내용은 모두 사라져요.")) return;
@@ -597,14 +616,13 @@
     }
   }
 
+  // 출처 링크는 맨 아래 "계산에 들어간 근거와 데이터 출처"에 이미 모아
+  // 두므로(renderBasis) 여기서는 중복해서 안 보여준다.
   function renderPersonaBasis() {
-    const source = PERSONA_DATA.source;
     const p = state.persona ? PERSONAS[state.persona] : null;
     $("#personaBasis").innerHTML = p
-      ? `<b>${p.basis}</b>으로 채웠습니다. 개인 상황에 맞게 바꿀 수 있습니다.<br>
-         <a href="${source.url}">${source.label} · ${source.table} ↗</a>`
-      : `세부 금액을 직접 수정한 상태입니다.<br>
-         시작값 출처: <a href="${source.url}">${source.label} ↗</a>`;
+      ? `<b>${p.basis}</b>으로 채웠습니다. 개인 상황에 맞게 바꿀 수 있습니다.`
+      : `세부 금액을 직접 수정한 상태입니다.`;
   }
 
   function applyPersona(key, cats) {
@@ -868,167 +886,6 @@
       clearTimeout(timeout);
       body.classList.remove("is-loading");
     }
-  }
-
-  /* ══════════════ 공유 카드 ══════════════
-     MBTI류 사이트의 "당신은?" 결과 카드를 캔버스로 직접 그린다.
-     외부 이미지 라이브러리 없이 <canvas>만으로 그리고, PNG로 내보낸다. */
-  function roundRectPath(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
-  function buildShareCard() {
-    const rate = state.personalRate;
-    const official = state.cpi && state.cpi.latest ? state.cpi.latest.yoy : null;
-    if (rate == null || official == null) return null;
-    const diff = rate - official;
-    const topCategory = state.aiContext ? state.aiContext.topCategory : null;
-
-    const isDark = document.documentElement.getAttribute("data-theme") === "dark" ||
-      (!document.documentElement.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
-    const bg = isDark ? "#141412" : "#f7f7f4";
-    const bg2 = isDark ? "#1c2620" : "#e6f0ea";
-    const ink = isDark ? "#f5f5f2" : "#141412";
-    const sub = isDark ? "#b7b6ae" : "#63625c";
-    const brand = isDark ? "#4fae8b" : "#24745a";
-    const track = isDark ? "#33322d" : "#e3e2db";
-    const accent = diff > 0 ? "#b76442" : "#1f7a4d";
-    const FONT = "-apple-system, 'Apple SD Gothic Neo', sans-serif";
-
-    const SIZE = 1080;
-    const canvas = document.createElement("canvas");
-    canvas.width = SIZE;
-    canvas.height = SIZE;
-    const ctx = canvas.getContext("2d");
-
-    const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE);
-    grad.addColorStop(0, bg);
-    grad.addColorStop(1, bg2);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, SIZE, SIZE);
-
-    // 브랜드 마크
-    ctx.fillStyle = brand;
-    roundRectPath(ctx, 80, 84, 76, 76, 20);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.font = `800 42px ${FONT}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("₩", 118, 126);
-
-    ctx.fillStyle = ink;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
-    ctx.font = `800 40px ${FONT}`;
-    ctx.fillText("샐러리갭", 176, 138);
-
-    ctx.fillStyle = sub;
-    ctx.font = `600 30px ${FONT}`;
-    ctx.fillText("나의 연봉 성적표", 80, 260);
-
-    ctx.fillStyle = ink;
-    ctx.font = `800 164px ${FONT}`;
-    ctx.fillText(`${rate.toFixed(1)}%`, 76, 470);
-
-    ctx.fillStyle = sub;
-    ctx.font = `600 40px ${FONT}`;
-    ctx.fillText("내 체감 물가", 80, 530);
-
-    ctx.fillStyle = accent;
-    ctx.font = `700 38px ${FONT}`;
-    const verdict = Math.abs(diff) < 0.05
-      ? "공식 물가와 거의 같아요"
-      : `공식 물가보다 ${Math.abs(diff).toFixed(1)}%p ${diff > 0 ? "높아요" : "낮아요"}`;
-    ctx.fillText(verdict, 80, 590);
-
-    const barX = 80, barW = 920;
-    const maxVal = Math.max(rate, official, 0.1) * 1.25;
-    function bar(y, label, value, color) {
-      ctx.fillStyle = sub;
-      ctx.font = `600 26px ${FONT}`;
-      ctx.fillText(label, barX, y - 14);
-      ctx.fillStyle = track;
-      roundRectPath(ctx, barX, y, barW, 22, 11);
-      ctx.fill();
-      ctx.fillStyle = color;
-      const w = Math.max(14, (Math.max(value, 0) / maxVal) * barW);
-      roundRectPath(ctx, barX, y, w, 22, 11);
-      ctx.fill();
-      ctx.fillStyle = ink;
-      ctx.font = `700 26px ${FONT}`;
-      ctx.fillText(`${value.toFixed(1)}%`, barX + w + 16, y + 18);
-    }
-    bar(700, "공식 물가", official, isDark ? "#6b6a63" : "#c3c2b7");
-    bar(772, "내 물가", rate, brand);
-
-    if (topCategory) {
-      ctx.fillStyle = sub;
-      ctx.font = `500 28px ${FONT}`;
-      ctx.fillText(`가장 크게 영향을 준 항목 · ${topCategory}`, 80, 862);
-    }
-
-    ctx.strokeStyle = track;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(80, 920);
-    ctx.lineTo(1000, 920);
-    ctx.stroke();
-
-    ctx.fillStyle = brand;
-    ctx.font = `700 34px ${FONT}`;
-    ctx.fillText("당신의 체감 물가는 몇 %인가요?", 80, 975);
-    ctx.fillStyle = sub;
-    ctx.font = `500 26px ${FONT}`;
-    ctx.fillText(location.host || "salarygap", 80, 1015);
-
-    return canvas;
-  }
-
-  function setupShareCard() {
-    const btn = $("#shareCardBtn");
-    if (!btn) return;
-    const dialog = $("#shareDialog");
-    const img = $("#shareCardImg");
-    const downloadBtn = $("#shareDownloadBtn");
-    const nativeBtn = $("#shareNativeBtn");
-
-    btn.addEventListener("click", () => {
-      const canvas = buildShareCard();
-      if (!canvas) return;
-      const dataUrl = canvas.toDataURL("image/png");
-      img.src = dataUrl;
-      downloadBtn.href = dataUrl;
-
-      nativeBtn.hidden = true;
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const file = new File([blob], "salarygap-card.png", { type: "image/png" });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          nativeBtn.hidden = false;
-          nativeBtn.onclick = () => {
-            navigator.share({
-              files: [file],
-              title: "내 연봉 성적표",
-              text: "내 체감 물가를 확인해봤어요 — 샐러리갭",
-            }).catch(() => {});
-          };
-        }
-      });
-
-      if (!dialog.open) dialog.showModal();
-    });
-
-    $("#shareCloseBtn").addEventListener("click", () => dialog.close());
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) dialog.close();
-    });
   }
 
   function renderCumulative(result) {

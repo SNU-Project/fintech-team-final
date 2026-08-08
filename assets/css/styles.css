@@ -48,8 +48,8 @@ body {
   --critical:       #d03b3b;
   --critical-text:  #b32626;
 
-  --radius:         14px;
-  --radius-sm:      9px;
+  --radius:         22px;
+  --radius-sm:      14px;
   --shadow:         0 1px 2px rgba(11,11,11,.04), 0 8px 24px rgba(11,11,11,.05);
   --maxw:           1180px;
 }
@@ -162,6 +162,11 @@ section { scroll-margin-top: 5rem; }
   display: flex; gap: .5rem; overflow-x: auto; padding: .55rem 0; scrollbar-width: none;
 }
 .ticker::-webkit-scrollbar { display: none; }
+/* 리포트 맨 처음에 오는 줄이라 가운데로 모은다. 모바일은 항목이 넘칠 때
+   overflow-x:auto로 가로 스크롤해야 하는데, 가운데 정렬 상태에서 넘치면
+   시작 지점을 스크롤로 못 찾아가는 경우가 있어 좁은 화면은 기존 왼쪽
+   정렬을 유지한다 (탭 중앙 정렬과 같은 이유). */
+@media (min-width: 861px) { .ticker { justify-content: center; } }
 /* display:flex는 [hidden]의 기본 display:none과 명시도가 같아 나중에
    선언된 이 규칙이 이겨버린다. 설문 중엔 티커 자체를 숨겨야 하므로 명시한다. */
 .ticker[hidden] { display: none; }
@@ -234,9 +239,9 @@ section { scroll-margin-top: 5rem; }
 /* 리포트 섹션 사이 구분선 — 첫 섹션(홈)은 그대로 두고, 그다음부터는
    챕터가 바뀐다는 걸 보여주는 선을 준다. 예전엔 위아래 3rem씩 비워서
    포트폴리오를 내려볼 때 빈 공간이 너무 크다는 피드백이 있어 줄였다. */
-.panel + .panel { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+.panel + .panel { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .report-heading {
-  font-size: clamp(1.3rem, 2.8vw, 1.7rem); font-weight: 800; letter-spacing: -.02em;
+  font-size: clamp(1.5rem, 3.2vw, 1.95rem); font-weight: 800; letter-spacing: -.02em;
   margin: 0 0 .9rem; color: var(--text-primary);
 }
 /* 각 리포트 섹션 진입부에 짧게 "이제 이걸 볼게요"를 걸어, 요약 화면의
@@ -307,38 +312,16 @@ section { scroll-margin-top: 5rem; }
 }
 .home-start-btn:hover { filter: brightness(1.08); }
 .home-start-btn:active { transform: translateY(1px); }
-.home-secondary-btn {
-  appearance: none; cursor: pointer; margin-top: -.3rem;
-  border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text-secondary);
-  font-family: inherit; font-weight: 600; font-size: .88rem; padding: .6rem 1.4rem; border-radius: var(--radius-sm);
-}
-.home-secondary-btn:hover { border-color: var(--brand); color: var(--brand); }
-
-/* ---------- 공유 카드 ---------- */
-.share-preview {
-  margin-top: 1rem; border-radius: 14px; overflow: hidden;
-  border: 1px solid var(--border); box-shadow: var(--shadow);
-}
-.share-preview img { display: block; width: 100%; height: auto; background: var(--surface-sunk); }
-.share-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
-.share-actions .apply-btn { margin-top: 0; flex: 1; text-align: center; text-decoration: none; }
-.share-actions .ai-explain-btn { margin-top: 0; }
 
 .onboarding-back {
   appearance: none; border: 0; background: none; cursor: pointer; font: inherit;
   color: var(--text-muted); font-size: .83rem; padding: .5rem;
 }
 .onboarding-back:hover { color: var(--text-secondary); }
-/* 위쪽 "공유 카드 만들기" 버튼과 붙어 있으면 오클릭으로 입력값이
-   초기화될 위험이 있어, 기본 여백(#homeSummary의 flex gap) 위에
-   추가로 더 띄운다. confirm 다이얼로그와 함께 이중으로 방지한다. */
+/* 위쪽 "리포트 보기" 버튼과 붙어 있으면 오클릭으로 입력값이 초기화될
+   위험이 있어, 기본 여백(#homeSummary의 flex gap) 위에 추가로 더
+   띄운다. confirm 다이얼로그와 함께 이중으로 방지한다. */
 .home-summary-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .3rem 1rem; margin-top: 1.1rem; }
-.onboarding-skip {
-  appearance: none; border: 1px solid var(--border-strong); background: var(--surface-2); cursor: pointer;
-  font: inherit; color: var(--text-secondary); font-size: .8rem; font-weight: 600;
-  padding: .55rem 1rem; border-radius: var(--radius-sm);
-}
-.onboarding-skip:hover { border-color: var(--brand); color: var(--brand); }
 
 /* 문항 하나가 화면 하나 — 답이 바뀔 때마다 살짝 밀려 들어오게 해서
    "설문" 대신 "경험"처럼 느껴지게 한다. */
@@ -418,18 +401,27 @@ section { scroll-margin-top: 5rem; }
 .more-fields summary::marker { color: var(--brand); }
 .more-fields[open] summary { margin-bottom: .4rem; }
 
-.section-head { display: flex; gap: .7rem; align-items: flex-start; margin-bottom: 1rem; }
-.section-head h2 { margin: 0; font-size: 1.02rem; letter-spacing: -.01em; }
+/* "나와 가까운 생활 유형"/"나의 소득 조건"/"목표 설정" 같은 답변 요약
+   블록의 제목 — 결과 블록 제목(h3.block-title)과 크기를 맞춰서 같은
+   무게로 읽히게 한다. 예전엔 1.02rem으로 유난히 작아서 이 블록만
+   밋밋해 보였다. */
+.section-head { display: flex; gap: .7rem; align-items: flex-start; margin-bottom: .7rem; }
+.section-head h2 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -.01em; }
 .section-head p { margin: .15rem 0 0; font-size: .8rem; color: var(--text-muted); }
 
-h3.block-title { font-size: .95rem; margin: 0 0 .2rem; letter-spacing: -.01em; }
-p.block-q { margin: 0 0 .9rem; font-size: .8rem; color: var(--text-muted); }
+h3.block-title { font-size: 1.2rem; font-weight: 800; margin: 0 0 .2rem; letter-spacing: -.01em; }
+p.block-q { margin: 0 0 .6rem; font-size: .8rem; color: var(--text-muted); }
 
 /* ---------- 폼 ---------- */
 .field-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .7rem; }
 .field-grid > * { min-width: 0; }
 @media (max-width: 480px) { .field-grid { grid-template-columns: minmax(0, 1fr); } }
-label.field { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: .8rem; }
+/* label.field(입력칸을 감싸는 라벨)뿐 아니라 div.field(세그먼트·체크박스
+   그룹을 감싸는 라벨, 예: "투자 성향", "비교할 자산")도 같이 잡아야
+   한다 — label.field만 잡으면 div.field 쪽은 라벨 스타일을 못 받아서
+   기본 텍스트 크기로 나오고, 그 아래 값(예: "균형형")과 크기·굵기
+   차이가 없어 라벨-값 위계가 안 보였다. */
+.field { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: .5rem; }
 .input-wrap {
   display: flex; align-items: center; gap: .4rem; margin-top: .32rem;
   border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
@@ -501,7 +493,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
   background: var(--surface-1); color: var(--text-primary); padding: .68rem .75rem;
   font-family: inherit;
 }
-.persona-grid button b { display: block; font-size: .82rem; line-height: 1.35; }
+.persona-grid button b { display: block; font-size: 1.1rem; font-weight: 800; line-height: 1.35; }
 .persona-grid button span { display: block; margin-top: .12rem; font-size: .68rem; color: var(--text-muted); }
 .persona-grid button[aria-pressed="true"] {
   border-color: var(--brand); background: var(--brand-soft); box-shadow: 0 0 0 2px var(--brand-soft);
@@ -512,8 +504,67 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 .total-field { margin-top: .1rem; }
 
 .field-note { font-size: .73rem; color: var(--text-muted); margin: .35rem 0 0; }
-.err-text { font-size: .73rem; color: var(--critical-text); margin: .3rem 0 0; }
+/* 색만으로 표시하던 경고문을 배경 있는 알림 칩으로 — 색약 사용자도
+   구분되고, 눈에도 훨씬 잘 띈다. display:flex는 [hidden]과 명시도가
+   같아서 나중 선언이 이기므로, 숨김 상태를 명시적으로 다시 덮어써야
+   한다(이 코드베이스에서 반복된 패턴). */
+.err-text {
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .78rem; font-weight: 700; color: var(--critical-text);
+  margin: .5rem 0 0; padding: .55rem .75rem;
+  background: color-mix(in srgb, var(--critical) 10%, transparent);
+  border-left: 3px solid var(--critical); border-radius: var(--radius-sm);
+}
+.err-text::before { content: "⚠️"; flex: 0 0 auto; }
+.err-text[hidden] { display: none; }
 .input-wrap.invalid { border-color: var(--critical); }
+
+/* ---------- 설문에서 이미 답한 값 (읽기 전용) ----------
+   readonly는 타이핑만 막고 JS의 .value 읽기/쓰기는 그대로 허용한다 —
+   자산 타임머신 → 목표 자산 브릿지, 지출 세부수정 → 월 생활비 합산처럼
+   다른 탭/위젯이 이 값을 코드로 계속 갱신해야 하기 때문이다. 폼 필드가
+   아니라 그냥 값을 보여주는 것처럼 테두리·배경·스핀 버튼을 없앤다. */
+.input-wrap:has(input[readonly]) {
+  border-color: transparent; background: none; padding-left: 0;
+}
+.input-wrap:has(input[readonly]):focus-within { box-shadow: none; }
+/* 값 자체(180, 3600만원 등)가 이 블록에서 가장 중요한 정보인데 폼
+   기본 크기(1rem)로 남아 있어서 라벨과 구분이 안 되고 밋밋해 보였다.
+   .stat .v와 같은 "크고 굵은 숫자" 언어로 맞춘다. */
+input[readonly] {
+  font-size: clamp(1.4rem, 2.6vw, 1.7rem); font-weight: 800; letter-spacing: -.02em;
+  color: var(--text-primary); cursor: default;
+}
+input[readonly]::-webkit-outer-spin-button,
+input[readonly]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[readonly] { -moz-appearance: textfield; }
+/* 0을 그대로 보여주면 답한 것처럼 보이니(JS에서 값 없을 때 빈 문자열로
+   둔다) placeholder="입력된 값 없음"이 뜬다 — 굵은 숫자와 헷갈리지
+   않게 옅은 색·보통 굵기로 확실히 다르게 보이게 한다. */
+input[readonly]::placeholder { color: var(--text-muted); font-weight: 600; opacity: 1; }
+
+/* 잠긴 세그먼트(투자 성향)·생활 유형 그룹 — 선택된 값 하나만 텍스트처럼
+   보여준다. tabindex="-1"(HTML에 정적으로 부여)로 키보드 포커스까지
+   막아야 pointer-events:none만으로는 못 막는 Enter/Space 활성화를
+   확실히 차단한다. */
+.seg.is-locked button:not([aria-pressed="true"]),
+.persona-grid.is-locked button:not([aria-pressed="true"]) { display: none; }
+/* 지출 세부 항목을 손으로 고치면 persona가 풀려(app.js state.persona=null)
+   세 버튼 다 aria-pressed="false"가 된다 — 이때는 다시 고를 수 있어야
+   하므로 전부 보여준다. */
+.persona-grid.is-locked:not(:has(button[aria-pressed="true"])) button { display: block; }
+.seg.is-locked {
+  background: none; padding: 0;
+}
+.seg.is-locked button[aria-pressed="true"] {
+  flex: none; width: auto; background: none; box-shadow: none;
+  pointer-events: none; cursor: default; padding: 0;
+  font-size: 1.1rem; font-weight: 800; color: var(--text-primary);
+}
+.persona-grid.is-locked button[aria-pressed="true"] {
+  border-color: transparent; background: none; box-shadow: none;
+  pointer-events: none; cursor: default; padding-left: 0;
+}
 
 /* ---------- KPI ----------
    같은 줄의 카드끼리 캡션(.s) 줄 수가 다르면(1줄 vs 2줄), 그리드가
@@ -530,13 +581,13 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
    공간을 혼자 다 먹어 커지지 않도록 꽉 찬 줄과 비슷한 폭으로 잡아준다. */
 .stat-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; }
 .stat {
-  background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-1); border-radius: var(--radius-sm);
   padding: .8rem .9rem;
   display: flex; flex-direction: column;
   flex: 1 1 150px; max-width: 220px;
 }
 .stat .k { font-size: .74rem; color: var(--text-muted); display: block; margin-bottom: .3rem; }
-.stat .v { font-size: 1.28rem; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; display: block; }
+.stat .v { font-size: clamp(1.7rem, 3.2vw, 2.15rem); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; display: block; }
 .stat .s { font-size: .72rem; color: var(--text-muted); margin-top: auto; padding-top: .3rem; }
 .stat.is-good .v { color: var(--good-text); }
 .stat.is-warn .v { color: var(--warning-text); }
@@ -544,7 +595,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 
 /* 조작하면 같이 바뀌는 결론 문장 */
 .verdict {
-  margin: 1rem 0 0; padding: .85rem 1rem; border-radius: var(--radius-sm);
+  margin: .8rem 0 0; padding: .75rem .9rem; border-radius: var(--radius-sm);
   background: var(--brand-soft); border: 1px solid color-mix(in srgb, var(--brand) 22%, transparent);
   font-size: .9rem; line-height: 1.55;
 }
@@ -557,94 +608,66 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 /* ---------- 베이토 그리드 ----------
    카드를 세로로 쌓으면 높이가 내용에 끌려다녀 크기가 제각각으로 보인다.
    격자에 맞춰 배치하면 크기 차이가 "들쭉날쭉"이 아니라 "의도된 위계"가 된다. */
+/* 기사처럼 위에서 아래로 읽히는 단일 칼럼. 예전엔 12열 그리드로 입력
+   패널을 왼쪽에, 결과를 오른쪽 2단으로 짰지만(카드 테두리가 있을 땐
+   대시보드처럼 훑어보기 좋았다), 카드 장식을 없앤 뒤로는 시선이
+   좌우로 갈라져서 오히려 읽기 산만하다는 피드백이 있었다. 모바일
+   전용이었던 "DOM 순서 그대로 세로 스택" 규칙(예전엔 780px 이하에서만
+   적용)을 전체 폭 기본값으로 올렸다 — 이 순서(입력요약 → 핵심 결과 →
+   차트 → 세부 통계 → 설명/버튼)는 이미 모바일에서 자연스럽게 읽힌다고
+   확인된 순서라 그대로 재사용한다. 폭은 기사 본문처럼 제한해서
+   가운데 정렬한다. */
 .bento {
-  display: grid;
-  gap: .75rem;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  /* 기본은 stretch였는데, 같은 행에 놓인 카드끼리 내용 길이가 다르면
-     짧은 쪽 카드 안쪽에 그만큼 빈 칸이 남았다(공백 민원이 반복된 지점).
-     이제 기본은 "내용만큼만"이고, 정말로 늘어나야 하는 두 카드
-     (.bento-contrib/.bento-cum — 안에 flex:1 차트가 있어 늘어난 만큼을
-     차트가 그대로 채워준다)만 아래에서 다시 stretch로 되돌린다. */
-  align-items: start;
+  display: flex; flex-direction: column;
+  /* 블록에 배경·패딩이 있어서 구분은 충분히 되니, 공간을 쓸데없이 많이
+     차지한다는 피드백을 반영해 더 좁힌다 — 토스 리스트처럼 카드끼리
+     붙어서 흐르게. */
+  gap: 1rem;
+  max-width: 820px; margin-inline: auto;
 }
 .bento > * { min-width: 0; margin-top: 0 !important; }
-.bento-contrib, .bento-cum { align-self: stretch; }
-
-/* 입력 패널을 왼쪽에 세로로 세우고, 오른쪽을 결과로 채운다.
-   세로로 쌓는 것보다 가로 공간을 훨씬 잘 쓴다.
-     ┌──────┬───────────────┐
-     │      │ 공식 vs 내물가  │
-     │ 입력  ├───────────────┤
-     │ 슬라 │  기여도 분해    │
-     │ 이더  ├───────┬───────┤
-     │      │ 액션   │ 10년   │
-     └──────┴───────┴───────┘
-   입력 패널은 오른쪽 결과 카드들(차트·표 포함)보다 항상 짧다. 예전엔
-   sticky로 붙여 봤지만, 짧은 입력 카드가 결과보다 먼저 스크롤을 벗어나며
-   다음 섹션 제목과 스쳐 겹쳐 보이는 문제가 있었다. 지금은(기본이
-   align-items:start라) 제 높이만큼만 차지하고 그리드 안 제자리에
-   고정돼 있다 — 움직이지 않으니 겹칠 일도 없다. */
-.bento-input   { grid-column: 1 / span 4;  grid-row: 1 / span 3; }
-.bento-hero    { grid-column: 5 / span 8;  grid-row: 1; }
-.bento-contrib { grid-column: 5 / span 8;  grid-row: 2; }
-.bento-action  { grid-column: 5 / span 4;  grid-row: 3; }
-.bento-cum     { grid-column: 9 / span 4;  grid-row: 3; }
-
-@media (max-width: 1240px) {
-  .bento-input   { grid-column: 1 / span 5; grid-row: 1 / span 3; }
-  .bento-hero    { grid-column: 6 / span 7; grid-row: 1; }
-  .bento-contrib { grid-column: 6 / span 7; grid-row: 2; }
-  .bento-action  { grid-column: 6 / span 7; grid-row: 3; }
-  .bento-cum     { grid-column: 1 / span 12; grid-row: 4; }
-}
-/* 나머지 탭도 같은 격자를 쓴다.
-   왼쪽에 입력, 오른쪽에 결과 — 탭을 옮겨도 눈이 같은 곳을 본다. */
-.bento-main   { grid-column: 5 / span 8;  grid-row: 1; }
-.bento-half-a { grid-column: 5 / span 4;  grid-row: 2; }
-.bento-half-b { grid-column: 9 / span 4;  grid-row: 2; }
-.bento-full   { grid-column: 5 / span 8; }
-
-/* 목표 자산 탭은 bento-full이 없어서 오른쪽에 실제로 2행(메인 + 반반)
-   뿐인데, 공용 규칙(입력 패널 span 3)을 그대로 쓰면 존재하지도 않는
-   3번째 행만큼 입력 카드 옆에 빈 칸이 남는다. 실제 행 수에 맞춘다. */
-#panel-goal .bento-input { grid-row: 1 / span 2; }
-/* 자산 타임머신 탭은 오른쪽에 "자산별 성장 경로" 카드 하나(1행)만
-   입력 패널과 나란하다. 나머지(통계·표)는 전체 폭 카드라 그 아래
-   따로 놓인다. 입력 카드는 이 한 행에만 걸치고, 높이도 맞춘다 —
-   차이가 크지 않아(수십 px) 늘려도 안쪽에 빈 티가 나지 않는다. */
-#panel-time .bento-input { grid-row: 1; align-self: stretch; }
-
-@media (max-width: 1240px) {
-  .bento-main   { grid-column: 6 / span 7; grid-row: 1; }
-  .bento-half-a { grid-column: 6 / span 7; grid-row: 2; }
-  .bento-half-b { grid-column: 6 / span 7; grid-row: 3; }
-  .bento-full   { grid-column: 1 / span 12; }
-  /* 이 폭에서는 half-a/half-b가 세로로 쌓여 실제로 3행이 된다. 자산
-     타임머신은 이 폭에서도 구조가 안 바뀌니(오른쪽은 여전히 메인
-     카드 하나) 그대로 1행이다. */
-  #panel-goal .bento-input { grid-row: 1 / span 3; }
-}
-
-@media (max-width: 780px) {
-  .bento > * { grid-column: span 12 !important; grid-row: auto !important; }
-}
-
-/* 카드 안에서 차트가 남는 높이를 채우도록 — 이 두 카드만 그리드
-   기본값을 stretch로 되돌려 받으므로(위 .bento-contrib, .bento-cum
-   규칙 참고) 늘어난 만큼을 flex:1 차트가 그대로 흡수한다. */
-.bento-contrib, .bento-cum { display: flex; flex-direction: column; }
-.bento-contrib .chart-box, .bento-cum .chart-box { flex: 1; display: flex; align-items: center; }
 .bento .chart-box svg { width: 100%; }
-.bento-cum .verdict { margin-top: auto; }
 .bento-action .apply-btn { margin-top: .8rem; }
 
-/* 베이토 안에서는 카드 여백을 조금 줄여 밀도를 높인다 */
-.bento .card { padding: .9rem 1rem; }
+/* 스크롤하며 섹션이 하나씩 나타나는 연출 — stepIn 키프레임(온보딩 문항
+   전환에도 쓰는 것과 같은 모양)을 재사용한다. JS(setupScrollReveal)가
+   뷰포트에 처음 들어온 블록에 is-visible을 붙인다. reduced-motion에서는
+   처음부터 다 보이는 상태로 시작해서 애니메이션 자체가 의미 없어진다 —
+   이 파일의 다른 애니메이션(캐럿 깜빡임, 로딩 스피너 등)과 같은 처리. */
+.bento > * { opacity: 0; transform: translateY(10px); }
+.bento > *.is-visible { animation: stepIn .4s ease forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .bento > * { opacity: 1; transform: none; }
+  .bento > *.is-visible { animation: none; }
+}
+
+/* 리포트 결과가 네모칸 여러 개로 나뉘어 번잡스럽다는 피드백 → 테두리와
+   그림자를 없앤 완전 플랫 버전으로 바꿨더니 이번엔 섹션 구분이 아예 안
+   보여 가독성이 떨어진다는 피드백. 토스 스타일로 절충한다 — 윤곽선
+   대신 옅은 색 블록으로 구분하고(테두리·그림자는 계속 없음), 모서리는
+   크게 둥글리고, 안쪽 여백은 넉넉하게 준다. */
+.bento .card {
+  background: var(--surface-2); border: 0; box-shadow: none;
+  border-radius: var(--radius); padding: 1.3rem 1.4rem;
+}
 .bento .src-note { font-size: .66rem; padding: .12rem .45rem; margin-top: .45rem; }
-.bento .stat { padding: .62rem .7rem; }
-.bento .stat .v { font-size: 1.12rem; }
+.bento .stat { padding: .8rem .9rem; border-radius: var(--radius-sm); }
 .bento .block-q { margin-bottom: .6rem; }
+
+/* "당신이 답한 내용" 블록 — 예전엔 옅은 브랜드색(--brand-soft)으로 채워
+   구분했는데, 그 색이 페이지 배경(--page-plane)과 명도가 비슷해서
+   경계가 잘 안 보인다는 피드백. 배경은 다른 결과 블록과 똑같이 밝게
+   맞추고, 대신 브랜드색 테두리 + 옅은 그림자로 "이건 당신 답변"이라는
+   구분을 준다 — 배경색보다 테두리가 경계를 훨씬 또렷하게 만든다. */
+.bento .card.bento-input {
+  background: var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--brand) 32%, var(--border-strong));
+  box-shadow: var(--shadow);
+}
+.answer-bridge {
+  margin: .8rem 0 0; padding-top: .6rem; border-top: 1px dashed color-mix(in srgb, var(--brand) 30%, transparent);
+  font-size: .82rem; font-weight: 700; color: var(--brand); text-align: center;
+}
 
 /* ---------- 지출 구성 슬라이더 ---------- */
 .total-field {
@@ -720,7 +743,29 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
    아래)의 카드들이 그리드 stretch 때문에 억지로 늘어나며 빈 공간이
    생긴다. 목록 자체를 적당한 높이에서 스크롤되게 잘라 카드 높이가
    무한정 커지는 걸 막는다. */
-#spendFields { max-height: 280px; overflow-y: auto; padding-right: .3rem; }
+/* 기본 스크롤바는(특히 맥OS "스크롤할 때만 보이기" 설정) 평소엔 안
+   보여서, 더 내용이 있다는 걸 못 알아채기 쉽다. 두 가지로 보강한다:
+   (1) 항상 보이는 얇은 스크롤바를 직접 그리고, (2) 맨 아래에 옅어지는
+   그라데이션을 겹쳐서 스크롤바 렌더링 여부와 무관하게 "더 있다"는
+   신호를 준다. 그라데이션은 실제 스크롤 콘텐츠(#spendFields) 밖의
+   정적 래퍼(.spend-scroll)에 얹어서, 매번 innerHTML로 다시 그려지는
+   목록 안에 넣지 않아도 되게 한다. */
+.spend-scroll { position: relative; }
+.spend-scroll::after {
+  content: ""; position: absolute; bottom: 0; left: 0; right: 1rem;
+  height: 28px; pointer-events: none; border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: linear-gradient(to bottom, transparent, var(--surface-2));
+}
+#spendFields {
+  /* 스크롤바(7px)가 금액 입력칸 오른쪽 끝과 겹치지 않도록, 스크롤바보다
+     넉넉히 더 넓은 여백을 비워 둔다. */
+  max-height: 280px; overflow-y: auto; padding-right: 1rem;
+  scrollbar-width: thin; scrollbar-color: var(--text-muted) var(--surface-sunk);
+}
+#spendFields::-webkit-scrollbar { width: 8px; }
+#spendFields::-webkit-scrollbar-track { background: var(--surface-sunk); border-radius: 999px; }
+#spendFields::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 999px; }
+#spendFields::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 .spend-row {
   display: grid; grid-template-columns: minmax(0, 1fr) 130px;
   gap: .5rem; align-items: center; margin-bottom: .42rem;
@@ -737,10 +782,10 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 
 .spend-total {
   display: flex; justify-content: space-between; align-items: baseline;
-  margin-top: .9rem; padding-top: .8rem; border-top: 1px solid var(--border);
+  margin-top: .6rem; padding-top: .6rem; border-top: 1px solid var(--border);
   font-size: .84rem; color: var(--text-secondary);
 }
-.spend-total b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.spend-total b { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 
 .apply-btn {
   margin-top: 1rem; width: 100%; appearance: none; border: 0; cursor: pointer;
@@ -810,12 +855,19 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
   -webkit-mask: none; mask: none;
 }
 
-/* ---------- 표 ---------- */
-.table-scroll { overflow-x: auto; margin-top: .8rem; }
-table { width: 100%; border-collapse: collapse; font-size: .82rem; min-width: 440px; }
-th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--border); }
-th { font-size: .74rem; color: var(--text-muted); font-weight: 600; }
+/* ---------- 표 ----------
+   나머지 화면은 다 숫자를 크고 굵게 키웠는데(토스 스타일) 표만 예전
+   그대로 작은 스프레드시트 글씨로 남아 있어서 유독 촘촘하고 읽기
+   힘들어 보였다 — 포트폴리오 표(자산배분·시나리오 비교 등)가 가장
+   눈에 띄는 곳이라 특히 두드러졌다. 본문 글자를 키우고, 숫자 칸은
+   굵게 강조하고, 줄 간격도 넉넉하게 한다. */
+.table-scroll { overflow-x: auto; margin-top: 1rem; }
+table { width: 100%; border-collapse: collapse; font-size: 1rem; min-width: 440px; }
+th, td { text-align: left; padding: .7rem .7rem; border-bottom: 1px solid var(--border); }
+th { font-size: .8rem; color: var(--text-muted); font-weight: 700; }
+td { font-weight: 600; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.num { font-weight: 800; font-size: 1.05rem; }
 tr.cat-row td { background: var(--surface-sunk); }
 .risk-badge { display: inline-block; font-size: .68rem; padding: .1rem .45rem; border-radius: 999px; font-weight: 700; }
 .risk-low  { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good-text); }
