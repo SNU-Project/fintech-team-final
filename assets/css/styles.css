@@ -209,9 +209,13 @@ section { scroll-margin-top: 5rem; }
    overflow-x:auto로 가로 스크롤해야 해서 기존 왼쪽 정렬을 유지한다. */
 @media (min-width: 861px) {
   .topbar-inner { display: grid; grid-template-columns: 1fr auto 1fr; }
-  .brand { justify-self: start; }
-  .tabs { justify-self: center; flex: 0 0 auto; }
-  .theme-toggle { justify-self: end; }
+  /* 설문 중엔 .tabs가 display:none이 되어 그리드에서 통째로 빠지는데,
+     grid-column을 명시하지 않으면 자동 배치가 테마 버튼을 그 빈 칸으로
+     당겨 채워서 가운데처럼 보이게 만든다. 각 칸을 못박아 탭이 숨어도
+     로고는 항상 1번째, 테마 버튼은 항상 3번째(맨 오른쪽) 칸에 있게 한다. */
+  .brand { grid-column: 1; justify-self: start; }
+  .tabs { grid-column: 2; justify-self: center; flex: 0 0 auto; }
+  .theme-toggle { grid-column: 3; justify-self: end; }
 }
 /* display:flex는 [hidden]의 기본 display:none과 명시도가 같아 나중에
    선언된 이 규칙이 이겨버린다. 온보딩 중엔 탭 자체를 숨겨야 하므로 명시한다. */
