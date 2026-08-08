@@ -334,6 +334,10 @@ section { scroll-margin-top: 5rem; }
   display: flex; align-items: center; gap: .6rem; width: min(90%, 300px);
   position: absolute; top: 1.2rem; left: 50%; transform: translateX(-50%);
 }
+/* display:flex와 [hidden]은 특정성이 같아서(0,0,1,0) 나중에 선언된 쪽이
+   이긴다 — 이 클래스가 뒤에 있으면 hidden 속성이 true여도 계속 보인다.
+   이 코드베이스에서 반복된 버그라 항상 이렇게 명시적으로 덮어써야 한다. */
+.onboarding-progress-wrap[hidden] { display: none; }
 .onboarding-progressbar { flex: 1; height: 4px; border-radius: 999px; background: var(--surface-sunk); overflow: hidden; }
 .onboarding-progressbar-fill { height: 100%; background: var(--brand); border-radius: 999px; transition: width .25s ease; }
 .onboarding-progress-text { font-size: .72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
