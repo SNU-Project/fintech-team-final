@@ -19,7 +19,6 @@
   }
 
   const man = (n) => Math.round(n).toLocaleString("ko-KR");
-  const man1 = (n) => Number(n).toLocaleString("ko-KR", { maximumFractionDigits: 1 });
   const pct = (n, d = 1) => `${(n * 100).toFixed(d)}%`;
   const signPct = (n, d = 1) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(d)}%`;
 
@@ -35,6 +34,12 @@
   const spendingTotal = (spending) =>
     Object.values(spending).reduce((sum, value) => sum + (Number(value) || 0), 0);
 
+  // 통계 원본(personas.js)은 0.1만 원 단위까지 나오지만, 돈 관련 숫자는
+  // 화면 어디서도 소수점을 보이지 않기로 했다 — 상태에 들어오는 순간부터
+  // 정수로 반올림해 이후 어떤 계산·표시도 다시 소수를 만들지 않게 한다.
+  const roundSpending = (spending) =>
+    Object.fromEntries(Object.entries(spending).map(([key, value]) => [key, Math.round(value)]));
+
   // 총액은 체감하기 쉬운 입력이고, 개인 물가는 지출 비중으로 계산된다.
   // 그래서 총액을 바꿀 때는 통계에서 온 비중을 유지한 채 모든 항목을 같이 조정한다.
   function scaleSpending(spending, nextTotal) {
@@ -44,13 +49,13 @@
     }
     const scale = nextTotal / current;
     const scaled = Object.fromEntries(Object.entries(spending).map(([key, value]) =>
-      [key, Math.round(value * scale * 10) / 10]));
-    // 항목별 0.1만 원 반올림 뒤 생기는 오차는 가장 큰 항목에 합쳐
+      [key, Math.round(value * scale)]));
+    // 항목별 반올림 뒤 생기는 오차(만 원 단위)는 가장 큰 항목에 합쳐
     // 사용자가 입력한 총액과 화면 합계가 정확히 같게 만든다.
     const largest = Object.keys(scaled).sort((a, b) => scaled[b] - scaled[a])[0];
-    const roundingGap = Math.round((nextTotal - spendingTotal(scaled)) * 10) / 10;
+    const roundingGap = Math.round(nextTotal - spendingTotal(scaled));
     if (largest && roundingGap) {
-      scaled[largest] = Math.max(0, Math.round((scaled[largest] + roundingGap) * 10) / 10);
+      scaled[largest] = Math.max(0, scaled[largest] + roundingGap);
     }
     return scaled;
   }
@@ -61,7 +66,7 @@
     inflation: 2.8, inflationLive: false,
     picks: new Set(["kodex200", "sp500", "gold"]),
     startMonth: null,
-    spending: { ...PERSONAS[DEFAULT_PERSONA].spending },
+    spending: roundSpending(PERSONAS[DEFAULT_PERSONA].spending),
     persona: DEFAULT_PERSONA,
     personalRate: null,
     aiContext: null,
@@ -91,6 +96,7 @@
     state.inflation = state.cpi.latest.yoy;
     $("#inflation").value = state.inflation.toFixed(1);
 
+    setupNumberInputGuards();
     setupTabs();
     setupMineTab();
     setupGapTab();
@@ -211,7 +217,7 @@
   }
 
   const personaDefaultTotal = (persona) =>
-    spendingTotal((PERSONAS[persona] || PERSONAS[DEFAULT_PERSONA]).spending);
+    Math.round(spendingTotal((PERSONAS[persona] || PERSONAS[DEFAULT_PERSONA]).spending));
 
   function setInputAndFire(sel, value) {
     if (value == null) return;
@@ -222,13 +228,17 @@
     $(sel).dispatchEvent(new Event("input", { bubbles: true }));
   }
 
+  // 목표 자산(Q5)은 선택 문항이라 일부러 기본값을 주지 않는다 — 안 채우면
+  // 0으로 남고, collectGoalAndFinish가 실제 입력 필드 값으로 항상 덮어쓰기
+  // 때문에 여기 goalAmount/goalYears/goalCurrent는 그 전까지 잠깐 쓰이는
+  // 자리표시자일 뿐이다(실제 화면에 노출되지 않음).
   function freshDraft() {
     return {
       persona: DEFAULT_PERSONA,
       monthlySpend: personaDefaultTotal(DEFAULT_PERSONA),
       curSalary: 3600, nextSalary: 3750,
       risk: "balanced",
-      goalAmount: 5000, goalYears: 3, goalCurrent: 800,
+      goalAmount: 0, goalYears: 1, goalCurrent: 0,
     };
   }
 
@@ -317,9 +327,13 @@
   // 타이머를 변수 하나로 공유하면 한쪽이 다른 쪽을 끊어버릴 수 있다.
   // WeakMap으로 대상 엘리먼트마다 자기 타이머를 따로 가지게 한다.
   const typewriterTimers = new WeakMap();
-  function typewriter(el, text, speed = 22) {
+  function typewriter(el, text, speed = 10) {
     const prev = typewriterTimers.get(el);
-    if (prev) { clearInterval(prev.interval); clearTimeout(prev.watchdog); }
+    if (prev) {
+      clearInterval(prev.interval);
+      clearTimeout(prev.watchdog);
+      el.removeEventListener("click", prev.skip);
+    }
     el.classList.remove("typing-cursor");
     el.textContent = "";
     if (!text) { typewriterTimers.delete(el); return; }
@@ -330,11 +344,13 @@
     }
     el.classList.add("typing-cursor");
     const start = Date.now();
+    let interval, watchdog;
     const finish = () => {
       clearInterval(interval);
       clearTimeout(watchdog);
       el.textContent = text;
       el.classList.remove("typing-cursor");
+      el.removeEventListener("click", finish);
       typewriterTimers.delete(el);
     };
     // 매 tick마다 1글자씩 더하는 대신 "시작 시각 대비 몇 글자째여야 하는가"를
@@ -342,7 +358,7 @@
     // 오래 지연시켰다 몰아서 재개하는 상황에서도, 다음 tick이 흐른 시간만큼
     // 알아서 따라잡아 자연스럽게 이어진다 (카운트업 방식은 이런 지연을
     // 그대로 누적시켜 끝에 안 닿고 멈춘 것처럼 보일 수 있었다).
-    const interval = setInterval(() => {
+    interval = setInterval(() => {
       const i = Math.floor((Date.now() - start) / speed);
       if (i >= text.length) { finish(); return; }
       el.textContent = text.slice(0, i);
@@ -350,8 +366,11 @@
     // 위 tick 자체가 어떤 이유로든 더 이상 안 불리는 극단적인 경우를 대비한
     // 최후의 안전장치 — 예상 완료 시각이 지나면 무조건 전체 문장을 채우고
     // 커서를 지운다. 커서가 영원히 깜빡이며 멈춰 있는 상태는 없어야 한다.
-    const watchdog = setTimeout(finish, text.length * speed + 2000);
-    typewriterTimers.set(el, { interval, watchdog });
+    watchdog = setTimeout(finish, text.length * speed + 2000);
+    // 다 나오기 전에 클릭하면 바로 전체 문장을 보여준다 — 타이핑이 오래
+    // 걸리면 로딩이 멈춘 것처럼 보인다는 피드백이 있어 건너뛸 방법을 준다.
+    el.addEventListener("click", finish);
+    typewriterTimers.set(el, { interval, watchdog, skip: finish });
   }
 
   // 리포트 맨 끝의 결론 — 4개 섹션 결과를 한데 모아 정리한다.
@@ -605,14 +624,99 @@
     });
   }
 
+  /* ══════════════ 숫자 입력 공통 처리 ══════════════
+     위저드·리포트·동적으로 생성되는 지출 항목까지 <input type="number">가
+     여러 곳에 흩어져 있어, 필드마다 따로 손대는 대신 document 레벨 위임
+     하나로 전부 처리한다. 새로 추가되는 입력(예: 지출 세부 항목)도 별도
+     배선 없이 자동으로 같은 규칙을 탄다. */
+  function setupNumberInputGuards() {
+    // 포커스가 가면 기존 값 전체를 선택해 둔다. 그래야 이어서 숫자를
+    // 치면 바로 덮어써진다 — 안 그러면 "3600"에 "4200"을 입력했을 때
+    // 커서 위치에 그대로 끼어들어 "42003600"처럼 이어붙는다.
+    // readonly 필드는 애초에 타이핑이 막혀 있어 선택해도 의미가 없다.
+    // select()를 focus 핸들러에서 바로 부르면, 마우스 클릭으로 들어온
+    // 경우 브라우저가 곧이어 처리하는 "클릭한 지점에 커서 놓기" 기본
+    // 동작이 뒤따라와 선택을 덮어써 버린다(즉 select()가 무효화된다).
+    // setTimeout으로 한 틱 미뤄서 그 기본 동작이 끝난 뒤에 선택하면
+    // 클릭·Tab 어느 쪽으로 들어와도 항상 전체가 선택된다.
+    document.addEventListener("focusin", (e) => {
+      if (e.target.matches('input[type="number"]:not([readonly])')) {
+        const el = e.target;
+        setTimeout(() => el.select(), 0);
+      }
+    });
+
+    // 필드별 상식적인 상한/하한. 위저드 입력(onbXxx)과 리포트 입력이
+    // 결국 같은 값을 다루므로 접두사를 떼고 하나의 규칙으로 묶는다.
+    // money: true인 필드는 소수점 없이 정수로만 남긴다 — 퍼센트·기간처럼
+    // "돈"이 아닌 숫자(예: 목표 기간)는 그대로 소수 입력을 허용한다.
+    const RULES = [
+      { test: (id) => id === "monthlySpend" || id === "onbMonthlySpend", min: 0, max: 5000, label: "월 생활비", money: true },
+      { test: (id) => id.startsWith("sp-"), min: 0, max: 3000, label: "지출 항목", money: true },
+      { test: (id) => id === "curSalary" || id === "onbCurSalary" || id === "nextSalary" || id === "onbNextSalary", min: 0, max: 100000, label: "연봉", money: true },
+      { test: (id) => id === "goalAmount" || id === "onbGoalAmount", min: 0, max: 100000, label: "목표 금액", money: true },
+      { test: (id) => id === "goalCurrent" || id === "onbGoalCurrent", min: 0, max: 100000, label: "현재 보유 자산", money: true },
+      { test: (id) => id === "goalYears" || id === "onbGoalYears", min: 1, max: 40, label: "목표 기간" },
+      { test: (id) => id === "goalMonthly", min: 0, max: 5000, label: "월 저축 가능액", money: true },
+      { test: (id) => id === "investAmount", min: 0, max: 100000, label: "투자 금액", money: true },
+    ];
+    const guardMsgs = new WeakMap();
+    function guardMsgFor(input) {
+      let msg = guardMsgs.get(input);
+      if (msg) return msg;
+      const wrap = input.closest(".input-wrap") || input;
+      msg = document.createElement("p");
+      msg.className = "err-text field-guard-err";
+      msg.hidden = true;
+      wrap.insertAdjacentElement("afterend", msg);
+      guardMsgs.set(input, msg);
+      return msg;
+    }
+
+    // 캡처 단계(capture:true)에서 먼저 값을 다듬어 둔다. 그래야 각 필드에
+    // 이미 달려 있는 계산용 input 리스너(버블 단계, 등록 순서와 무관하게
+    // 이 다음에 실행됨)가 항상 범위 안으로 정리된 값을 보게 된다.
+    document.addEventListener("input", (e) => {
+      const input = e.target;
+      if (input.tagName !== "INPUT" || input.type !== "number" || input.readOnly) return;
+      const rule = RULES.find((r) => r.test(input.id));
+      if (!rule) return;
+      const wrap = input.closest(".input-wrap");
+      const msg = guardMsgFor(input);
+      if (input.value === "") {
+        msg.hidden = true;
+        if (wrap) wrap.classList.remove("invalid");
+        return;
+      }
+      const n = Number(input.value);
+      if (Number.isNaN(n)) return;
+      // min/max를 벗어났는지는 반올림 전 값으로 판단한다 — 소수점을 정수로
+      // 다듬는 것과 범위를 벗어난 것은 서로 다른 문제라, 소수점만 입력했을
+      // 때는 경고 없이 조용히 정리하고, 범위를 벗어났을 때만 알려준다.
+      const bounded = Math.min(rule.max, Math.max(rule.min, n));
+      const outOfRange = bounded !== n;
+      const next = rule.money ? Math.round(bounded) : bounded;
+      if (next !== n) input.value = next;
+      if (outOfRange) {
+        msg.textContent =
+          `${rule.label}${josa(rule.label, "은", "는")} ${rule.min.toLocaleString("ko-KR")}~${rule.max.toLocaleString("ko-KR")} 사이로 입력할 수 있어요.`;
+        msg.hidden = false;
+        if (wrap) wrap.classList.add("invalid");
+      } else {
+        msg.hidden = true;
+        if (wrap) wrap.classList.remove("invalid");
+      }
+    }, true);
+  }
+
   /* ══════════════ 탭 0 · 내 물가 ══════════════ */
   function syncSpendingFields(cats, syncTotal = true) {
     cats.forEach((c) => {
       const input = $(`#sp-${c.id}`);
-      if (input) input.value = (state.spending[c.id] || 0).toFixed(1).replace(/\.0$/, "");
+      if (input) input.value = Math.round(state.spending[c.id] || 0);
     });
     if (syncTotal) {
-      $("#monthlySpend").value = spendingTotal(state.spending).toFixed(1).replace(/\.0$/, "");
+      $("#monthlySpend").value = Math.round(spendingTotal(state.spending));
     }
   }
 
@@ -629,7 +733,7 @@
     const p = PERSONAS[key];
     if (!p) return;
     state.persona = key;
-    state.spending = { ...p.spending };
+    state.spending = roundSpending(p.spending);
     $$("#personaSeg button").forEach((button) =>
       button.setAttribute("aria-pressed", String(button.dataset.persona === key)));
     syncSpendingFields(cats);
@@ -652,7 +756,7 @@
           <small>${c.hint}</small>
         </label>
         <span class="input-wrap">
-          <input type="number" id="sp-${c.id}" min="0" step="1" inputmode="decimal" value="${state.spending[c.id] ?? 0}">
+          <input type="number" id="sp-${c.id}" min="0" step="1" inputmode="numeric" value="${state.spending[c.id] ?? 0}">
           <span>만원</span>
         </span>
       </div>`;
@@ -665,7 +769,7 @@
         state.spending[c.id] = Math.max(0, +e.target.value || 0);
         $$("#personaSeg button").forEach((b) => b.setAttribute("aria-pressed", "false"));
         state.persona = null;
-        $("#monthlySpend").value = spendingTotal(state.spending).toFixed(1).replace(/\.0$/, "");
+        $("#monthlySpend").value = Math.round(spendingTotal(state.spending));
         renderPersonaBasis();
         renderMine();
       });
@@ -751,7 +855,7 @@
     }
 
     state.personalRate = result.rate;
-    $("#spendTotal").textContent = `${man1(result.total)}만원`;
+    $("#spendTotal").textContent = `${man(result.total)}만원`;
     const diff = result.rate - official;
 
     $("#officialRate").textContent = `${official.toFixed(1)}%`;
