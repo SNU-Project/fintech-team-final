@@ -505,7 +505,6 @@
 
     // ---- 0 · 인트로 ----
     $("#onbStart").addEventListener("click", () => showStep(1));
-    $("#onbSkipAll").addEventListener("click", () => finish(freshDraft()));
 
     // ---- 1 · 생활 유형 ----
     $$("#onbPersonaGrid button").forEach((b) => {
