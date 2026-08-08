@@ -200,6 +200,11 @@ section { scroll-margin-top: 5rem; }
   overflow-x: auto; scrollbar-width: none;
 }
 .tabs::-webkit-scrollbar { display: none; }
+/* 데스크톱에서는 탭이 로고 바로 옆에 붙어 왼쪽으로 쏠려 보이니 가운데로
+   모은다. 모바일은 탭이 넘칠 때 overflow-x:auto로 가로 스크롤하는데,
+   가운데 정렬된 상태에서 넘치면 브라우저가 시작 부분을 스크롤로 못
+   찾아가는 경우가 있어 좁은 화면은 기존 왼쪽 정렬 + 스크롤을 유지한다. */
+@media (min-width: 861px) { .tabs { justify-content: center; } }
 /* display:flex는 [hidden]의 기본 display:none과 명시도가 같아 나중에
    선언된 이 규칙이 이겨버린다. 온보딩 중엔 탭 자체를 숨겨야 하므로 명시한다. */
 .tabs[hidden] { display: none; }
