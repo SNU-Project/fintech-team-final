@@ -113,6 +113,7 @@
     const res = await window.Live.fetchAll();
     renderTicker(res);
 
+    $("#inflSource").classList.remove("skeleton-bar");
     if (res.inflation.ok) {
       const d = res.inflation.data;
       state.inflation = d.value;
@@ -314,25 +315,40 @@
   // WeakMap으로 대상 엘리먼트마다 자기 타이머를 따로 가지게 한다.
   const typewriterTimers = new WeakMap();
   function typewriter(el, text, speed = 22) {
-    clearInterval(typewriterTimers.get(el));
+    const prev = typewriterTimers.get(el);
+    if (prev) { clearInterval(prev.interval); clearTimeout(prev.watchdog); }
     el.classList.remove("typing-cursor");
     el.textContent = "";
-    if (!text) return;
+    if (!text) { typewriterTimers.delete(el); return; }
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
       el.textContent = text;
+      typewriterTimers.delete(el);
       return;
     }
     el.classList.add("typing-cursor");
-    let i = 0;
-    const timer = setInterval(() => {
-      i++;
+    const start = Date.now();
+    const finish = () => {
+      clearInterval(interval);
+      clearTimeout(watchdog);
+      el.textContent = text;
+      el.classList.remove("typing-cursor");
+      typewriterTimers.delete(el);
+    };
+    // 매 tick마다 1글자씩 더하는 대신 "시작 시각 대비 몇 글자째여야 하는가"를
+    // 계산한다. 탭이 백그라운드로 갔다 온 직후처럼 브라우저가 setInterval을
+    // 오래 지연시켰다 몰아서 재개하는 상황에서도, 다음 tick이 흐른 시간만큼
+    // 알아서 따라잡아 자연스럽게 이어진다 (카운트업 방식은 이런 지연을
+    // 그대로 누적시켜 끝에 안 닿고 멈춘 것처럼 보일 수 있었다).
+    const interval = setInterval(() => {
+      const i = Math.floor((Date.now() - start) / speed);
+      if (i >= text.length) { finish(); return; }
       el.textContent = text.slice(0, i);
-      if (i >= text.length) {
-        clearInterval(timer);
-        el.classList.remove("typing-cursor");
-      }
     }, speed);
-    typewriterTimers.set(el, timer);
+    // 위 tick 자체가 어떤 이유로든 더 이상 안 불리는 극단적인 경우를 대비한
+    // 최후의 안전장치 — 예상 완료 시각이 지나면 무조건 전체 문장을 채우고
+    // 커서를 지운다. 커서가 영원히 깜빡이며 멈춰 있는 상태는 없어야 한다.
+    const watchdog = setTimeout(finish, text.length * speed + 2000);
+    typewriterTimers.set(el, { interval, watchdog });
   }
 
   // 리포트 맨 끝의 결론 — 4개 섹션 결과를 한데 모아 정리한다.
@@ -542,6 +558,10 @@
     // ---- 요약 화면 ----
     $("#homeReportBtn").addEventListener("click", () => $("#tab-mine").click());
     $("#homeRestartBtn").addEventListener("click", () => {
+      // 바로 위 "공유 카드 만들기" 버튼과 가까이 있어 오클릭하기 쉬운데,
+      // 이 버튼은 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라
+      // 한 번 더 확인한다.
+      if (!confirm("처음부터 다시 입력할까요? 지금까지 입력한 내용은 모두 사라져요.")) return;
       localStorage.removeItem(ONBOARD_KEY);
       summaryView.hidden = true;
       setReportVisible(false);
@@ -1243,7 +1263,7 @@
       v.className = "verdict";
       v.innerHTML = `내년 연봉 <b>${man(next)}만원</b>은 물가 유지선(${man(d.requiredSalary)}만원)을
         <b>${man(-d.gap)}만원 넘어섭니다.</b> 실질 소득이 늘어나는 구간입니다.
-        여기에 월 ${man(budget)}만원을 굴리면 연 <b>${man(annualGain)}만원</b>이 더해집니다.`;
+        여기에 투자로 월 ${man(budget)}만원씩 더 굴리면 연 <b>${man(annualGain)}만원</b>이 추가로 쌓입니다.`;
     } else {
       const rate = d.gap > 0 ? Math.min(100, (annualGain / d.gap) * 100) : 100;
       const days = next > 0 ? d.gap / (next / WORKDAYS_PER_YEAR) : 0;
@@ -1701,6 +1721,7 @@
     $("#assumeList").innerHTML = state.meta.assumptions.map((a) => `<li>${a}</li>`).join("");
 
     const gen = new Date(state.meta.generated_at);
+    $("#buildInfo").classList.remove("skeleton-bar");
     $("#buildInfo").textContent =
       `데이터 갱신 ${gen.toLocaleString("ko-KR")} · 시세 스냅샷은 GitHub Actions가 매일 자동 수집합니다.`;
   }
