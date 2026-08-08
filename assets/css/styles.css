@@ -297,6 +297,9 @@ section { scroll-margin-top: 5rem; }
   #homeSummarySub { white-space: pre; }
   .final-body { white-space: pre; max-width: none; }
 }
+/* 클릭하면 바로 전체 문장이 보이므로, 타이핑 중에는 클릭 가능하다는
+   힌트로 커서 모양을 바꿔 둔다. */
+.typing-cursor { cursor: pointer; }
 .typing-cursor::after {
   content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 2px;
   background: var(--brand); vertical-align: -.15em; animation: caretBlink 1s step-end infinite;
@@ -518,6 +521,10 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 .err-text::before { content: "⚠️"; flex: 0 0 auto; }
 .err-text[hidden] { display: none; }
 .input-wrap.invalid { border-color: var(--critical); }
+/* 입력 범위 경고문(field-guard-err)은 .spend-row 같은 grid 컨테이너
+   안에 인풋의 형제로 꽂힐 수 있다 — 항상 전체 폭으로 펼쳐서 2번째
+   그리드 칸에 눌려 찌그러지지 않게 한다. grid가 아닌 곳에서는 무시된다. */
+.field-guard-err { grid-column: 1 / -1; }
 
 /* ---------- 설문에서 이미 답한 값 (읽기 전용) ----------
    readonly는 타이핑만 막고 JS의 .value 읽기/쓰기는 그대로 허용한다 —

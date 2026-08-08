@@ -109,7 +109,7 @@
         <h2>한 달 생활비는 얼마 정도인가요?</h2>
         <div class="card onboarding-card">
           <label class="field">내 월 생활비
-            <span class="input-wrap"><input type="number" id="onbMonthlySpend" min="0" step="10" inputmode="decimal"><span>만원</span></span>
+            <span class="input-wrap"><input type="number" id="onbMonthlySpend" min="0" step="10" inputmode="numeric"><span>만원</span></span>
           </label>
           <p class="field-note">방금 고른 생활 유형의 평균값을 채워 뒀어요. 품목별로 더 세밀하게 조정하고 싶다면 리포트에서 바로 바꿀 수 있습니다.</p>
         </div>
@@ -163,13 +163,13 @@
         <div class="card onboarding-card">
           <div class="field-grid">
             <label class="field">목표 금액
-              <span class="input-wrap"><input type="number" id="onbGoalAmount" min="0" step="500" value="0"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="onbGoalAmount" min="0" step="500" placeholder="예: 3000"><span>만원</span></span>
             </label>
             <label class="field">목표 기간
-              <span class="input-wrap"><input type="number" id="onbGoalYears" min="1" max="40" step="1"><span>년</span></span>
+              <span class="input-wrap"><input type="number" id="onbGoalYears" min="1" max="40" step="1" placeholder="예: 5"><span>년</span></span>
             </label>
             <label class="field">현재 보유 자산
-              <span class="input-wrap"><input type="number" id="onbGoalCurrent" min="0" step="100" value="0"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="onbGoalCurrent" min="0" step="100" placeholder="예: 800"><span>만원</span></span>
             </label>
           </div>
         </div>
@@ -213,7 +213,7 @@
         <p class="field-note persona-basis" id="personaBasis"></p>
 
         <label class="field total-field">내 월 생활비
-          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="decimal" readonly placeholder="입력된 값 없음"><span>만원</span></span>
+          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" readonly placeholder="입력된 값 없음"><span>만원</span></span>
         </label>
         <p class="field-note">설문에서 답하신 월 생활비예요. 세부 항목은 아래에서 조정할 수 있어요.</p>
 
