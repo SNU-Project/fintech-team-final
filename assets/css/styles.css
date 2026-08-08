@@ -261,8 +261,11 @@ section { scroll-margin-top: 5rem; }
 #homeSummarySub {
   /* 문장마다 \n으로 줄을 나눠 보내니, 그 줄바꿈을 그대로 살려서
      한 문장 = 한 줄로 보이게 한다 (기본값인 normal은 \n을 공백 취급해
-     문단이 다시 한 덩어리로 붙어 버린다). */
+     문단이 다시 한 덩어리로 붙어 버린다). word-break:keep-all은 화면이
+     좁아 한 문장이 두 줄로 넘어갈 때, 글자 단위가 아니라 띄어쓰기
+     단위로만 끊기게 해서 단어나 조사가 어색하게 잘리지 않게 한다. */
   text-align: center; line-height: 1.75; min-height: 4.6em; white-space: pre-line;
+  word-break: keep-all;
 }
 .typing-cursor::after {
   content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 2px;
@@ -755,6 +758,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
   max-width: 34rem; margin: 0 auto; text-align: center;
   font-size: 1rem; line-height: 1.8; color: var(--text-secondary); white-space: pre-line;
   min-height: 6em;
+  word-break: keep-all;
 }
 
 /* ---------- 차트 ---------- */
