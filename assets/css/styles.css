@@ -419,6 +419,80 @@ section { scroll-margin-top: 5rem; }
 .workspace > * { min-width: 0; }
 @media (max-width: 900px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
 
+/* ---------- 카드뉴스 덱 (v8) ----------
+   내 물가·실질임금 진단·결론을 세로 스크롤 대신 카드 7장을 좌우로
+   넘기며 보는 방식. 온보딩 위저드(.onboarding-step)가 이미 "한 화면에
+   하나씩, 상단 진행바"를 검증해 둔 패턴이라 같은 시각 언어(스텝인
+   애니메이션·진행 표시·카드 배경)를 재사용한다. */
+.deck { padding: .3rem 0 1rem; }
+.deck[hidden] { display: none; }
+
+.deck-dots { display: flex; justify-content: center; align-items: center; gap: .45rem; margin-bottom: .9rem; }
+.deck-dot {
+  appearance: none; padding: 0; cursor: pointer;
+  width: 8px; height: 8px; border-radius: 999px;
+  border: 1.5px solid var(--border-strong); background: transparent;
+  transition: width .2s ease, background .2s ease, border-color .2s ease;
+}
+.deck-dot.is-done { background: var(--brand); border-color: var(--brand); }
+.deck-dot.is-current { width: 22px; background: var(--brand); border-color: var(--brand); }
+
+.deck-shell { display: flex; align-items: center; justify-content: center; gap: 1rem; }
+
+.deck-arrow {
+  flex: 0 0 auto; width: 42px; height: 42px; padding: 0;
+  display: grid; place-items: center;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary);
+  border-radius: 999px; font-size: 1.4rem; line-height: 1; cursor: pointer; font-family: inherit;
+}
+.deck-arrow:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.deck-arrow:disabled { opacity: .3; cursor: default; }
+/* 화살표는 데스크톱 전용 — 모바일은 스와이프·좌우 탭으로 넘긴다.
+   상단바가 grid로 바뀌는 861px 기준을 그대로 재사용한다. */
+@media (max-width: 860px) { .deck-arrow { display: none; } }
+
+/* 카드 한 장 = 화면 한 장. 상단바+티커+점 인디케이터 높이를 뺀
+   나머지를 뷰포트 높이로 쓴다(.home-hero의 calc(100dvh - 9rem) 패턴과
+   동일한 방식). 콘텐츠가 넘치면 카드 안에서만 세로 스크롤된다. */
+.deck-viewport {
+  width: 100%; max-width: 540px; min-height: 420px;
+  height: calc(100dvh - 13rem); height: calc(100svh - 13rem);
+  overflow: hidden; border-radius: var(--radius); position: relative;
+  touch-action: pan-y;
+}
+.deck-track {
+  display: flex; height: 100%;
+  transition: transform .32s cubic-bezier(.22, .61, .36, 1);
+}
+.deck-card {
+  flex: 0 0 100%; width: 100%; height: 100%; box-sizing: border-box;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 1.3rem 1.2rem 2rem;
+}
+.deck-card > * + * { margin-top: 1rem; }
+.deck-card .report-heading { margin-bottom: 0; }
+
+/* 카드 1(표지)만 세로 가운데 정렬 — 나머지 카드는 위에서부터 읽는
+   일반 카드 레이아웃(기존 리포트와 같은 흐름)을 유지한다. */
+.deck-card.is-cover {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 1rem; min-height: 100%;
+}
+.deck-swipe-hint { font-size: .78rem; color: var(--text-muted); margin-top: -.3rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-track { transition: none; }
+  .deck-dot { transition: none; }
+}
+
+/* 목표 자산/타임머신은 카드뉴스가 아니라 예전처럼 독립된 스크롤
+   페이지다 — 덱에서 벗어났다는 걸 알리고 돌아갈 방법을 준다. */
+.deck-back-btn {
+  appearance: none; border: 0; background: none; cursor: pointer; font: inherit;
+  color: var(--brand); font-weight: 600; font-size: .85rem; padding: 0 0 .9rem; display: block;
+}
+.deck-back-btn:hover { text-decoration: underline; }
+
 /* 결과 카드는 나란히 놓는다. 세로로 쌓으면 평가자가 스크롤을 안 해서
    아래 내용을 아예 못 본다. */
 .result-grid {
@@ -658,7 +732,7 @@ input[readonly] { -moz-appearance: textfield; }
   max-width: 820px; margin-inline: auto;
 }
 .bento > * { min-width: 0; margin-top: 0 !important; }
-.bento .chart-box svg { width: 100%; }
+.bento .chart-box svg, .deck-card .chart-box svg { width: 100%; }
 
 /* 스크롤하며 섹션이 하나씩 나타나는 연출 — stepIn 키프레임(온보딩 문항
    전환에도 쓰는 것과 같은 모양)을 재사용한다. JS(setupScrollReveal)가
@@ -676,21 +750,23 @@ input[readonly] { -moz-appearance: textfield; }
    그림자를 없앤 완전 플랫 버전으로 바꿨더니 이번엔 섹션 구분이 아예 안
    보여 가독성이 떨어진다는 피드백. 토스 스타일로 절충한다 — 윤곽선
    대신 옅은 색 블록으로 구분하고(테두리·그림자는 계속 없음), 모서리는
-   크게 둥글리고, 안쪽 여백은 넉넉하게 준다. */
-.bento .card {
+   크게 둥글리고, 안쪽 여백은 넉넉하게 준다.
+   (v8: 카드뉴스 덱 카드도 같은 톤 — .deck-card 안 .card도 같이 적용) */
+.bento .card, .deck-card .card {
   background: var(--surface-2); border: 0; box-shadow: none;
   border-radius: var(--radius); padding: 1.3rem 1.4rem;
 }
-.bento .src-note { font-size: .66rem; padding: .12rem .45rem; margin-top: .45rem; }
-.bento .stat { padding: .8rem .9rem; border-radius: var(--radius-sm); }
-.bento .block-q { margin-bottom: .6rem; }
+.bento .src-note, .deck-card .src-note { font-size: .66rem; padding: .12rem .45rem; margin-top: .45rem; }
+.bento .stat, .deck-card .stat { padding: .8rem .9rem; border-radius: var(--radius-sm); }
+.bento .block-q, .deck-card .block-q { margin-bottom: .6rem; }
 
 /* "당신이 답한 내용" 블록 — 예전엔 옅은 브랜드색(--brand-soft)으로 채워
    구분했는데, 그 색이 페이지 배경(--page-plane)과 명도가 비슷해서
    경계가 잘 안 보인다는 피드백. 배경은 다른 결과 블록과 똑같이 밝게
    맞추고, 대신 브랜드색 테두리 + 옅은 그림자로 "이건 당신 답변"이라는
-   구분을 준다 — 배경색보다 테두리가 경계를 훨씬 또렷하게 만든다. */
-.bento .card.bento-input {
+   구분을 준다 — 배경색보다 테두리가 경계를 훨씬 또렷하게 만든다.
+   (v8: 카드뉴스 덱 안의 카드는 .bento 대신 .deck-card로 감싸므로 같이 적용) */
+.bento .card.bento-input, .deck-card .card.bento-input {
   background: var(--surface-2);
   border: 1px solid color-mix(in srgb, var(--brand) 32%, var(--border-strong));
   box-shadow: var(--shadow);

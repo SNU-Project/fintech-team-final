@@ -115,6 +115,15 @@
     personalRate: null,
   };
 
+  // 카드뉴스 덱의 공개 인터페이스. setupCardDeck()이 채워 넣는다.
+  // setupHomeFlow()/setupNextSteps()가 실제로 이 메서드를 "호출"하는
+  // 시점은 항상 boot() 전체가 끝난 뒤(사용자 상호작용 시점)라, 이
+  // 선언이 setupCardDeck()보다 먼저 나올 필요는 없지만, boot()에서
+  // setupCardDeck()을 setupHomeFlow()보다 먼저 호출해 반드시 채워
+  // 넣은 뒤에 쓰도록 순서를 지킨다(재방문자는 setupHomeFlow() 안에서
+  // 곧바로 CardDeck.open()을 부르기 때문).
+  const CardDeck = {};
+
   /* 지금 적용 중인 배분. 사용자가 슬라이더로 맞췄으면 그것을, 아니면
      선택한 성향의 프리셋을 쓴다. 진단·목표 탭이 같은 값을 봐야 해서
      한 곳에서만 결정한다. */
@@ -153,13 +162,15 @@
     setupGapTab();
     setupGoalTab();
     setupTimeTab();
+    // setupHomeFlow()가 재방문자면 그 안에서 곧바로 renderSummary() →
+    // CardDeck.open()을 부르므로, 덱이 먼저 준비돼 있어야 한다.
+    setupCardDeck();
     setupHomeFlow();
     setupReportEditing();
     $("#mixReset").addEventListener("click", () => {
       state.customWeights = null;
       renderAll();
     });
-    setupFinalConclusion();
     setupNextSteps();
     setupScrollReveal();
     setupScrollTopButton();
@@ -167,10 +178,7 @@
     renderAll();
 
     // 실시간은 화면이 다 그려진 뒤에 붙인다 (실패해도 화면은 이미 완성)
-    // 실시간 값이 들어오면서 위쪽 섹션 높이가 바뀔 수 있어(티커·물가
-    // 출처 문구 등), 해시로 스크롤한 위치가 살짝 밀릴 수 있다. 다
-    // 반영된 뒤 한 번 더 맞춰준다.
-    hydrateLive().then(scrollToHashSection);
+    hydrateLive();
   }
 
   /* ══════════════ 실시간 ══════════════ */
@@ -241,18 +249,6 @@
     $("#ticker").innerHTML = items.join("");
   }
 
-  // 리포트가 막 보이기 시작하는 시점(설문을 마쳤거나 재방문자라 바로
-  // 공개될 때)에 한 번 호출한다. 공유 링크 등으로 해시를 이미 들고
-  // 들어온 경우, 그 순간까지는 섹션이 hidden이라 스크롤해도 자리가
-  // 안 잡히므로 리포트가 드러난 직후에 시도해야 한다.
-  function scrollToHashSection() {
-    const id = location.hash.slice(1);
-    if (!id) return;
-    const target = document.getElementById(id);
-    if (!target || target.hidden) return;
-    requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
-  }
-
   /* ══════════════ 홈 · 온보딩 → 로딩 → 요약 ══════════════
      Q1~Q5을 순서대로 물어보고, 답을 각 섹션의 실제 입력(persona 버튼·
      월 생활비·연봉 필드·투자성향 세그먼트·목표 필드)에 그대로 반영한다.
@@ -264,21 +260,15 @@
   // 기존 사용자의 값과의 연결이 끊기기만 할 뿐 바꿔서 얻는 게 없다.
   const ONBOARD_KEY = "salarygap-profile";
   const TOTAL_STEPS = 3;
-  // panel-goal/panel-time은 일부러 뺐다 — 기본 리포트 스크롤에 자동으로
-  // 드러나지 않고, #nextSteps의 버튼을 눌러야 펼쳐진다(revealPanel 참고).
-  // nextSteps 자체는 여기 포함시켜서, 설문 도중에는 그 버튼 2개조차
-  // DOM에 안 보이게 한다(전에는 hidden이 아예 없어서 설문 중에도
-  // 스크롤하면 보이는 버그가 있었다).
-  const REPORT_PANEL_IDS = ["panel-mine", "panel-gap", "panel-final", "nextSteps"];
 
+  // v8: 내 물가·실질임금 진단·결론은 이제 긴 스크롤이 아니라 카드뉴스
+  // 덱(#deck, setupCardDeck 참고) 하나로 합쳐졌다. 목표 자산/타임머신은
+  // 여전히 별도 화면이라 따로 다룬다 — 재입력 시엔 다시 접힌 상태로
+  // 되돌려야 이전에 펼쳤던 상태가 남아있지 않는다.
   function setReportVisible(visible) {
-    REPORT_PANEL_IDS.forEach((id) => { $(`#${id}`).hidden = !visible; });
+    $("#deck").hidden = !visible;
     $("#ticker").hidden = !visible;
     $("#basis").hidden = !visible;
-    // 목표/타임머신은 항상 처음엔(그리고 재입력 시엔 다시) 접힌 상태로
-    // 되돌린다 — REPORT_PANEL_IDS에 없어서 위 루프가 안 건드리기 때문에
-    // 여기서 명시적으로 처리해야 재입력 후에도 이전에 펼쳤던 상태가
-    // 남아있지 않는다.
     if (!visible) {
       $("#panel-goal").hidden = true;
       $("#panel-time").hidden = true;
@@ -576,51 +566,213 @@
     return lines.join("\n");
   }
 
-  // 스크롤로 맨 아래 결론 카드에 처음 닿는 순간에만 타이핑한다 —
-  // 스크롤을 왔다갔다 할 때마다 다시 타이핑되면 산만하다. 새로고침
-  // 등으로 같은 세션 안에서 다시 방문했을 때도 매번 재생되면
+  // 결론 카드 타이핑 — 같은 세션 안에서 다시 볼 때도 매번 재생되면
   // 불필요하게 느껴진다는 피드백이 있어, sessionStorage에 한 번
   // 재생했다는 표시를 남기고 이후로는 완성된 문장을 바로 보여준다.
+  // (v8 이전에는 스크롤로 카드에 처음 닿을 때 IntersectionObserver로
+  // 트리거했는데, 카드뉴스 덱은 transform으로 카드를 넘기지 실제
+  // 스크롤이 아니라서 그 방식이 안 걸린다. CardDeck이 카드 7에 처음
+  // 도달하는 순간 이 로직을 직접 호출한다 — 아래 setupCardDeck 참고.)
   const FINAL_TYPED_KEY = "sr_finalConclusionTyped";
-  function setupFinalConclusion() {
-    const target = $("#panel-final");
+  function typeFinalConclusionOnce() {
     const body = $("#finalBody");
-    let typed = false;
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting || typed || target.hidden) return;
-        typed = true;
-        const text = buildFinalConclusion();
-        if (sessionStorage.getItem(FINAL_TYPED_KEY)) {
-          body.textContent = text;
-        } else {
-          typewriter(body, text);
-          sessionStorage.setItem(FINAL_TYPED_KEY, "1");
-        }
-        observer.disconnect();
-      });
-    }, { threshold: 0.35 });
-    observer.observe(target);
+    const text = buildFinalConclusion();
+    if (sessionStorage.getItem(FINAL_TYPED_KEY)) {
+      body.textContent = text;
+    } else {
+      typewriter(body, text);
+      sessionStorage.setItem(FINAL_TYPED_KEY, "1");
+    }
   }
 
-  // 목표 자산/타임머신은 기본 스크롤에 없다 — 버튼을 눌러야 펼쳐진다.
-  // renderAll()이 이미 renderGoal()/renderTime()을 항상 호출해 두므로
-  // 내용은 hidden 상태에서도 다 그려져 있다 — hidden만 풀면 된다.
+  // 목표 자산/타임머신은 카드뉴스 덱이 아니라 예전처럼 독립된 화면이다.
+  // 버튼을 누르면 덱을 숨기고 그 화면을 보여주고, 그 화면 맨 위의
+  // "카드 리포트로 돌아가기"를 누르면 덱으로 복귀해 카드 7(결론)에
+  // 이어서 보여준다. renderAll()이 이미 renderGoal()/renderTime()을
+  // 항상 호출해 두므로 내용은 hidden 상태에서도 다 그려져 있다.
   function setupNextSteps() {
-    function revealPanel(id) {
+    function openStandalone(id) {
+      $("#deck").hidden = true;
+      $("#panel-goal").hidden = true;
+      $("#panel-time").hidden = true;
       const el = $(`#${id}`);
       el.hidden = false;
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-    $("#revealGoalBtn").addEventListener("click", () => revealPanel("panel-goal"));
-    $("#revealTimeBtn").addEventListener("click", () => revealPanel("panel-time"));
+    function backToDeck() {
+      $("#panel-goal").hidden = true;
+      $("#panel-time").hidden = true;
+      $("#deck").hidden = false;
+      CardDeck.goToLast();
+      $("#deck").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    $("#revealGoalBtn").addEventListener("click", () => openStandalone("panel-goal"));
+    $("#revealTimeBtn").addEventListener("click", () => openStandalone("panel-time"));
+    $$(".deck-back-btn").forEach((b) => b.addEventListener("click", backToDeck));
+  }
+
+  /* ══════════════ 카드뉴스 덱 (v8) ══════════════
+     카드 내용은 전혀 모르는 범용 네비게이션 엔진 — .deck-card 엘리먼트
+     목록만 다룬다. renderMine()/renderGap()/renderScore()는 전부
+     $("#id")로 엘리먼트를 찾아 쓰는 구조라 이 함수와 무관하게 그대로
+     동작한다(어느 카드가 감싸든 상관없다).
+
+     이동 방법은 5가지 — 화살표 클릭, 점 클릭(임의 카드로 점프), 좌우
+     화살표 키, 스와이프(Pointer Events), 좌/우 절반 탭. 전부 goTo()
+     하나로 모인다.
+
+     스와이프는 처음 8px 이동까지 축(가로/세로)을 정하지 않고 기다렸다가
+     가로가 더 크면 그때부터 preventDefault해서 카드를 드래그로 옮기고,
+     세로가 더 크면 그대로 둬서 카드 내부 세로 스크롤(콘텐츠가 넘치는
+     카드)이 살아있게 한다.
+
+     좌/우 절반 탭은 별도 오버레이 엘리먼트 없이 뷰포트 클릭을
+     델리게이션한다 — a/button/summary/input/label로 클릭이 떨어지면
+     무시해서 카드 안 토글·버튼·입력과 절대 충돌하지 않는다.
+
+     뒤로가기는 카드 이동마다 history.pushState를 쌓는다(사용자 결정).
+     덱이 처음 열릴 때만 replaceState(새 엔트리 추가 안 함 — 온보딩
+     단계 전환도 히스토리를 안 쌓는 것과 일관). popstate는 덱이 보이는
+     동안에만 반영한다 — 설문 중이거나 목표/타임머신 별도 화면을 보는
+     중에는 무시한다(이 화면들의 전환은 히스토리에 안 엮는다). */
+  function setupCardDeck() {
+    const deckEl = $("#deck");
+    const viewport = $("#deckViewport");
+    const track = $("#deckTrack");
+    const cards = $$(".deck-card");
+    const dotsWrap = $("#deckDots");
+    const prevBtn = $("#deckPrevBtn");
+    const nextBtn = $("#deckNextBtn");
+    const liveRegion = $("#deckLiveRegion");
+    const FINAL_INDEX = cards.length - 1;
+    let index = 0;
+    let finalTyped = false;
+
+    cards.forEach((card, i) => {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "deck-dot";
+      dot.setAttribute("role", "tab");
+      dot.setAttribute("aria-label", `${i + 1}번째 카드로 이동`);
+      dot.addEventListener("click", () => goTo(i));
+      dotsWrap.appendChild(dot);
+    });
+    const dots = Array.from(dotsWrap.children);
+
+    function syncUI() {
+      track.style.transform = `translateX(${-index * 100}%)`;
+      dots.forEach((d, i) => {
+        d.classList.toggle("is-current", i === index);
+        d.classList.toggle("is-done", i < index);
+      });
+      cards.forEach((c, i) => c.setAttribute("aria-hidden", i === index ? "false" : "true"));
+      prevBtn.disabled = index === 0;
+      nextBtn.disabled = index === FINAL_INDEX;
+      liveRegion.textContent = `카드 ${index + 1} / ${cards.length}`;
+      if (index === FINAL_INDEX && !finalTyped) {
+        finalTyped = true;
+        typeFinalConclusionOnce();
+      }
+    }
+
+    function goTo(i, opts = {}) {
+      index = Math.max(0, Math.min(FINAL_INDEX, i));
+      syncUI();
+      if (!opts.skipHistory) {
+        history.pushState({ deckIndex: index }, "", `#card-${index + 1}`);
+      }
+    }
+
+    prevBtn.addEventListener("click", () => goTo(index - 1));
+    nextBtn.addEventListener("click", () => goTo(index + 1));
+    $("#deckCoverNextBtn").addEventListener("click", () => goTo(index + 1));
+
+    document.addEventListener("keydown", (e) => {
+      if (deckEl.hidden) return;
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "ArrowRight") goTo(index + 1);
+      else if (e.key === "ArrowLeft") goTo(index - 1);
+    });
+
+    // ---- 스와이프 + 좌우 절반 탭 (Pointer Events, 터치·마우스 공용) ----
+    let dragging = false, axis = null, startX = 0, startY = 0, deltaX = 0, moved = false;
+
+    viewport.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      // 버튼/토글/입력 위에서 시작한 제스처는 스와이프로 가로채지 않는다.
+      // setPointerCapture를 걸면 그 뒤에 오는 호환 click 이벤트까지
+      // viewport로 재타깃되어(스펙 동작) 정작 그 버튼의 클릭 리스너가
+      // 안 불리는 문제가 있었다 — 시작부터 캡처를 안 거는 게 근본 해결.
+      if (e.target.closest("a, button, summary, input, label")) return;
+      dragging = true; axis = null; moved = false;
+      startX = e.clientX; startY = e.clientY; deltaX = 0;
+      track.style.transition = "none";
+      try { viewport.setPointerCapture(e.pointerId); } catch { /* 캡처 실패는 무시 — 드래그 정확도만 약간 떨어진다 */ }
+    });
+
+    viewport.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (axis === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+        axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      }
+      if (axis !== "x") return; // 세로 제스처는 카드 내부 스크롤에 그대로 맡긴다
+      e.preventDefault();
+      moved = true;
+      deltaX = dx;
+      const pct = (deltaX / viewport.clientWidth) * 100;
+      track.style.transform = `translateX(${-index * 100 + pct}%)`;
+    });
+
+    function endDrag() {
+      if (!dragging) return;
+      dragging = false;
+      track.style.transition = "";
+      if (axis === "x") {
+        const threshold = viewport.clientWidth * 0.18;
+        if (deltaX <= -threshold) { goTo(index + 1); return; }
+        if (deltaX >= threshold) { goTo(index - 1); return; }
+      }
+      syncUI(); // 문턱을 못 넘었으면 원래 카드로 스냅
+    }
+    viewport.addEventListener("pointerup", endDrag);
+    viewport.addEventListener("pointercancel", endDrag);
+
+    viewport.addEventListener("click", (e) => {
+      if (moved) { moved = false; return; } // 드래그 직후의 클릭은 탭 이동으로 취급하지 않는다
+      if (e.target.closest("a, button, summary, input, label")) return; // 실제 컨트롤은 원래 동작대로
+      const rect = viewport.getBoundingClientRect();
+      const half = rect.left + rect.width / 2;
+      if (e.clientX < half) goTo(index - 1); else goTo(index + 1);
+    });
+
+    window.addEventListener("popstate", (e) => {
+      if (deckEl.hidden) return;
+      const i = e.state && typeof e.state.deckIndex === "number" ? e.state.deckIndex : 0;
+      index = Math.max(0, Math.min(FINAL_INDEX, i));
+      syncUI();
+    });
+
+    CardDeck.open = function () {
+      index = 0;
+      syncUI();
+      history.replaceState({ deckIndex: 0 }, "", "#card-1");
+    };
+    CardDeck.goToLast = function () {
+      goTo(FINAL_INDEX, { skipHistory: true });
+    };
+
+    syncUI();
   }
 
   // 리포트를 스크롤해서 내려갈 때 섹션이 하나씩 나타나게 한다 — 설문
   // 중엔 패널 자체가 hidden이라 관찰해도 안 걸리다가, 리포트가 공개된
   // 뒤 스크롤하면서 순서대로 걸린다. 한 번 나타난 블록은 다시 안 건드림
-  // (스크롤을 왔다갔다 할 때마다 깜빡이면 산만하다 — setupFinalConclusion과
-  // 같은 이유).
+  // (스크롤을 왔다갔다 할 때마다 깜빡이면 산만하다 — typeFinalConclusionOnce와
+  // 같은 이유). 카드뉴스 덱(.deck-card) 안 콘텐츠는 대상이 아니다 —
+  // .bento 래퍼가 없어서 셀렉터에 애초에 안 걸린다(카드 전환 애니메이션이
+  // 화면이 바뀐다는 연출을 대신한다).
   function setupScrollReveal() {
     const targets = $$(".bento > *");
     if (!targets.length) return;
@@ -656,7 +808,6 @@
 
   function setupHomeFlow() {
     const loadingView = $("#homeLoading");
-    const summaryView = $("#homeSummary");
     const wizardView = $("#homeOnboarding");
     const steps = $$(".onboarding-step");
     const progressWrap = $("#onboardProgressWrap");
@@ -702,16 +853,12 @@
 
     function renderSummary() {
       renderScore();
-      summaryView.hidden = false;
-      // 첫 화면에는 타이틀·설명·시작하기만 보여야 한다. 리포트 4개 섹션과
-      // 탭은 설문이 끝나고 포트폴리오가 준비된 뒤에야 의미가 생기므로
-      // 그때 한꺼번에 드러낸다.
+      // 설문이 끝나고 포트폴리오가 준비된 뒤에야 리포트 카드뉴스 덱이
+      // 의미가 생기므로 그때 한꺼번에 드러내고, 항상 카드 1(표지)부터
+      // 보여준다.
       setReportVisible(true);
+      CardDeck.open();
       scrollHomeToTop();
-      // 공유 링크 등으로 특정 섹션 해시를 들고 들어온 경우, 방금
-      // scrollHomeToTop이 맨 위로 올려놓은 걸 다시 그 섹션으로 옮긴다
-      // (이 호출이 나중이라 최종 스크롤 위치를 이긴다).
-      scrollToHashSection();
     }
 
     // 실제로는 즉시 계산되지만, 문항에 답한 뒤 결과가 "만들어지는" 느낌을
@@ -840,15 +987,15 @@
     });
 
     // ---- 요약 화면 ----
-    $("#homeReportBtn").addEventListener("click", () =>
-      $("#panel-mine").scrollIntoView({ behavior: "smooth", block: "start" }));
+    // "리포트 보기"(카드 1 → 카드 2)와 "처음부터 다시 입력하기"(카드 7)는
+    // 이제 카드뉴스 덱 안에 있다 — 전자는 setupCardDeck()의
+    // #deckCoverNextBtn 핸들러가 맡는다.
     $("#homeRestartBtn").addEventListener("click", () => {
-      // 바로 위 "리포트 보기" 버튼과 가까이 있어 오클릭하기 쉬운데,
-      // 이 버튼은 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라
+      // 카드 7 안의 다른 버튼들과 가까이 있어 오클릭하기 쉬운데, 이
+      // 버튼은 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라
       // 한 번 더 확인한다.
       if (!confirm("처음부터 다시 입력할까요? 지금까지 입력한 내용은 모두 사라져요.")) return;
       localStorage.removeItem(ONBOARD_KEY);
-      summaryView.hidden = true;
       setReportVisible(false);
       draft = freshDraft();
       $$("#onbPersonaGrid button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.persona === DEFAULT_PERSONA)));
@@ -1022,8 +1169,11 @@
   function setupMineTab() {
     const cats = state.cpi.categories || [];
     if (!cats.length) {
-      $("#panel-mine").innerHTML =
-        `<div class="load-error">품목별 물가 데이터가 없습니다. 파이프라인을 다시 실행해 주세요.</div>`;
+      // 이 시점엔 덱이 아직 hidden이라(설문 전) 그 안에 넣으면 아무도
+      // 못 본다 — boot()의 데이터 로드 실패 처리와 같은 자리(main 맨 위)에
+      // 바로 보이게 띄운다.
+      document.querySelector("main").insertAdjacentHTML("afterbegin",
+        `<div class="load-error">품목별 물가 데이터가 없습니다. 파이프라인을 다시 실행해 주세요.</div>`);
       return;
     }
 
@@ -1111,9 +1261,6 @@
       $("#contribSummary").hidden = true;
       $("#contribRank").innerHTML = "";
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
-      $("#mineActionStats").innerHTML = "";
-      $("#mineAction").className = "verdict";
-      $("#mineAction").textContent = "월 생활비를 입력하면 필요한 소득·수익률 기준을 계산합니다.";
       return;
     }
 
@@ -1189,41 +1336,6 @@
     renderContribMath(grouped, result, official);
     $("#mineSrc").textContent =
       `OECD 한국 소비자물가 COICOP 12분류 · ${result.month} 기준 · 브라우저에서 실시간 조회`;
-
-    renderMineAction(result, official);
-  }
-
-  function renderMineAction(result, official) {
-    const rate = result.rate;
-
-    // 최소 연봉 인상액 — 퍼센트가 아니라 현재 연봉 기준 실제 금액으로.
-    const cur = Math.max(0, +$("#curSalary").value || 0);
-    const neededRaise = cur * (rate / 100);
-
-    // 필요 투자 수익률 — 퍼센트는 유지하되, 이미 실데이터인 예금 자산의
-    // CAGR과 비교해서 감이 오게 한다(하드코딩 금지 — state.market.assets에서
-    // 그대로 읽는다). 목표 자산 탭에 입력된 보유 자산이 있으면 금액도 병기.
-    const cashAsset = state.market.assets.find((a) => a.id === "cash");
-    const cashRate = cashAsset ? cashAsset.cagr * 100 : null;
-    const goalCurrent = Math.max(0, +$("#goalCurrent").value || 0);
-    const compare = cashRate == null ? "굴려서 방어하려면"
-      : rate > cashRate + 0.3 ? `일반 예금 금리(연 ${cashRate.toFixed(1)}%)보다 높은 수준`
-      : rate < cashRate - 0.3 ? `일반 예금 금리(연 ${cashRate.toFixed(1)}%)보다 낮은 수준`
-      : `일반 예금 금리(연 ${cashRate.toFixed(1)}%)와 비슷한 수준`;
-    const goalCurrentNote = goalCurrent > 0
-      ? ` · ${man(goalCurrent)}만원을 넣어뒀다면 1년에 약 ${man(goalCurrent * rate / 100)}만원은 불어나야 해요`
-      : "";
-
-    $("#mineActionStats").innerHTML = `
-      <div class="stat"><span class="k">최소 연봉 인상액</span><span class="v">약 ${man(neededRaise)}만원</span>
-        <span class="s">이만큼은 올라야 본전 (${rate.toFixed(1)}%)</span></div>
-      <div class="stat"><span class="k">필요 투자 수익률</span><span class="v">${rate.toFixed(1)}%</span>
-        <span class="s">${compare}${goalCurrentNote}</span></div>`;
-
-    const a = $("#mineAction");
-    a.className = "verdict";
-    a.innerHTML = `내 물가 <b>${rate.toFixed(1)}%</b>를 넘기려면 연봉을 그만큼 올려받거나,
-      연 <b>${rate.toFixed(1)}%</b> 이상으로 굴려야 합니다.`;
   }
 
   /* ══════════════ 탭 1 · 실질임금 진단 ══════════════ */
