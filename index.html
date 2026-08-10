@@ -64,8 +64,35 @@
     <!-- 상태 2 · 한 줄 요약 (온보딩 직후 + 재방문자 공통) -->
     <div class="home-hero" id="homeSummary" hidden>
       <p class="kicker" id="homeSummaryKicker">당신의 연봉 성적표</p>
-      <h1 id="homeSummaryHeadline">—</h1>
-      <p class="lede" id="homeSummarySub">—</p>
+      <!-- 점수를 계산할 정보가 아직 없을 때만 보이는 안내문 (점수가 있으면 hidden) -->
+      <h1 id="homeSummaryHeadline" hidden>—</h1>
+      <div class="score-hero" id="scoreHero" hidden>
+        <div class="score-ring-wrap">
+          <div class="score-ring" id="scoreRing"></div>
+          <div class="score-ring-center">
+            <span class="score-num" id="scoreNum">—</span>
+            <span class="score-grade-line" id="scoreGradeLine">—</span>
+          </div>
+        </div>
+        <p class="score-summary-line" id="scoreSummaryLine">—</p>
+        <details class="score-detail-toggle">
+          <summary>어떻게 계산했나요?</summary>
+          <div class="score-detail-body">
+            <p class="score-note">이 점수는 목표나 투자 성향과 무관하게, 당신의 연봉과 물가만 비교한 결과예요. 투자 조언이 아니에요.</p>
+            <ul class="score-detail-items" id="scoreDetailItems"></ul>
+            <p class="score-detail-heading">등급 기준</p>
+            <ul class="score-grade-list">
+              <li>90점 이상 — S · 최상</li>
+              <li>80~89점 — A · 우수</li>
+              <li>70~79점 — B · 양호</li>
+              <li>50~69점 — C · 보통</li>
+              <li>30~49점 — D · 주의</li>
+              <li>29점 이하 — F · 부족</li>
+            </ul>
+            <p class="score-detail-narrative" id="homeSummarySub">—</p>
+          </div>
+        </details>
+      </div>
       <button class="home-start-btn" id="homeReportBtn" type="button">리포트 보기 ↓</button>
       <div class="home-summary-links">
         <button class="onboarding-back" id="homeRestartBtn" type="button">처음부터 다시 입력하기</button>
@@ -360,7 +387,10 @@
         <h3 class="block-title">부족분을 메울 자산배분</h3>
         <p class="block-q">기대수익률은 아래 자산들의 <strong>실제 10년 실현 수익률</strong>로 계산했습니다.</p>
         <div class="donut-row">
-          <div class="donut" id="donut"><div class="donut-center" id="donutCenter"></div></div>
+          <div class="donut-wrap">
+            <div class="donut" id="donut"></div>
+            <div class="donut-center" id="donutCenter"></div>
+          </div>
           <div style="flex:1;min-width:230px">
             <div class="stat-grid" id="planStats"></div>
           </div>
