@@ -2,9 +2,9 @@
 // 구글이 모델을 수시로 정리해서 하나만 박아 두면 어느 날 조용히 죽는다.
 // 실제로 gemini-2.5-flash-lite가 "no longer available to new users"로 404가 났다.
 const MODELS = [
+  "gemini-2.0-flash",       // 사고 단계가 없어 짧은 해설에 가장 예측 가능하다
   "gemini-flash-latest",
   "gemini-2.5-flash",
-  "gemini-2.0-flash",
 ];
 const SYSTEM_PROMPT =
   "당신은 금융 초보자를 돕는 한국어 데이터 해설자입니다. " +
@@ -119,14 +119,11 @@ export async function POST(request) {
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
             contents: [{ role: "user", parts: [{ text: facts }] }],
-            generationConfig: {
-              temperature: 0.2,
-              maxOutputTokens: 400,
-              // Gemini 2.5 계열은 기본으로 '사고'에 토큰을 먼저 쓴다. 이걸 끄지
-              // 않으면 maxOutputTokens를 사고가 다 먹고 답변이 잘려서,
-              // "Exactly two sentences (두 문장)." 같은 쓰레기가 나온다.
-              thinkingConfig: { thinkingBudget: 0 },
-            },
+            // thinkingConfig는 모델마다 지원이 갈려서(안 받는 모델은 400) 쓰지
+            // 않는다. 대신 사고와 답변이 함께 들어갈 만큼 여유를 준다.
+            // 180으로 뒀을 때는 사고가 다 먹고 답변이 잘려
+            // "Exactly two sentences (두 문장)." 같은 쓰레기가 나왔다.
+            generationConfig: { temperature: 0.2, maxOutputTokens: 800 },
           }),
         }
       );
