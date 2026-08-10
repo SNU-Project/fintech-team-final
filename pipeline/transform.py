@@ -40,9 +40,9 @@ PORTFOLIOS = {
     },
 }
 
-# 예금은 시장 시세가 없다. 한국은행 기준금리 수준을 반영한 고정 가정이며
-# 화면에도 '가정값'으로 명시한다. (다른 자산은 전부 실제 시세 기반)
-CASH_ANNUAL_RETURN = 0.030
+# 예금 상품에는 시장 시세가 없어 오래 고정 가정값(3.0%)을 썼다.
+# OECD가 한국 3개월 은행간금리를 키 없이 제공하므로 그걸로 대체했다.
+# 이제 화면에 가정값이 하나도 없다.
 
 
 def cagr(series: dict[str, float]) -> float | None:
@@ -152,23 +152,37 @@ def main() -> None:
             entry["mdd"]["depth"] = round(entry["mdd"]["depth"], 5)
         assets.append(entry)
 
-    # 예금은 시세가 없으므로 가정 수익률로 합성 지수를 만든다(명시적으로 표시).
-    any_months = sorted(raw["assets"][0]["series"])
-    cash_series = {
-        m: 100 * (1 + CASH_ANNUAL_RETURN) ** (i / 12)
-        for i, m in enumerate(any_months)
-    }
-    returns_by_id["cash"] = CASH_ANNUAL_RETURN
+    # 예금은 가격이 아니라 금리로 온다. 매달의 연이율을 월 이율로 바꿔
+    # 굴려서 지수를 만든다. 금리가 오르내린 것이 그대로 반영된다.
+    deposit_rate = raw.get("deposit_rate") or {}
+    if len(deposit_rate) < 24:
+        raise ValueError("예금 금리 관측치가 부족합니다 — 값을 지어내지 않고 중단합니다")
+
+    rate_months = sorted(deposit_rate)
+    cash_series, level = {}, 100.0
+    for i, m in enumerate(rate_months):
+        if i:
+            monthly = (1 + deposit_rate[m] / 100) ** (1 / 12) - 1
+            level *= 1 + monthly
+        cash_series[m] = level
+
+    cash_cagr = cagr(cash_series)
+    returns_by_id["cash"] = cash_cagr
+    latest_rate = deposit_rate[rate_months[-1]]
     assets.append({
-        "id": "cash", "name": "예금·적금", "category": "저축", "desc": "정기예금 등 원금보장형",
-        "symbol": None, "currency": "KRW", "krw_converted": False,
-        "months": len(cash_series), "range": [min(cash_series), max(cash_series)],
-        "cagr": CASH_ANNUAL_RETURN, "cagr_1y": CASH_ANNUAL_RETURN,
-        "cagr_3y": CASH_ANNUAL_RETURN, "cagr_5y": CASH_ANNUAL_RETURN,
-        "volatility": 0.0, "mdd": None,
+        "id": "cash", "name": "예금·적금", "category": "저축",
+        "desc": f"3개월 은행간금리 기준 (최근 {latest_rate:.2f}%)",
+        "symbol": "IR3TIB", "currency": "KRW", "krw_converted": False,
+        "months": len(cash_series), "range": [rate_months[0], rate_months[-1]],
+        "cagr": round(cash_cagr, 5),
+        "cagr_1y": round(cagr(window(cash_series, 1)) or 0, 5),
+        "cagr_3y": round(cagr(window(cash_series, 3)) or 0, 5),
+        "cagr_5y": round(cagr(window(cash_series, 5)) or 0, 5),
+        "volatility": round(annual_volatility(cash_series) or 0, 5),
+        "mdd": max_drawdown(cash_series),
         "index": {m: round(v, 3) for m, v in cash_series.items()},
-        "last_price": None, "last_month": max(cash_series),
-        "assumed": True,
+        "last_price": None, "last_month": rate_months[-1],
+        "latest_rate": round(latest_rate, 3),
     })
 
     # 포트폴리오 기대수익률 = 구성자산 실제 CAGR의 가중평균
@@ -199,7 +213,7 @@ def main() -> None:
         "source_fetched_at": raw["fetched_at"],
         "assets": assets,
         "portfolios": portfolios,
-        "cash_assumption": CASH_ANNUAL_RETURN,
+        "deposit_rate_latest": round(latest_rate, 3),
         "notes": notes,
     }
 
@@ -263,7 +277,7 @@ def main() -> None:
             {"name": "Yahoo Finance chart API", "use": "자산별 월말 종가 10년",
              "url": "https://finance.yahoo.com", "live_in_browser": False,
              "reason": "CORS 미허용 — GitHub Actions가 매일 수집해 스냅샷으로 커밋"},
-            {"name": "OECD SDMX", "use": "한국 소비자물가지수(월)",
+            {"name": "OECD SDMX", "use": "한국 소비자물가(월, 전체 + 12품목) · 3개월 은행간금리",
              "url": "https://www.oecd.org/en/data.html", "live_in_browser": True},
             {"name": "Frankfurter", "use": "원/달러 환율(실시간)",
              "url": "https://frankfurter.dev", "live_in_browser": True},
@@ -271,7 +285,7 @@ def main() -> None:
              "url": "https://www.coingecko.com", "live_in_browser": True},
         ],
         "assumptions": [
-            f"예금 수익률 {CASH_ANNUAL_RETURN:.1%}는 시세가 아닌 고정 가정값입니다.",
+            "예금은 OECD 한국 3개월 은행간금리를 월 복리로 굴린 값입니다. 실제 예금 상품의 금리와는 다를 수 있습니다.",
             "USD 표시 자산(S&P500·금·비트코인)은 원/달러 환율로 환산한 원화 기준 수익률입니다.",
             "세금·거래비용·배당은 반영하지 않았습니다.",
         ],

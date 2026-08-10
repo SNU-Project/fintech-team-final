@@ -53,6 +53,15 @@ OECD_CPI_URL = (
     "KOR.M.N.CPI.{measure}.{expenditure}.N.{transform}?startPeriod={start}"
 )
 
+# 예금 대용 금리. 예금 상품에는 시장 시세가 없어 오래 가정값(3.0%)을 썼는데,
+# OECD가 한국 3개월 은행간금리를 키 없이 제공한다. 이걸 쓰면 화면에서
+# 가정값이 사라진다. (IR3TIB = 3-month interbank rate)
+OECD_RATE_URL = (
+    "https://sdmx.oecd.org/public/rest/data/"
+    "OECD.SDD.STES,DSD_STES@DF_FINMARK,4.0/"
+    "KOR.M.IR3TIB......?startPeriod={start}"
+)
+
 # COICOP 12대 분류. "내 물가"는 이 품목별 상승률을 사용자의 지출 비중으로
 # 가중평균해 계산한다. 공식 물가(2.8%)는 전국 평균 가중치를 쓴 값이라
 # 개인의 체감과 다를 수밖에 없다는 것이 이 기능의 출발점이다.
@@ -220,6 +229,28 @@ def fetch_oecd_cpi_by_category(measure: str, transform: str, start: str,
     return {c: dict(sorted(s.items())) for c, s in out.items()}
 
 
+def fetch_deposit_rate(start: str) -> dict[str, float]:
+    """OECD에서 한국 3개월 은행간금리(연 %)를 월별로 가져온다."""
+    text = _get(OECD_RATE_URL.format(start=start),
+                accept="application/vnd.sdmx.data+csv").decode("utf-8")
+    reader = csv.DictReader(io.StringIO(text))
+
+    series: dict[str, float] = {}
+    for row in reader:
+        period = (row.get("TIME_PERIOD") or "").strip()
+        value = (row.get("OBS_VALUE") or "").strip()
+        if not period or not value:
+            continue
+        try:
+            series[period] = float(value)
+        except ValueError:
+            continue
+
+    if len(series) < 24:
+        raise DataFetchError(f"예금 금리: 관측치 {len(series)}개뿐")
+    return dict(sorted(series.items()))
+
+
 def to_krw(series: dict[str, float], fx: dict[str, float], asset_id: str) -> dict[str, float]:
     """USD 표시 자산을 원화로 환산한다. 환율이 없는 달은 통째로 제외."""
     converted = {}
@@ -273,7 +304,11 @@ def main() -> None:
     print(f"    · 지수 {len(cpi_index)}개월, 전년동월비 {len(cpi_yoy)}개월 "
           f"({min(cpi_index)} ~ {max(cpi_index)})")
 
-    print("[4/4] 품목별 물가 수집 (COICOP 12분류) — 요청 2회로 일괄 수신")
+    print("[4/5] 예금 대용 금리 수집 (OECD 3개월 은행간금리)")
+    deposit_rate = fetch_deposit_rate(start)
+    print(f"    · {len(deposit_rate)}개월  최근 {deposit_rate[max(deposit_rate)]:.2f}%")
+
+    print("[5/5] 품목별 물가 수집 (COICOP 12분류) — 요청 2회로 일괄 수신")
     codes = [c["code"] for c in CPI_CATEGORIES]
     yoy_by_code = fetch_oecd_cpi_by_category("PA", "GY", start, codes)
     idx_by_code = fetch_oecd_cpi_by_category("IX", "_Z", start, codes)
@@ -294,6 +329,7 @@ def main() -> None:
             for asset in ASSETS
         ],
         "cpi": {"index": cpi_index, "yoy": cpi_yoy, "categories": categories},
+        "deposit_rate": deposit_rate,
         "cleaning_log": cleaning_log,
     }
 
