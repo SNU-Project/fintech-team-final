@@ -1008,28 +1008,7 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 }
 .rank-no { flex: 0 0 auto; font-weight: 800; color: var(--text-muted); font-size: .78rem; min-width: 2.2em; }
 .rank-name { flex: 1; font-weight: 600; }
-.rank-val { flex: 0 0 auto; font-weight: 800; font-variant-numeric: tabular-nums; }
-.rank-row.is-hot .rank-val { color: var(--critical-text); }
-.rank-row.is-cool .rank-val { color: var(--good-text); }
 .calc-detail { margin: 0 0 .6rem; }
 .calc-detail summary { cursor: pointer; color: var(--brand); font-size: .8rem; font-weight: 700; padding: .3rem 0; }
 .calc-detail summary::marker { color: var(--brand); }
 .calc-detail[open] summary { margin-bottom: .5rem; }
-
-/* ---------- 항목별 포함 품목 목록 ---------- */
-.cat-legend { margin-top: .6rem; }
-.cat-legend summary {
-  cursor: pointer; font-size: .78rem; color: var(--text-muted);
-  padding: .3rem 0; user-select: none;
-}
-.cat-legend summary:hover { color: var(--brand); }
-.cat-legend dl {
-  margin: .4rem 0 0; display: grid; grid-template-columns: 5.5rem 1fr;
-  gap: .35rem .7rem; font-size: .76rem;
-}
-.cat-legend dt { font-weight: 700; color: var(--text-secondary); }
-.cat-legend dd { margin: 0; color: var(--text-muted); line-height: 1.5; }
-@media (max-width: 480px) {
-  .cat-legend dl { grid-template-columns: 1fr; gap: .1rem; }
-  .cat-legend dd { margin-bottom: .4rem; }
-}

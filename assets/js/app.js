@@ -1011,16 +1011,7 @@
   /* "비중 × 상승률을 다 더한다"는 말은 식으로만 보면 안 와닿는다.
      그래서 내가 지금 넣은 숫자로 실제 계산을 한 줄씩 따라가게 보여준다.
      기여도가 가장 큰 항목 하나를 예로 들고, 마지막에 합이 내 물가라는
-     것까지 이어 준다. 툴팁은 마우스를 올려야 보여서 발견되지 않는다. */
-  /* 툴팁은 마우스가 있어야 보인다. 발표 때 휴대폰으로 여는 사람이
-     대부분이라, 같은 내용을 접이식 목록으로도 항상 열어 볼 수 있게 둔다. */
-  function renderCatLegend() {
-    const box = $("#catLegend");
-    if (!box || box.childElementCount) return;
-    box.innerHTML = SPEND_GROUPS.map((g) =>
-      `<dt>${g.name}</dt><dd>${g.examples}</dd>`).join("");
-  }
-
+     것까지 이어 준다. */
   function renderContribMath(grouped, result, official) {
     const box = $("#contribMath");
     if (!box) return;
@@ -1066,7 +1057,6 @@
       $("#spendTotal").textContent = "0만원";
       $("#contribSummary").hidden = true;
       $("#contribRank").innerHTML = "";
-      $("#contribRankMore").hidden = true;
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
       $("#cumChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 10년 누적 물가를 계산합니다.</p>`;
       $("#cumLegend").innerHTML = "";
@@ -1130,25 +1120,15 @@
     // 그린)만으로 표시했었다. 색약 사용자를 위해 방향 기호(▲/▼)도
     // 라벨에 같이 붙인다.
     const rankRow = (g, i) => `
-      <li class="rank-row ${g.rate >= official ? "is-hot" : "is-cool"}">
+      <li class="rank-row">
         <span class="rank-no">${i + 1}위</span>
         <span class="rank-name">${g.name}</span>
-        <span class="rank-val">${g.contribution >= 0 ? "+" : ""}${g.contribution.toFixed(2)}포인트</span>
       </li>`;
-    const top2 = ranked.slice(0, 2);
-    const rest = ranked.slice(2);
-    $("#contribRank").innerHTML = top2.map((g, i) => rankRow(g, i)).join("");
-    const moreToggle = $("#contribRankMore");
-    if (rest.length) {
-      moreToggle.hidden = false;
-      $("#contribRankMoreList").innerHTML = rest.map((g, i) => rankRow(g, i + 2)).join("");
-    } else {
-      moreToggle.hidden = true;
-    }
+    $("#contribRank").innerHTML = ranked.map((g, i) => rankRow(g, i)).join("");
 
     const summary = $("#contribSummary");
-    if (top2.length) {
-      const first = top2[0];
+    if (ranked.length) {
+      const first = ranked[0];
       const monthlyExtra = first.amount * (first.rate / 100);
       summary.hidden = false;
       summary.innerHTML = `<b>${first.name}</b>${first.rate >= official
@@ -1164,7 +1144,6 @@
         ...g, examples: (SPEND_GROUPS.find((s) => s.id === g.id) || {}).examples,
         hot: g.rate >= official, color: g.rate >= official ? "var(--series-2)" : "var(--series-3)",
       })));
-    renderCatLegend();
     renderContribMath(grouped, result, official);
     $("#mineSrc").textContent =
       `OECD 한국 소비자물가 COICOP 12분류 · ${result.month} 기준 · 브라우저에서 실시간 조회`;
