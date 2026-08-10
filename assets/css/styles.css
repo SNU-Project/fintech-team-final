@@ -277,24 +277,62 @@ section { scroll-margin-top: 5rem; }
 .home-hero .lede { font-size: clamp(.95rem, 2vw, 1.1rem); color: var(--text-secondary); margin: 0; max-width: 32rem; }
 .home-hero .kicker { margin: 0; }
 
-/* 사주풀이처럼 숫자 하나만 던지지 않고 물가·연봉·목표를 엮어 풀어주는
-   문단 — 타이핑으로 나타난다. min-height는 타이핑 도중 버튼들이
-   아래로 밀렸다 올라왔다 하지 않도록 미리 자리를 잡아 둔다. */
-#homeSummarySub {
-  /* 문장마다 \n으로 줄을 나눠 보내니, 그 줄바꿈을 그대로 살려서
-     한 문장 = 한 줄로 보이게 한다 (기본값인 normal은 \n을 공백 취급해
-     문단이 다시 한 덩어리로 붙어 버린다). word-break:keep-all은 화면이
-     좁아 한 문장이 두 줄로 넘어갈 때, 글자 단위가 아니라 띄어쓰기
-     단위로만 끊기게 해서 단어나 조사가 어색하게 잘리지 않게 한다. */
-  text-align: center; line-height: 1.75; min-height: 4.6em; white-space: pre-line;
-  word-break: keep-all;
+/* ---------- 연봉 성적표 점수 ----------
+   "실질임금 진단"·"내 물가" 두 계산만 100점 만점 하나로 묶어 보여준다
+   (목표 자산·투자 성향은 주관적인 값이라 일부러 뺐다). 링은 포트폴리오
+   도넛(.donut)과 같은 mask 기법을 재사용한다 — 가운데 구멍은 실제로
+   뚫는 게 아니라 radial-gradient mask로 가려서 만든다(이미 이
+   코드베이스에서 검증된 패턴).
+
+   같은 숫자(예: 56점)가 큰 텍스트·링·세부 카드에 세 번 반복되던 걸
+   링 하나로 줄였다 — 점수·등급은 링 안에서만 보여주고, 세부 수치와
+   기존 물가 풀이 문단은 기본 접힌 "어떻게 계산했나요?" 안에서만
+   보여준다. */
+.score-hero { display: flex; flex-direction: column; align-items: center; gap: .6rem; margin-top: .3rem; }
+.score-hero[hidden] { display: none; }
+.score-ring-wrap { width: 148px; height: 148px; position: relative; margin-top: .3rem; }
+.score-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%);
+          mask: radial-gradient(circle, transparent 62%, #000 63%);
 }
-/* 데스크톱은 폭이 넉넉해 문장 하나가 줄바꿈 없이 들어가지만, 모바일
-   375px에서는 긴 문장을 nowrap으로 강제하면 가로 스크롤이 생긴다
-   (금지 사항) — 그래서 이 폭 이상에서만 pre로 바꿔 줄바꿈을 끈다.
-   .wrap의 모바일 기준(max-width:640px)과 맞춘 값이다. */
+.score-ring-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: .1rem;
+}
+.score-num { font-size: 2.7rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-primary); line-height: 1; }
+.score-grade-line { font-size: .82rem; font-weight: 700; }
+.score-grade-line.is-good { color: var(--good-text); }
+.score-grade-line.is-warn { color: var(--warning-text); }
+.score-grade-line.is-bad  { color: var(--critical-text); }
+.score-summary-line { margin: 0; font-size: .85rem; color: var(--text-secondary); font-weight: 600; word-break: keep-all; }
+
+/* "어떻게 계산했나요?" 펼침 — 기본 닫힘. 다른 <details> 펼침과 같은
+   시각 언어(요약은 브랜드색, 목록은 왼쪽 정렬)를 쓴다. */
+.score-detail-toggle { font-size: .8rem; }
+.score-detail-toggle summary { cursor: pointer; font-weight: 600; color: var(--brand); text-align: center; }
+.score-detail-body {
+  margin-top: .6rem; padding: .9rem 1rem; border-radius: var(--radius-sm);
+  background: var(--surface-2); text-align: left; max-width: 30rem;
+}
+.score-note { margin: 0; font-size: .76rem; color: var(--text-muted); word-break: keep-all; }
+.score-detail-items { margin: .6rem 0 0; padding-left: 1.1rem; }
+.score-detail-items li { margin: .2rem 0; font-size: .78rem; color: var(--text-secondary); word-break: keep-all; }
+.score-detail-items b { color: var(--text-primary); }
+.score-detail-heading { margin: .8rem 0 0; font-size: .74rem; font-weight: 700; color: var(--text-muted); }
+.score-grade-list { margin: .3rem 0 0; padding-left: 1.1rem; font-size: .76rem; color: var(--text-secondary); }
+.score-grade-list li { margin: .12rem 0; }
+.score-detail-narrative {
+  margin: .8rem 0 0; padding-top: .7rem; border-top: 1px solid var(--border);
+  font-size: .82rem; line-height: 1.6; white-space: pre-line; word-break: keep-all;
+}
+
+/* #homeSummarySub(점수 도입 전 쓰던 물가 풀이 문단)는 이제 접이식
+   "어떻게 계산했나요?" 안으로 옮겨져 .score-detail-narrative 스타일을
+   그대로 쓴다 — 예전엔 히어로 전체 폭을 쓰는 가운데 정렬 헤드라인급
+   문단이었지만, 지금은 좁은 카드 안에 왼쪽 정렬로 들어가는 보조
+   설명이라 전용 규칙이 필요 없다. */
 @media (min-width: 641px) {
-  #homeSummarySub { white-space: pre; }
   .final-body { white-space: pre; max-width: none; }
 }
 /* 클릭하면 바로 전체 문장이 보이므로, 타이핑 중에는 클릭 가능하다는
@@ -852,14 +890,20 @@ input[readonly]::placeholder { color: var(--text-muted); font-weight: 600; opaci
 .legend-swatch { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
 
 .donut-row { display: flex; gap: 1.3rem; align-items: center; flex-wrap: wrap; }
+/* mask는 그 엘리먼트가 그려낸 전체(자식 포함)를 하나로 합성한 뒤에
+   잘라낸다 — 안쪽 원을 뚫으려고 .donut에 mask를 걸면, 자식인
+   .donut-center에 mask:none을 줘도 가운데 텍스트까지 같이 사라진다
+   (실제로 이 버그로 기대수익률 숫자가 안 보이고 있었다). 그래서
+   가운데 텍스트는 .donut의 자식이 아니라 형제로 두고, 같은
+   .donut-wrap 위에 절대좌표로 겹쳐서 mask의 영향을 아예 안 받게 한다. */
+.donut-wrap { width: 156px; height: 156px; flex: 0 0 auto; position: relative; }
 .donut {
-  width: 156px; height: 156px; border-radius: 50%; flex: 0 0 auto; position: relative;
+  position: absolute; inset: 0; border-radius: 50%;
   -webkit-mask: radial-gradient(circle, transparent 52%, #000 53%);
           mask: radial-gradient(circle, transparent 52%, #000 53%);
 }
 .donut-center {
   position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
-  -webkit-mask: none; mask: none;
 }
 
 /* ---------- 표 ----------

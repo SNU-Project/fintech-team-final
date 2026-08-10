@@ -265,11 +265,74 @@
     renderAll();
   }
 
-  // 리포트 맨 위에 놓을 한 줄 요약 — "당신의 체감 물가는 2.9%, 공식보다 0.1%p 높아요"
-  function homeSummaryText() {
+  // "연봉 성적표"에 쓸 100점 만점 점수 — "실질임금 진단"·"내 물가" 두
+  // 탭에서 이미 계산 중인 값만 모아서 E.salaryScore에 건네준다.
+  // 목표 자산·투자 성향은 사용자가 주관적으로 정하는 값이라 일부러
+  // 뺐다 — "연봉과 물가만 객관적으로 비교한다"는 취지를 지키기 위해서다.
+  function computeScoreInputs() {
+    const official = state.cpi.latest.yoy;
     const rate = state.personalRate;
-    if (rate == null) return { headline: "물가를 계산할 수 없어요" };
-    return { headline: `당신의 체감 물가는 ${rate.toFixed(1)}%` };
+    const diffPp = rate == null ? null : rate - official;
+
+    const cur = Math.max(0, +$("#curSalary").value || 0);
+    const next = Math.max(0, +$("#nextSalary").value || 0);
+    const realRatePct = cur > 0
+      ? E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation }).realRatePct
+      : null;
+
+    return { realRatePct, diffPp };
+  }
+
+  // 등급 구간 — 링 안에 짧게 붙이고, 기준 자체는 "어떻게 계산했나요?"
+  // 펼침 영역에 공개한다(숨겨진 기준으로 평가받는 느낌을 주지 않기 위해).
+  const SCORE_GRADES = [
+    { min: 90, grade: "S", label: "최상" },
+    { min: 80, grade: "A", label: "우수" },
+    { min: 70, grade: "B", label: "양호" },
+    { min: 50, grade: "C", label: "보통" },
+    { min: 30, grade: "D", label: "주의" },
+    { min: 0,  grade: "F", label: "부족" },
+  ];
+  function scoreBand(total) {
+    const band = SCORE_GRADES.find((g) => total >= g.min);
+    const cls = total >= 70 ? "is-good" : total >= 50 ? "is-warn" : total >= 30 ? "is-warn" : "is-bad";
+    return { ...band, cls };
+  }
+
+  // 점수·도넛·등급을 하나로, 세부 수치는 기본 접힌 "어떻게 계산했나요?"
+  // 안에만 둔다 — 같은 숫자가 화면에 3번(큰 텍스트/링/카드) 반복되던
+  // 걸 링 하나로 줄이고, 나머지는 궁금한 사람만 펼쳐보게 한다.
+  function renderScore() {
+    const data = E.salaryScore(computeScoreInputs());
+    const heroEl = $("#scoreHero");
+    const headline = $("#homeSummaryHeadline");
+
+    if (!data) {
+      heroEl.hidden = true;
+      headline.hidden = false;
+      headline.textContent = "정보를 더 입력하면 점수를 계산해드려요";
+      return;
+    }
+
+    headline.hidden = true;
+    const { total, items } = data;
+    const band = scoreBand(total);
+    const color = band.cls === "is-good" ? "var(--good)" : band.cls === "is-bad" ? "var(--critical)" : "var(--warning)";
+
+    heroEl.hidden = false;
+    $("#scoreNum").textContent = total;
+    $("#scoreRing").style.background = `conic-gradient(${color} ${total}%, var(--surface-sunk) 0)`;
+    $("#scoreGradeLine").textContent = `${band.grade} · ${band.label}`;
+    $("#scoreGradeLine").className = `score-grade-line ${band.cls}`;
+
+    $("#scoreSummaryLine").textContent = items.map((it) => `${it.label} ${it.score}점`).join(" · ");
+
+    $("#scoreDetailItems").innerHTML = items.map((it) =>
+      `<li><b>${it.label} ${it.score}점</b> · ${it.note}</li>`).join("");
+
+    // 점수 도입 전 쓰던 풀이 문단 — 접이식 안으로 옮겼으니 굳이 타이핑
+    // 연출 없이 바로 채운다(펼치기 전까지는 어차피 안 보인다).
+    $("#homeSummarySub").textContent = buildNarrative();
   }
 
   // 사주풀이처럼 숫자 하나만 던지지 않고, 물가·연봉·목표를 하나의
@@ -495,9 +558,7 @@
     }
 
     function renderSummary() {
-      const { headline } = homeSummaryText();
-      $("#homeSummaryHeadline").textContent = headline;
-      typewriter($("#homeSummarySub"), buildNarrative());
+      renderScore();
       summaryView.hidden = false;
       // 첫 화면에는 타이틀·설명·시작하기만 보여야 한다. 리포트 4개 섹션과
       // 탭은 설문이 끝나고 포트폴리오가 준비된 뒤에야 의미가 생기므로
