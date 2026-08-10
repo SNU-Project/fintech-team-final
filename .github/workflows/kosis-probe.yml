@@ -15,13 +15,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: KOSIS 통합검색으로 가계동향조사 찾기
+      - name: DT_1L9U105 구조 확인
         env:
           KOSIS_API_KEY: ${{ secrets.KOSIS_API_KEY }}
         run: |
           python - <<'PY'
-          import json, os, urllib.parse, urllib.request
-
+          import json, os, urllib.request
           key = os.environ["KOSIS_API_KEY"]
 
           def get(url):
@@ -29,24 +28,44 @@ jobs:
               with urllib.request.urlopen(req, timeout=45) as r:
                   return r.read().decode("utf-8", "replace")
 
-          # 1) 통합검색 API — 통계표를 이름으로 찾는다
-          for term in ["가계동향조사", "가구원수별 가계수지", "가계수지"]:
-              q = urllib.parse.quote(term)
-              url = ("https://kosis.kr/openapi/statisticsSearch.do"
-                     f"?method=getList&apiKey={key}&searchNm={q}"
-                     "&format=json&jsonVD=Y&startCount=1&resultCount=10")
-              print(f"\n══ 검색어: {term} ══")
-              try:
-                  raw = get(url)
-              except Exception as exc:
-                  print("  요청 실패:", exc); continue
-              print("  응답 앞부분:", raw[:200])
-              try:
-                  rows = json.loads(raw)
-              except Exception:
-                  continue
-              if isinstance(rows, dict):
-                  print("  에러 응답:", json.dumps(rows, ensure_ascii=False)[:200]); continue
-              for r in rows[:10]:
-                  print(f"  ✔ orgId={r.get('ORG_ID')} tblId={r.get('TBL_ID')} | {r.get('TBL_NM')}")
+          # 1) 이 표에 어떤 분류(가구원수)와 항목(지출 품목)이 있는지
+          for obj in ["ITM", "A", "B", "C"]:
+              url = ("https://kosis.kr/openapi/Param/statisticsParameterData.do"
+                     f"?method=getList&apiKey={key}&orgId=101&tblId=DT_1L9U105"
+                     f"&objL1=ALL&itmId=ALL&format=json&jsonVD=Y"
+                     f"&prdSe=Q&newEstPrdCnt=1")
+              break
+
+          print("══ 최근 1개 분기 전체 데이터 ══")
+          raw = get(url)
+          print("응답 앞부분:", raw[:300])
+          try:
+              rows = json.loads(raw)
+          except Exception as exc:
+              print("파싱 실패:", exc); raise SystemExit(0)
+          if isinstance(rows, dict):
+              print("에러:", json.dumps(rows, ensure_ascii=False)[:300]); raise SystemExit(0)
+
+          print(f"\n총 {len(rows)}행")
+          if rows:
+              print("\n── 첫 행의 필드 ──")
+              for k, v in rows[0].items():
+                  print(f"  {k:12} = {v}")
+
+              print("\n── 분류(C1) 목록 ──")
+              seen = {}
+              for r in rows:
+                  seen.setdefault(r.get("C1_NM"), r.get("C1"))
+              for nm, code in list(seen.items())[:15]:
+                  print(f"  {code}  {nm}")
+
+              print("\n── 항목(ITM) 목록 ──")
+              items = {}
+              for r in rows:
+                  items.setdefault(r.get("ITM_NM"), r.get("ITM_ID"))
+              for nm, code in list(items.items())[:30]:
+                  print(f"  {code}  {nm}")
+
+              print("\n── 기간 ──")
+              print("  ", sorted({r.get("PRD_DE") for r in rows}))
           PY
