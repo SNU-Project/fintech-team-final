@@ -264,6 +264,7 @@
       });
       bindTip(bar,
         `<b>${r.name}</b><br>` +
+        (r.examples ? `<span class="tip-ex">${r.examples}</span><br>` : "") +
         `지출 비중 ${(r.weight * 100).toFixed(1)}% (${fmtMan(r.amount)}만원)<br>` +
         `이 항목 물가 ${r.rate >= 0 ? "+" : ""}${r.rate.toFixed(2)}%<br>` +
         `→ 내 물가에 <b>${r.contribution >= 0 ? "+" : ""}${r.contribution.toFixed(2)}%p</b> 기여`);

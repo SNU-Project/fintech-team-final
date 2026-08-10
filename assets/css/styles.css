@@ -1106,3 +1106,43 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
   .mix-head-row, .mix-row-btn { grid-template-columns: 3.6rem 3.9rem 3.9rem; }
   .mix-desc-col { display: none; }
 }
+
+/* ---------- 내 물가 계산 과정 따라가기 ---------- */
+.calc-walk {
+  margin: .1rem 0 .9rem; padding: .8rem .9rem;
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  border-left: 3px solid var(--brand);
+}
+.calc-step {
+  margin: 0 0 .45rem; font-size: .82rem; line-height: 1.6;
+  color: var(--text-secondary); display: flex; gap: .55rem; align-items: baseline;
+}
+.calc-step:last-child { margin-bottom: 0; }
+.calc-step b { color: var(--text-primary); font-weight: 700; }
+.calc-no {
+  flex: 0 0 1.25rem; height: 1.25rem; border-radius: 50%;
+  background: var(--brand-soft); color: var(--brand);
+  font-size: .7rem; font-weight: 700; line-height: 1.25rem;
+  text-align: center; align-self: flex-start;
+}
+.calc-last { padding-top: .5rem; border-top: 1px dashed var(--border); }
+.calc-last .calc-no { background: transparent; color: var(--text-muted); font-size: .9rem; }
+.tip-ex { color: var(--text-muted); font-size: .72rem; }
+
+/* ---------- 항목별 포함 품목 목록 ---------- */
+.cat-legend { margin-top: .6rem; }
+.cat-legend summary {
+  cursor: pointer; font-size: .78rem; color: var(--text-muted);
+  padding: .3rem 0; user-select: none;
+}
+.cat-legend summary:hover { color: var(--brand); }
+.cat-legend dl {
+  margin: .4rem 0 0; display: grid; grid-template-columns: 5.5rem 1fr;
+  gap: .35rem .7rem; font-size: .76rem;
+}
+.cat-legend dt { font-weight: 700; color: var(--text-secondary); }
+.cat-legend dd { margin: 0; color: var(--text-muted); line-height: 1.5; }
+@media (max-width: 480px) {
+  .cat-legend dl { grid-template-columns: 1fr; gap: .1rem; }
+  .cat-legend dd { margin-bottom: .4rem; }
+}

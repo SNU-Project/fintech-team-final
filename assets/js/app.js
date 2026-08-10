@@ -43,11 +43,20 @@
   // 5개 그룹으로 묶어서 입력 UI에만 쓴다. id는 g- 접두사로 실카테고리
   // id와 절대 안 겹치게 한다. 12개 전부 정확히 한 그룹에만 속한다.
   const SPEND_GROUPS = [
-    { id: "g-food", name: "식비", hint: "장보기, 외식, 배달, 카페", members: ["food", "dining"] },
-    { id: "g-home", name: "주거·생활", hint: "월세, 관리비, 공과금, 생활용품", members: ["housing", "household"] },
-    { id: "g-move", name: "교통·통신", hint: "대중교통, 차량, 휴대폰·인터넷", members: ["transport", "comm"] },
-    { id: "g-play", name: "여가·문화", hint: "여행, 취미, 옷, 교육", members: ["leisure", "education", "clothing"] },
-    { id: "g-etc", name: "건강·기타", hint: "병원비, 술·담배, 보험 등", members: ["health", "alcohol", "misc"] },
+    { id: "g-food", name: "식비", hint: "장보기, 외식, 배달, 카페",
+      examples: "쌀·채소·고기·과일, 우유·커피, 식당 밥값, 배달비, 술집 제외",
+      members: ["food", "dining"] },
+    { id: "g-home", name: "주거·생활", hint: "월세, 관리비, 공과금, 생활용품",
+      examples: "월세·전세이자, 관리비, 전기·가스·수도요금, 세제·휴지, 가구·가전",
+      members: ["housing", "household"] },
+    { id: "g-move", name: "교통·통신", hint: "대중교통, 기름값, 휴대폰·인터넷",
+      examples: "버스·지하철·택시비, 기름값(유가), 자동차 구입·수리·보험, 휴대폰 요금, 인터넷",
+      members: ["transport", "comm"] },
+    { id: "g-play", name: "여가·문화", hint: "여행, 취미, 옷, 교육",
+      examples: "여행·숙박, 영화·공연, 넷플릭스 등 구독료, 옷·신발, 학원비·등록금",
+      members: ["leisure", "education", "clothing"] },
+    { id: "g-etc", name: "건강·기타", hint: "병원비, 술·담배, 보험 등",
+      examples: "병원 진료비·약값, 건강보조식품, 술·담배, 미용실, 보험료", members: ["health", "alcohol", "misc"] },
   ];
 
   const spendingTotal = (spending) =>
@@ -1075,6 +1084,46 @@
     }).join("");
   }
 
+  /* "비중 × 상승률을 다 더한다"는 말은 식으로만 보면 안 와닿는다.
+     그래서 내가 지금 넣은 숫자로 실제 계산을 한 줄씩 따라가게 보여준다.
+     기여도가 가장 큰 항목 하나를 예로 들고, 마지막에 합이 내 물가라는
+     것까지 이어 준다. 툴팁은 마우스를 올려야 보여서 발견되지 않는다. */
+  /* 툴팁은 마우스가 있어야 보인다. 발표 때 휴대폰으로 여는 사람이
+     대부분이라, 같은 내용을 접이식 목록으로도 항상 열어 볼 수 있게 둔다. */
+  function renderCatLegend() {
+    const box = $("#catLegend");
+    if (!box || box.childElementCount) return;
+    box.innerHTML = SPEND_GROUPS.map((g) =>
+      `<dt>${g.name}</dt><dd>${g.examples}</dd>`).join("");
+  }
+
+  function renderContribMath(grouped, result, official) {
+    const box = $("#contribMath");
+    if (!box) return;
+    const top = grouped.filter((g) => g.amount > 0)[0];
+    if (!top) { box.innerHTML = ""; return; }
+
+    const sum = grouped.reduce((s, g) => s + g.contribution, 0);
+    const diff = result.rate - official;
+    const verdict = Math.abs(diff) < 0.05
+      ? "그래서 내 물가는 평균과 거의 같습니다."
+      : `그래서 내 물가가 평균보다 <b>${Math.abs(diff).toFixed(1)}%p ${diff > 0 ? "높습니다" : "낮습니다"}</b>.`;
+
+    box.innerHTML = `
+      <p class="calc-step"><span class="calc-no">1</span>
+        <b>${top.name}</b>에 월 ${man(top.amount)}만원 — 생활비의
+        <b>${(top.weight * 100).toFixed(0)}%</b>입니다.</p>
+      <p class="calc-step"><span class="calc-no">2</span>
+        그 ${top.name} 물가가 1년 새 <b>${top.rate >= 0 ? "+" : ""}${top.rate.toFixed(1)}%</b> 올랐습니다.</p>
+      <p class="calc-step"><span class="calc-no">3</span>
+        둘을 곱하면 ${(top.weight * 100).toFixed(0)}% × ${top.rate.toFixed(1)}% =
+        <b>${top.contribution >= 0 ? "+" : ""}${top.contribution.toFixed(2)}%p</b> —
+        ${top.name} 하나가 내 물가를 이만큼 밀어올렸습니다.</p>
+      <p class="calc-step calc-last"><span class="calc-no">=</span>
+        나머지 항목도 같은 방식으로 더하면 <b>${sum >= 0 ? "+" : ""}${sum.toFixed(1)}%</b>,
+        이게 내 물가입니다. ${verdict}</p>`;
+  }
+
   function renderMine() {
     const cats = state.cpi.categories || [];
     if (!cats.length) return;
@@ -1176,8 +1225,11 @@
       .sort((a, b) => b.contribution - a.contribution);
     Charts.contributionChart($("#contribChart"),
       grouped.filter((g) => g.amount > 0).map((g) => ({
-        ...g, hot: g.rate >= official, color: g.rate >= official ? "var(--series-2)" : "var(--series-3)",
+        ...g, examples: (SPEND_GROUPS.find((s) => s.id === g.id) || {}).examples,
+        hot: g.rate >= official, color: g.rate >= official ? "var(--series-2)" : "var(--series-3)",
       })));
+    renderCatLegend();
+    renderContribMath(grouped, result, official);
     $("#mineSrc").textContent =
       `OECD 한국 소비자물가 COICOP 12분류 · ${result.month} 기준 · 브라우저에서 실시간 조회`;
 
