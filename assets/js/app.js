@@ -392,6 +392,15 @@
     return SCORE_GRADES.find((g) => total >= g.min);
   }
 
+  // 점수만 보면 좋은 건지 나쁜 건지 바로 와닿지 않는다는 피드백 — 새
+  // 기준을 따로 두지 않고, 이미 있는 등급의 cls(색상 그룹)를 그대로
+  // 재사용해 세 단계 톤으로만 묶는다.
+  const SCORE_TONE_BY_CLS = {
+    "is-good": "아직 괜찮아요 🙂",
+    "is-warn": "주의가 필요해요 ⚠️",
+    "is-bad": "위험해요 🚨",
+  };
+
   // 점수·도넛·등급을 하나로, 세부 수치는 기본 접힌 "어떻게 계산했나요?"
   // 안에만 둔다 — 같은 숫자가 화면에 3번(큰 텍스트/링/카드) 반복되던
   // 걸 링 하나로 줄이고, 나머지는 궁금한 사람만 펼쳐보게 한다.
@@ -422,6 +431,8 @@
     $("#scoreRing").style.background = `conic-gradient(${color} ${total}%, var(--surface-sunk) 0)`;
     $("#scoreGradeLine").textContent = band.grade;
     $("#scoreGradeLine").className = `score-grade-line ${band.cls}`;
+    $("#scoreToneLine").textContent = SCORE_TONE_BY_CLS[band.cls];
+    $("#scoreToneLine").className = `score-tone-line ${band.cls}`;
 
     $("#scoreDetailItems").innerHTML = items.map((it) =>
       `<li><b>${it.label} ${it.score}점</b> · ${it.note}</li>`).join("");

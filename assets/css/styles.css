@@ -292,6 +292,13 @@ section { scroll-margin-top: 5rem; }
 .score-grade-line.is-warn { color: var(--warning-text); }
 .score-grade-line.is-bad  { color: var(--critical-text); }
 
+/* 점수만으로는 좋고 나쁨이 바로 와닿지 않는다는 피드백 — 등급 아래
+   한 줄 평을 덧붙인다. 색은 등급 링과 같은 cls를 재사용해 톤을 맞춘다. */
+.score-tone-line { font-size: .92rem; font-weight: 700; margin: 0; }
+.score-tone-line.is-good { color: var(--good-text); }
+.score-tone-line.is-warn { color: var(--warning-text); }
+.score-tone-line.is-bad  { color: var(--critical-text); }
+
 /* "어떻게 계산했나요?" 펼침 — 기본 닫힘. 다른 <details> 펼침과 같은
    시각 언어(요약은 브랜드색, 목록은 왼쪽 정렬)를 쓴다. */
 .score-detail-toggle { font-size: .8rem; }
