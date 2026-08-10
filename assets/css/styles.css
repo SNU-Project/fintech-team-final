@@ -480,6 +480,19 @@ section { scroll-margin-top: 5rem; }
 }
 .deck-swipe-hint { font-size: .78rem; color: var(--text-muted); margin-top: -.3rem; }
 
+/* 카드 1에만 "다음 카드 보기" 버튼이 있어서 카드 2부터는 점 인디케이터를
+   직접 눌러야만 다음으로 넘어갈 수 있었다는 버그 리포트 — 모든 카드
+   하단에 똑같이 둔다. display:block + margin:auto로 가운데 정렬하면
+   일반 블록 카드(위→아래로 쌓임)와 카드 1의 flex 가운데 정렬(is-cover)
+   양쪽에서 다 가운데로 온다. */
+.deck-next-btn { display: block; margin: 1.5rem auto 0; }
+.deck-card.is-cover .deck-next-btn { margin-top: 0; }
+
+/* 카드 7의 "처음으로 돌아가기" — 다른 카드의 .deck-next-btn과 같은
+   자리(카드 상단 콘텐츠 바로 아래)에 오는 마무리 버튼이라 같은 방식으로
+   가운데 정렬한다. */
+.deck-restart-link.home-start-btn { display: block; margin: 1.5rem auto 0; }
+
 @media (prefers-reduced-motion: reduce) {
   .deck-track { transition: none; }
   .deck-dot { transition: none; }
