@@ -888,6 +888,26 @@ footer a { color: var(--text-secondary); }
 }
 #tooltip[hidden] { display: none; }
 
+/* ---------- 맨 위로 버튼 ---------- */
+/* 상단 탭 내비게이션이 없어진 뒤로, 리포트를 내려가다 처음으로
+   돌아가려면 계속 스크롤해야 하는 불편이 있다 — 일정 이상 내려갔을
+   때만 뜨는 플로팅 버튼으로 보완한다. safe-area-inset은 iOS 하단
+   홈 인디케이터 영역에 버튼이 가려지지 않게 한다. */
+.scroll-top-btn {
+  position: fixed; z-index: 60;
+  right: max(1.1rem, env(safe-area-inset-right));
+  bottom: max(1.1rem, env(safe-area-inset-bottom));
+  width: 44px; height: 44px; padding: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: 999px; cursor: pointer;
+  background: var(--brand); color: #fff; box-shadow: var(--shadow);
+  transition: filter .15s ease, transform .05s ease;
+}
+.scroll-top-btn[hidden] { display: none; }
+.scroll-top-btn:hover { filter: brightness(1.08); }
+.scroll-top-btn:active { transform: translateY(1px); }
+.scroll-top-btn svg { width: 20px; height: 20px; }
+
 /* ---------- 로딩 / 에러 ---------- */
 .skeleton { color: var(--text-muted); font-size: .85rem; padding: 1.4rem 0; text-align: center; }
 

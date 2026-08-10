@@ -162,6 +162,7 @@
     setupFinalConclusion();
     setupNextSteps();
     setupScrollReveal();
+    setupScrollTopButton();
     renderBasis();
     renderAll();
 
@@ -621,6 +622,26 @@
       });
     }, { threshold: 0.1, rootMargin: "0px 0px -60px 0px" });
     targets.forEach((el) => observer.observe(el));
+  }
+
+  // 상단 탭 내비게이션이 없어서, 리포트가 길어지면 처음(설문 다시
+  // 입력하기 등)으로 돌아가려면 계속 스크롤해야 한다. 일정 이상
+  // 내려갔을 때만 나타나는 플로팅 버튼으로 보완한다.
+  function setupScrollTopButton() {
+    const btn = $("#scrollTopBtn");
+    let visible = false;
+    const THRESHOLD = 480;
+    const sync = () => {
+      const shouldShow = window.scrollY > THRESHOLD;
+      if (shouldShow === visible) return;
+      visible = shouldShow;
+      btn.hidden = !shouldShow;
+    };
+    document.addEventListener("scroll", sync, { passive: true });
+    sync();
+    btn.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
   }
 
   function setupHomeFlow() {
