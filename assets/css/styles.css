@@ -1061,3 +1061,8 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 @media (max-width: 560px) {
   .concept-row { grid-template-columns: 4rem 1fr 2.9rem; gap: .45rem; }
 }
+
+/* 다른 탭의 해설은 막대 없이 글만이라 조금 더 조인다 */
+.concept-note.is-compact { padding: .9rem 1.1rem; }
+.concept-note.is-compact p { font-size: .85rem; }
+.concept-note.is-compact p + p { margin-top: .55rem; }
