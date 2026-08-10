@@ -155,6 +155,40 @@
 
   /* ---------- 5. 포트폴리오 ---------- */
   // 실제 자산 CAGR의 가중평균으로 계산된 값을 market.json에서 그대로 읽는다.
+  /* 사용자가 직접 맞춘 비중으로 포트폴리오를 만든다.
+     기대수익률·변동성 계산식은 파이프라인이 프리셋에 쓴 것과 같다
+     (구성 자산의 실제 CAGR 가중평균). 그래야 프리셋과 커스텀을
+     같은 잣대로 비교할 수 있다. */
+  function customPlan(market, weights) {
+    const byId = Object.fromEntries(market.assets.map((a) => [a.id, a]));
+    const entries = Object.entries(weights).filter(([id, w]) => byId[id] && w > 0);
+    const total = entries.reduce((s, [, w]) => s + w, 0);
+    if (total <= 0) return null;
+
+    const expected = entries.reduce((s, [id, w]) => s + byId[id].cagr * w, 0) / total;
+    const vol = entries.reduce((s, [id, w]) => s + (byId[id].volatility || 0) * w, 0) / total;
+    const items = entries
+      .map(([id, w]) => ({ id, weight: w / total, asset: byId[id] }))
+      .sort((a, b) => b.weight - a.weight);
+
+    return {
+      key: "custom",
+      label: "직접 조정",
+      desc: "비중을 직접 맞춘 배분입니다.",
+      weights: Object.fromEntries(items.map((i) => [i.id, i.weight])),
+      expected_return: expected,
+      expected_volatility: vol,
+      items,
+    };
+  }
+
+  /* 변동성 몇 %는 잘 안 와닿는다. "나쁜 해에는 이 정도까지 빠질 수 있다"로
+     번역한다. 정규분포 가정에서 하위 2.5% 수준(평균 - 2σ)을 쓴다.
+     실제 최악은 이보다 깊을 수 있으므로 화면에서 '대략'임을 밝힌다. */
+  function badYear(expectedReturn, volatility) {
+    return expectedReturn - 2 * volatility;
+  }
+
   function planOf(market, riskKey) {
     const plan = market.portfolios[riskKey];
     if (!plan) return null;
