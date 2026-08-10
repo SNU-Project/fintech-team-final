@@ -931,25 +931,6 @@
     syncSpendingFields(cats);
     renderPersonaBasis();
 
-    $("#applyToSalary").addEventListener("click", () => {
-      if (state.personalRate == null) return;
-      state.inflation = state.personalRate;
-      state.inflationLive = false;
-      $("#inflation").value = state.personalRate.toFixed(1);
-      $("#inflSource").innerHTML =
-        `<b>내 물가 ${state.personalRate.toFixed(1)}%</b>를 적용했습니다. ` +
-        `공식 물가(${state.cpi.latest.yoy.toFixed(1)}%) 대신 내 지출 기준으로 진단합니다.`;
-      renderGap();
-      $("#tab-gap").click();
-      // 탭 전환 + 작은 안내 문구만으로는 값이 실제로 넘어갔는지 확신하기 어렵다는
-      // 피드백이 있어, 적용된 필드를 잠깐 반짝여 눈에 띄게 한다.
-      const inflLabel = $("#inflLabel");
-      inflLabel.classList.remove("field-flash");
-      void inflLabel.offsetWidth;
-      inflLabel.classList.add("field-flash");
-      setTimeout(() => inflLabel.classList.remove("field-flash"), 1800);
-    });
-
     $("#aiExplainBtn").addEventListener("click", openAIInsight);
     $("#aiRetryBtn").addEventListener("click", openAIInsight);
     $("#aiCloseBtn").addEventListener("click", () => $("#aiInsightDialog").close());
@@ -1643,17 +1624,6 @@
         else state.picks.delete(box.value);
         renderTime();
       });
-    });
-
-    $("#startFuturePlan").addEventListener("click", () => {
-      const amount = Math.max(0, +$("#investAmount").value || 0);
-      if (amount <= 0) {
-        $("#investAmount").focus();
-        return;
-      }
-      $("#goalCurrent").value = amount;
-      renderGoal();
-      $("#tab-goal").click();
     });
   }
 
