@@ -55,44 +55,6 @@
       <p class="loading-msg" id="loadingMsg">당신의 물가를 계산하는 중…</p>
     </div>
 
-    <!-- 상태 2 · 한 줄 요약 (온보딩 직후 + 재방문자 공통) -->
-    <div class="home-hero" id="homeSummary" hidden>
-      <p class="kicker" id="homeSummaryKicker">당신의 연봉 성적표</p>
-      <!-- 점수를 계산할 정보가 아직 없을 때만 보이는 안내문 (점수가 있으면 hidden) -->
-      <h1 id="homeSummaryHeadline" hidden>—</h1>
-      <div class="score-hero" id="scoreHero" hidden>
-        <div class="score-ring-wrap">
-          <div class="score-ring" id="scoreRing"></div>
-          <div class="score-ring-center">
-            <span class="score-num"><span id="scoreNum">—</span>점</span>
-            <span class="score-grade-line" id="scoreGradeLine">—</span>
-          </div>
-        </div>
-        <p class="score-tone-line" id="scoreToneLine">—</p>
-        <details class="score-detail-toggle">
-          <summary>어떻게 계산했나요?</summary>
-          <div class="score-detail-body">
-            <p class="score-note">이 점수는 목표나 투자 성향과 무관하게, 당신의 연봉과 물가만 비교한 결과예요. 투자 조언이 아니에요.</p>
-            <ul class="score-detail-items" id="scoreDetailItems"></ul>
-            <p class="score-detail-heading">등급 기준</p>
-            <ul class="score-grade-list">
-              <li>80점 이상 — 상</li>
-              <li>60~79점 — 중상</li>
-              <li>40~59점 — 중</li>
-              <li>20~39점 — 중하</li>
-              <li>19점 이하 — 하</li>
-            </ul>
-            <p class="score-detail-narrative" id="homeSummarySub">—</p>
-          </div>
-        </details>
-      </div>
-      <p class="score-preview-conclusion" id="scorePreviewConclusion" hidden>—</p>
-      <button class="home-start-btn" id="homeReportBtn" type="button">리포트 보기 ↓</button>
-      <div class="home-summary-links">
-        <button class="onboarding-back" id="homeRestartBtn" type="button">처음부터 다시 입력하기</button>
-      </div>
-    </div>
-
     <!-- 상태 3 · 온보딩 (0: 인트로, 1~5: 문항) -->
     <div class="home-hero" id="homeOnboarding">
       <div class="onboarding-progress-wrap" id="onboardProgressWrap" hidden>
@@ -174,149 +136,212 @@
 
   </section>
 
-  <!-- ══════════════ 리포트 1 · 내 물가 ══════════════
+  <!-- ══════════════ 리포트 · 카드뉴스 덱 (v8) ══════════════
+       내 물가·실질임금 진단·결론을 세로 스크롤 대신 카드 7장을 좌우로
+       넘기며 보는 방식으로 바꿨다. id는 전부 예전 그대로 유지했다 —
+       renderMine()/renderGap()/renderScore() 등은 전부 $("#id")로
+       엘리먼트를 찾아 쓰는 구조라, 어느 카드가 감싸든 그대로 동작한다.
        설문 도중에는 숨겨 둔다 — 아직 안 끝난 설문 밑에 결과가 미리
-       스크롤되어 나오면 안 된다. 설문을 마치면(또는 재방문자면) JS가
-       탭과 함께 드러낸다. -->
-  <section class="panel" id="panel-mine" hidden>
-    <h2 class="report-heading">내 물가</h2>
-    <p class="report-intro">먼저, 당신의 체감 물가부터 짚어볼게요.</p>
+       보이면 안 된다. 설문을 마치면(또는 재방문자면) JS가 드러낸다. -->
+  <section class="deck" id="deck" hidden>
+    <div class="deck-dots" id="deckDots" role="tablist" aria-label="카드 진행"></div>
+    <p class="visually-hidden" id="deckLiveRegion" aria-live="polite"></p>
 
-    <!-- 처음 보는 사람은 "내 물가"가 뭔지 모른다. 결과 숫자를 보여주기 전에
-         왜 평균이 내 물가가 아닌지부터 한 번 짚는다. -->
-    <div class="concept-note">
-      <p>공식 물가는 전 국민 평균이에요. 그런데 품목마다 물가 상승률이 다르기 때문에,
-         내가 실제로 쓰는 품목 비중으로 다시 계산한 게 <b>'내 물가'</b>예요.</p>
-    </div>
-    <div class="bento">
+    <div class="deck-shell">
+      <button class="deck-arrow deck-arrow-prev" id="deckPrevBtn" type="button" aria-label="이전 카드">‹</button>
 
-      <!-- 지출 입력 — "당신이 답한 내용"이 먼저 나오고, 그 아래에 결과가
-           이어져야 "이렇게 답해서 → 이런 결과" 흐름이 보인다. -->
-      <div class="card bento-input">
-        <div class="section-head">
-          <div><h2>나와 가까운 생활 유형</h2><p>설문에서 입력하신 내용이에요.</p></div>
+      <div class="deck-viewport" id="deckViewport">
+        <div class="deck-track" id="deckTrack">
+
+          <!-- 카드 1 · 표지 -->
+          <section class="deck-card is-cover" id="card-1">
+            <p class="kicker" id="homeSummaryKicker">당신의 연봉 성적표</p>
+            <!-- 점수를 계산할 정보가 아직 없을 때만 보이는 안내문 (점수가 있으면 hidden) -->
+            <h1 id="homeSummaryHeadline" hidden>—</h1>
+            <div class="score-hero" id="scoreHero" hidden>
+              <div class="score-ring-wrap">
+                <div class="score-ring" id="scoreRing"></div>
+                <div class="score-ring-center">
+                  <span class="score-num"><span id="scoreNum">—</span>점</span>
+                  <span class="score-grade-line" id="scoreGradeLine">—</span>
+                </div>
+              </div>
+              <p class="score-tone-line" id="scoreToneLine">—</p>
+              <details class="score-detail-toggle">
+                <summary>어떻게 계산했나요?</summary>
+                <div class="score-detail-body">
+                  <p class="score-note">이 점수는 목표나 투자 성향과 무관하게, 당신의 연봉과 물가만 비교한 결과예요. 투자 조언이 아니에요.</p>
+                  <ul class="score-detail-items" id="scoreDetailItems"></ul>
+                  <p class="score-detail-heading">등급 기준</p>
+                  <ul class="score-grade-list">
+                    <li>80점 이상 — 상</li>
+                    <li>60~79점 — 중상</li>
+                    <li>40~59점 — 중</li>
+                    <li>20~39점 — 중하</li>
+                    <li>19점 이하 — 하</li>
+                  </ul>
+                  <p class="score-detail-narrative" id="homeSummarySub">—</p>
+                </div>
+              </details>
+            </div>
+            <p class="score-preview-conclusion" id="scorePreviewConclusion" hidden>—</p>
+            <button class="home-start-btn" id="deckCoverNextBtn" type="button">다음 카드 보기 →</button>
+            <p class="deck-swipe-hint">옆으로 넘겨보세요 →</p>
+          </section>
+
+          <!-- 카드 2 · 내 물가란? -->
+          <section class="deck-card" id="card-2">
+            <h2 class="report-heading">내 물가란?</h2>
+            <div class="concept-note">
+              <p>공식 물가는 전 국민 평균이에요. 그런데 품목마다 물가 상승률이 다르기 때문에,
+                 내가 실제로 쓰는 품목 비중으로 다시 계산한 게 <b>'내 물가'</b>예요.</p>
+            </div>
+            <div class="card bento-input">
+              <div class="section-head">
+                <div><h2>나와 가까운 생활 유형</h2><p>설문에서 입력하신 내용이에요.</p></div>
+              </div>
+
+              <label class="field total-field">가구 유형
+                <p class="field-value" id="personaLabel">—</p>
+              </label>
+
+              <label class="field total-field">내 월 생활비
+                <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0" readonly><span>만원</span></span>
+              </label>
+
+              <details class="spend-details">
+                <summary>세부 품목별 금액 보기</summary>
+                <div id="spendFields"></div>
+              </details>
+
+              <div class="spend-total">
+                <span>계산에 반영한 월 지출</span>
+                <b id="spendTotal">—</b>
+              </div>
+            </div>
+          </section>
+
+          <!-- 카드 3 · 얼마나 비싸게 살고 있나 -->
+          <section class="deck-card" id="card-3">
+            <h2 class="report-heading">얼마나 비싸게 살고 있나</h2>
+            <div class="card bento-hero">
+              <p class="kicker">뉴스에 나오는 물가는 전국 평균입니다</p>
+              <p class="verdict" id="mineVerdict">—</p>
+              <p class="vs-figures" id="vsFigures">—</p>
+              <div class="americano-callout" id="americanoCallout"></div>
+            </div>
+          </section>
+
+          <!-- 카드 4 · 범인은? -->
+          <section class="deck-card" id="card-4">
+            <h2 class="report-heading">내 물가를 밀어올린 범인</h2>
+            <div class="card bento-contrib">
+              <p class="verdict" id="contribSummary" hidden>—</p>
+              <ol class="contrib-rank" id="contribRank"></ol>
+              <details class="calc-detail">
+                <summary>상세 계산 보기</summary>
+                <p class="block-q">막대 = 지출 비중 × 그 품목의 물가상승률. 다 더하면 내 물가입니다.</p>
+                <div class="calc-walk" id="contribMath"></div>
+                <div class="chart-box" id="contribChart"></div>
+              </details>
+              <span class="src-note" id="mineSrc">—</span>
+            </div>
+          </section>
+
+          <!-- 카드 5 · 내 연봉 vs 물가 -->
+          <section class="deck-card" id="card-5">
+            <h2 class="report-heading">내 연봉 vs 물가</h2>
+            <div class="concept-note is-compact">
+              <p><b>물가 유지선</b>은 작년과 똑같이 살려면 필요한 연봉입니다.
+                 올해 연봉에 내 물가만큼을 더한 금액이죠. 내년 연봉이 이 선을
+                 넘으면 실질 소득이 늘어난 것이고, 못 넘으면 <b>연봉은
+                 올랐는데 형편은 나빠진 것</b>입니다.</p>
+            </div>
+            <div class="card bento-input">
+              <div class="section-head">
+                <div><h2>나의 소득 조건</h2><p>설문에서 답하신 연봉이에요.</p></div>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">현재 연봉
+                  <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600" readonly><span>만원</span></span>
+                </label>
+                <label class="field">내년 예상 연봉
+                  <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750" readonly><span>만원</span></span>
+                </label>
+              </div>
+              <p class="err-text" id="salaryErr" hidden></p>
+
+              <p class="field-note skeleton-bar" id="inflSource">—</p>
+            </div>
+
+            <div class="card bento-main">
+              <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
+              <p class="verdict" id="gapVerdict">—</p>
+              <details class="calc-detail">
+                <summary>막대그래프·자세한 수치 보기</summary>
+                <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
+                <div class="chart-box" id="salaryChart"></div>
+                <div class="stat-grid" id="gapStats"></div>
+              </details>
+            </div>
+
+            <div class="card bento-half-a">
+              <details class="calc-detail">
+                <summary>10년 추이로 자세히 보기</summary>
+                <h3 class="block-title">격차는 해마다 벌어집니다</h3>
+                <p class="verdict" id="trendVerdict">—</p>
+                <p class="block-q">지금 조건이 유지되면 간격이 매년 얼마나 커지는지.</p>
+                <div class="chart-box" id="trendChart"></div>
+                <div class="legend" id="trendLegend"></div>
+              </details>
+            </div>
+          </section>
+
+          <!-- 카드 6 · 그래서 얼마 더 받아야 하나 -->
+          <section class="deck-card" id="card-6">
+            <h2 class="report-heading">그래서 얼마 더 받아야 하나</h2>
+            <div class="card bento-half-b">
+              <h3 class="block-title">연봉 협상 가이드</h3>
+              <p class="block-q">물가를 방어하려면 최소 얼마를 올려야 하는지.</p>
+              <div class="stat-grid" id="negoStats"></div>
+              <p class="verdict" id="negoVerdict">—</p>
+            </div>
+          </section>
+
+          <!-- 카드 7 · 결론 + 더 보기 -->
+          <section class="deck-card" id="card-7">
+            <div class="card final-card">
+              <p class="kicker">마지막으로 정리하면</p>
+              <h2 class="report-heading" id="finalHeadline">당신을 위한 결론</h2>
+              <p class="final-body" id="finalBody"></p>
+            </div>
+
+            <div class="card">
+              <p class="kicker">더 보고 싶다면</p>
+              <h3 class="block-title">목표와 과거 성과도 확인해 보세요</h3>
+              <p class="block-q">필요하면 펼쳐서 볼 수 있어요 — 기본 리포트에는 포함하지 않았습니다.</p>
+              <div class="next-step-actions">
+                <button class="home-start-btn" id="revealGoalBtn" type="button">목표 자산 계획 보기 →</button>
+                <button class="home-start-btn" id="revealTimeBtn" type="button">자산 타임머신으로 확인하기 →</button>
+              </div>
+            </div>
+
+            <div class="home-summary-links">
+              <button class="onboarding-back" id="homeRestartBtn" type="button">처음부터 다시 입력하기</button>
+            </div>
+          </section>
+
         </div>
-
-        <label class="field total-field">가구 유형
-          <p class="field-value" id="personaLabel">—</p>
-        </label>
-
-        <label class="field total-field">내 월 생활비
-          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0" readonly><span>만원</span></span>
-        </label>
-
-        <details class="spend-details">
-          <summary>세부 품목별 금액 보기</summary>
-          <div id="spendFields"></div>
-        </details>
-
-        <div class="spend-total">
-          <span>계산에 반영한 월 지출</span>
-          <b id="spendTotal">—</b>
-        </div>
-
-        <p class="answer-bridge">이 답변으로 아래 결과를 계산했어요 ↓</p>
       </div>
 
-      <!-- 헤드라인: 공식 vs 내 물가 -->
-      <div class="card bento-hero">
-        <p class="kicker">뉴스에 나오는 물가는 전국 평균입니다</p>
-        <p class="verdict" id="mineVerdict">—</p>
-        <p class="vs-figures" id="vsFigures">—</p>
-        <div class="americano-callout" id="americanoCallout"></div>
-      </div>
-
-      <!-- 기여도 분해 -->
-      <div class="card bento-contrib">
-        <h3 class="block-title">내 물가를 밀어올린 범인</h3>
-        <p class="verdict" id="contribSummary" hidden>—</p>
-        <ol class="contrib-rank" id="contribRank"></ol>
-        <details class="calc-detail">
-          <summary>상세 계산 보기</summary>
-          <p class="block-q">막대 = 지출 비중 × 그 품목의 물가상승률. 다 더하면 내 물가입니다.</p>
-          <div class="calc-walk" id="contribMath"></div>
-          <div class="chart-box" id="contribChart"></div>
-        </details>
-        <span class="src-note" id="mineSrc">—</span>
-      </div>
-
-      <!-- 액션 -->
-      <div class="card bento-action">
-        <h3 class="block-title">그래서 얼마를 벌어야 하나</h3>
-        <div class="stat-grid" id="mineActionStats"></div>
-        <p class="verdict" id="mineAction">—</p>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- ══════════════ 리포트 2 · 실질임금 진단 ══════════════ -->
-  <section class="panel" id="panel-gap" hidden>
-    <h2 class="report-heading">실질임금 진단</h2>
-    <p class="report-intro">이제 연봉이 물가를 이기고 있는지 살펴볼 차례예요.</p>
-
-    <div class="concept-note is-compact">
-      <p><b>물가 유지선</b>은 작년과 똑같이 살려면 필요한 연봉입니다.
-         올해 연봉에 내 물가만큼을 더한 금액이죠.</p>
-      <p>내년 연봉이 이 선을 넘으면 실질 소득이 늘어난 것이고,
-         못 넘으면 <b>연봉은 올랐는데 형편은 나빠진 것</b>입니다.
-         부족분은 “며칠 더 일해야 하는지”로도 바꿔서 보여드릴게요.</p>
-    </div>
-    <div class="bento">
-
-      <div class="card bento-input">
-          <div class="section-head">
-            <div><h2>나의 소득 조건</h2><p>설문에서 답하신 연봉이에요.</p></div>
-          </div>
-
-          <div class="field-grid">
-            <label class="field">현재 연봉
-              <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600" readonly><span>만원</span></span>
-            </label>
-            <label class="field">내년 예상 연봉
-              <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750" readonly><span>만원</span></span>
-            </label>
-          </div>
-          <p class="err-text" id="salaryErr" hidden></p>
-
-          <p class="field-note skeleton-bar" id="inflSource">—</p>
-
-          <p class="answer-bridge">이 내용으로 아래 결과를 계산했어요 ↓</p>
-      </div>
-
-      <div class="card bento-main">
-        <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
-        <p class="verdict" id="gapVerdict">—</p>
-        <details class="calc-detail">
-          <summary>막대그래프·자세한 수치 보기</summary>
-          <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
-          <div class="chart-box" id="salaryChart"></div>
-          <div class="stat-grid" id="gapStats"></div>
-        </details>
-      </div>
-
-      <div class="card bento-half-a">
-        <details class="calc-detail">
-          <summary>10년 추이로 자세히 보기</summary>
-          <h3 class="block-title">격차는 해마다 벌어집니다</h3>
-          <p class="verdict" id="trendVerdict">—</p>
-          <p class="block-q">지금 조건이 유지되면 간격이 매년 얼마나 커지는지.</p>
-          <div class="chart-box" id="trendChart"></div>
-          <div class="legend" id="trendLegend"></div>
-        </details>
-      </div>
-
-      <div class="card bento-half-b">
-        <h3 class="block-title">연봉 협상 가이드</h3>
-        <p class="block-q">물가를 방어하려면 최소 얼마를 올려야 하는지.</p>
-        <div class="stat-grid" id="negoStats"></div>
-        <p class="verdict" id="negoVerdict">—</p>
-      </div>
+      <button class="deck-arrow deck-arrow-next" id="deckNextBtn" type="button" aria-label="다음 카드">›</button>
     </div>
   </section>
 
   <!-- ══════════════ 리포트 3 · 목표 자산 ══════════════ -->
   <section class="panel" id="panel-goal" hidden>
+    <button class="deck-back-btn" type="button">← 카드 리포트로 돌아가기</button>
     <h2 class="report-heading">목표 자산 모으기</h2>
     <p class="report-intro">다음은 목표까지 얼마나 남았는지 계산해봤어요.</p>
 
@@ -416,6 +441,7 @@
 
   <!-- ══════════════ 리포트 4 · 자산 타임머신 ══════════════ -->
   <section class="panel" id="panel-time" hidden>
+    <button class="deck-back-btn" type="button">← 카드 리포트로 돌아가기</button>
     <h2 class="report-heading">자산 타임머신</h2>
     <p class="report-intro">마지막으로, 그때 샀다면 어땠을지 시간을 되돌려볼게요.</p>
 
@@ -476,32 +502,6 @@
           <tbody id="timingTable"></tbody>
         </table></div>
         <p class="verdict" id="timingVerdict">—</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ══════════════ 마지막 · 결론 ══════════════
-       내 물가·실질임금 진단·목표 자산·자산 타임머신 네 결과를 한데
-       묶어 정리한다. 요약 화면의 풀이가 "예고"였다면 여기는 "결론"이다. -->
-  <section class="panel" id="panel-final" hidden>
-    <div class="card final-card">
-      <p class="kicker">마지막으로 정리하면</p>
-      <h2 class="report-heading" id="finalHeadline">당신을 위한 결론</h2>
-      <p class="final-body" id="finalBody"></p>
-    </div>
-  </section>
-
-  <!-- ══════════════ 다음 단계 ══════════════
-       목표 자산 모으기/자산 타임머신은 기본 리포트 스크롤에서 뺐다 —
-       원하는 사람만 버튼을 눌러 펼쳐 보게 한다. -->
-  <section class="panel" id="nextSteps" hidden>
-    <div class="card">
-      <p class="kicker">더 보고 싶다면</p>
-      <h3 class="block-title">목표와 과거 성과도 확인해 보세요</h3>
-      <p class="block-q">필요하면 펼쳐서 볼 수 있어요 — 기본 리포트에는 포함하지 않았습니다.</p>
-      <div class="next-step-actions">
-        <button class="home-start-btn" id="revealGoalBtn" type="button">목표 자산 계획 보기 →</button>
-        <button class="home-start-btn" id="revealTimeBtn" type="button">자산 타임머신으로 확인하기 →</button>
       </div>
     </div>
   </section>
