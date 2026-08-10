@@ -86,6 +86,7 @@ jobs:
       # 들어가 파싱이 깨졌는데, 로그를 열기 전까지 원인을 알 수 없었다.
       - name: 워크플로 문법 검사
         run: |
+          pip install --quiet pyyaml
           python - <<'PY'
           import glob, sys, yaml
 
