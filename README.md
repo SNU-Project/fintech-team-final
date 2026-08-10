@@ -201,6 +201,8 @@ python3 pipeline/fetch_data.py && python3 pipeline/transform.py
 │   ├── fetch_data.py           수집
 │   └── transform.py            정제·지표 산출
 ├── docs/
+│   ├── fork-guide.md           ⚠️ 개인 계정으로 복제할 때 주의사항
+│   ├── pr-protocol.md          PR 올리기 전 자체 점검
 │   ├── ai-usage.md             AI 활용 과정과 검증 내역
 │   └── presentation.md         발표 구성
 └── .github/workflows/
@@ -245,6 +247,10 @@ python3 pipeline/fetch_data.py && python3 pipeline/transform.py
 서울대학교 빅데이터 핀테크 전문가과정 13기 3조 · 웹 개발 및 시각화
 
 각자 만든 프로토타입을 하나로 합친 결과물입니다. 누구 것에서 무엇을 살리고 무엇을 뺐는지는 위 통합 내역 표에 정리돼 있고, 개인 리포는 `SNU-Project` 조직에 원본 그대로 남아 있습니다.
+
+각자 포트폴리오로 쓰려고 개인 계정에 복제하실 때는
+[`docs/fork-guide.md`](docs/fork-guide.md)를 보세요.
+**Vercel 프로젝트와 Gemini 키는 따라오지 않아** 각자 새로 설정해야 합니다.
 
 &copy; 2026 샐러리갭 팀. 모든 권리 보유.
 
