@@ -463,6 +463,16 @@
       <div class="card bento-full">
         <h3 class="block-title">선택한 포트폴리오 구성</h3>
         <p class="block-q">기대수익률은 아래 자산들의 <strong>실제 10년 실현 수익률</strong>로 계산했습니다.</p>
+
+        <div class="mix-compare" id="riskCompare"></div>
+
+        <details class="mix-tuner" id="mixTuner">
+          <summary>비중을 직접 맞춰보기</summary>
+          <p class="field-note">하나를 올리면 나머지가 비례해서 줄어듭니다. 합은 항상 100%입니다.</p>
+          <div id="mixFields"></div>
+          <button class="mix-reset" id="mixReset" type="button" hidden>선택한 성향으로 되돌리기</button>
+        </details>
+
         <div class="donut-row">
           <div class="donut-wrap">
             <div class="donut" id="donut"></div>

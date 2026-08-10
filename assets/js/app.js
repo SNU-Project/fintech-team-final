@@ -87,6 +87,8 @@
   const state = {
     market: null, cpi: null, meta: null,
     goalRisk: "balanced",
+    // 사용자가 비중을 직접 맞추면 여기 들어간다. null이면 선택한 성향 그대로.
+    customWeights: null,
     inflation: 2.8, inflationLive: false,
     picks: new Set(["kodex200", "sp500", "gold"]),
     startMonth: null,
@@ -96,6 +98,17 @@
     aiContext: null,
     aiCache: new Map(),
   };
+
+  /* 지금 적용 중인 배분. 사용자가 슬라이더로 맞췄으면 그것을, 아니면
+     선택한 성향의 프리셋을 쓴다. 진단·목표 탭이 같은 값을 봐야 해서
+     한 곳에서만 결정한다. */
+  function activePlan() {
+    if (state.customWeights) {
+      const custom = E.customPlan(state.market, state.customWeights);
+      if (custom) return custom;
+    }
+    return E.planOf(state.market, state.goalRisk);
+  }
 
   /* ══════════════ 부팅 ══════════════ */
   async function boot() {
@@ -128,6 +141,10 @@
     setupTimeTab();
     setupHomeFlow();
     setupReportEditing();
+    $("#mixReset").addEventListener("click", () => {
+      state.customWeights = null;
+      renderAll();
+    });
     setupFinalConclusion();
     setupScrollReveal();
     renderBasis();
@@ -474,7 +491,7 @@
     const goalCurrent = Math.max(0, +$("#goalCurrent").value || 0);
     const goalMonthly = Math.max(0, +$("#goalMonthly").value || 0);
     if (goalAmount > goalCurrent) {
-      const plan = E.planOf(state.market, state.goalRisk);
+      const plan = activePlan();
       if (plan) {
         const path = E.project({ initial: goalCurrent, monthly: goalMonthly, months: goalMonths, annualReturn: plan.expected_return });
         const gdiff = path[path.length - 1].value - goalAmount;
@@ -571,7 +588,7 @@
     const goalCurrent = Math.max(0, +$("#goalCurrent").value || 0);
     const goalMonthly = Math.max(0, +$("#goalMonthly").value || 0);
     if (goalAmount > goalCurrent) {
-      const plan = E.planOf(state.market, state.goalRisk);
+      const plan = activePlan();
       if (plan) {
         const path = E.project({ initial: goalCurrent, monthly: goalMonthly, months, annualReturn: plan.expected_return });
         const gdiff = path[path.length - 1].value - goalAmount;
@@ -1516,8 +1533,98 @@
     }
   }
 
+  /* 성향 3개를 나란히 놓는다. 지금까지는 고른 것 하나만 보여서
+     "안정형이 균형형과 뭐가 다른지"를 눌러 가며 비교해야 했다.
+     변동성 %는 안 와닿으므로 "나쁜 해에는 이만큼"으로 번역해 함께 둔다. */
+  function renderRiskCompare() {
+    const box = $("#riskCompare");
+    if (!box) return;
+    const active = state.customWeights ? null : state.goalRisk;
+
+    const rows = Object.keys(state.market.portfolios).map((key) => {
+      const p = E.planOf(state.market, key);
+      return { key, p, bad: E.badYear(p.expected_return, p.expected_volatility) };
+    });
+
+    box.innerHTML = `
+      <div class="mix-head-row">
+        <span></span><span>기대수익</span><span>나쁜 해엔</span><span class="mix-desc-col"></span>
+      </div>
+      ${rows.map(({ key, p, bad }) => `
+        <button type="button" class="mix-row-btn${key === active ? " is-active" : ""}"
+                data-mix-risk="${key}">
+          <span class="mix-label">${p.label}</span>
+          <span class="mix-num good">${pct(p.expected_return)}</span>
+          <span class="mix-num bad">${signPct(bad)}</span>
+          <span class="mix-desc-col">${p.desc}</span>
+        </button>`).join("")}
+      <p class="field-note mix-foot">
+        “나쁜 해엔”은 변동성으로 추정한 대략적인 하락 폭입니다. 실제로는 더 깊을 수 있어요.
+      </p>`;
+
+    $$("#riskCompare [data-mix-risk]").forEach((b) => {
+      b.addEventListener("click", () => {
+        state.goalRisk = b.dataset.mixRisk;
+        state.customWeights = null;          // 프리셋을 고르면 직접 조정은 해제
+        $$("[data-risk]").forEach((x) =>
+          x.setAttribute("aria-pressed", String(x.dataset.risk === state.goalRisk)));
+        renderAll();
+      });
+    });
+  }
+
+  /* 비중을 직접 맞추는 슬라이더. '내 물가'의 지출 슬라이더와 같은 방식이라
+     하나를 올리면 나머지가 비례해서 줄고 합은 항상 100%가 된다. */
+  function renderMixTuner(plan) {
+    const box = $("#mixFields");
+    if (!box || !plan) return;
+
+    const assets = state.market.assets;
+    const weights = Object.fromEntries(assets.map((a) => [a.id, plan.weights[a.id] || 0]));
+
+    box.innerHTML = assets.map((a) => {
+      const w = weights[a.id] || 0;
+      return `<div class="mix-row" style="--slider-color:${colorOf(a.id)}">
+        <div class="mix-head">
+          <span class="legend-swatch" style="background:${colorOf(a.id)}"></span>
+          <span class="mix-name">${a.name}</span>
+          <span class="rate-chip ${a.cagr >= 0.05 ? "rate-hot" : a.cagr <= 0 ? "rate-cool" : "rate-mild"}">${signPct(a.cagr)}</span>
+          <span class="spacer"></span>
+          <span class="mix-pct">${(w * 100).toFixed(0)}%</span>
+        </div>
+        <input type="range" id="mix-${a.id}" min="0" max="100" step="1"
+               value="${(w * 100).toFixed(0)}" aria-label="${a.name} 비중">
+      </div>`;
+    }).join("");
+
+    assets.forEach((a) => {
+      const el = $(`#mix-${a.id}`);
+      if (!el) return;
+      el.addEventListener("input", (e) => {
+        const next = { ...(state.customWeights || weights) };
+        const target = Math.max(0, Math.min(1, (+e.target.value || 0) / 100));
+        const others = Object.keys(next).filter((k) => k !== a.id);
+        const otherSum = others.reduce((s, k) => s + (next[k] || 0), 0);
+        const remaining = 1 - target;
+        if (otherSum <= 0) {
+          others.forEach((k) => { next[k] = remaining / others.length; });
+        } else {
+          others.forEach((k) => { next[k] = (next[k] || 0) / otherSum * remaining; });
+        }
+        next[a.id] = target;
+        state.customWeights = next;
+        renderAll();
+      });
+    });
+
+    $("#mixReset").hidden = !state.customWeights;
+  }
+
   function renderPlan(monthly, plan, annualGain) {
     if (!plan) return;
+
+    renderRiskCompare();
+    renderMixTuner(plan);
 
     // 도넛 (conic-gradient — sangmi 방식)
     let acc = 0;
@@ -1639,7 +1746,7 @@
       return;
     }
 
-    const plan = E.planOf(state.market, state.goalRisk);
+    const plan = activePlan();
     if (!plan) return;
     $("#goalRiskNote").textContent =
       `${plan.desc} 기대수익률 ${pct(plan.expected_return)} (실제 시장 데이터 기준)`;
