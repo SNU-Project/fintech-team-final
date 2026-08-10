@@ -4,6 +4,13 @@
 (function () {
   "use strict";
 
+  // 브라우저는 새로고침 시 직전 스크롤 위치를 자기가 알아서 복원하려
+  // 한다("auto"). 이 사이트는 새로고침하면 항상 맨 위(요약 화면)에서
+  // 시작해야 하는데, 이 복원이 우리 JS의 scrollHomeToTop보다 늦게(또는
+  // 겹쳐서) 적용되면 둘이 경합해서 애매한 위치에 멈춘다. 가장 먼저
+  // "manual"로 꺼서 스크롤 위치는 전부 우리 코드가 정하게 한다.
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
   const { barChart, hBarChart, lineChart } = window.Charts;
@@ -141,14 +148,20 @@
 
     // 비트코인 실시간 시세는 전체 요약바가 아니라, 실제로 관련 있는
     // 자산 타임머신 탭 안에서만 보여준다 — 첫인상에서 주제가 흩어지지 않게.
+    // hidden으로 통째로 숨겼다 나타내면 그 자리 높이가 0→실제값으로
+    // 바뀌면서 아래 내용이 밀린다. 스켈레톤을 기본으로 깔아 자리를
+    // 미리 잡아 두고, 값이 오면 내용만 바꾼다.
     if (res.btc.ok) {
       const d = res.btc.data;
       const dir = d.delta == null ? "" :
         `<span class="delta ${d.delta >= 0 ? "up" : "down"}">${d.delta >= 0 ? "▲" : "▼"}${Math.abs(d.delta).toFixed(2)}%</span>`;
-      $("#btcLiveNote").hidden = false;
+      $("#btcLiveNote").classList.remove("skeleton-bar");
       $("#btcLiveNote").innerHTML =
         `<span class="live-dot" style="display:inline-block;vertical-align:middle"></span>
          실시간 비트코인 시세 <b>${man(d.value / 10000)}만원</b> ${dir} (24시간)`;
+    } else {
+      // 조회 자체가 실패했을 땐 보여줄 값이 없으니 자리표시자를 접는다.
+      $("#btcLiveNote").hidden = true;
     }
   }
 
@@ -571,8 +584,14 @@
     // 버튼을 누르려고 스크롤한 채로 다음 화면(로딩·요약)으로 넘어갈 수 있다.
     // 그 상태로 두면 스크롤 위치가 다음 화면의 엉뚱한 지점(그 아래 리포트
     // 섹션)을 가리키게 되므로, 상태가 바뀔 때마다 홈 섹션 맨 위로 되돌린다.
+    // #panel-home을 scrollIntoView로 스크롤하면 section의 scroll-margin-top
+    // (고정 5rem)만큼만 헤더 자리를 비워두는데, 상단바 부제목이 줄바꿈되는
+    // 특정 화면 폭(약 861~950px)에서는 실제 헤더 높이가 그보다 커진다.
+    // 그 차이만큼 티커 스트립 전체가 고정 헤더 뒤에 가려져 안 보이는
+    // 버그가 있었다. 진짜 목적은 "페이지 맨 위로"이므로 그냥 맨 위로
+    // 스크롤한다 — sticky 헤더는 scrollY=0에서는 절대 겹치지 않는다.
     function scrollHomeToTop() {
-      $("#panel-home").scrollIntoView({ behavior: "auto", block: "start" });
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
 
     function showStep(i) {

@@ -158,8 +158,12 @@ section { scroll-margin-top: 5rem; }
 :root[data-theme="dark"] .theme-icon-moon { display: block; }
 
 /* ---------- 실시간 지표 스트립 ---------- */
+/* 스켈레톤(자리표시자)과 실제 값(원/달러 유무, 델타 표시 유무 등으로
+   내용이 조금씩 달라짐) 사이에 높이가 흔들리지 않도록 min-height를
+   명시한다 — 내용에 따라 우연히 높이가 맞는 걸 기대하지 않는다. */
 .ticker {
   display: flex; gap: .5rem; overflow-x: auto; padding: .55rem 0; scrollbar-width: none;
+  min-height: 3.2rem; box-sizing: border-box;
 }
 .ticker::-webkit-scrollbar { display: none; }
 /* 리포트 맨 처음에 오는 줄이라 가운데로 모은다. 모바일은 항목이 넘칠 때
@@ -550,6 +554,11 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 .total-field { margin-top: .1rem; }
 
 .field-note { font-size: .73rem; color: var(--text-muted); margin: .35rem 0 0; }
+/* 실시간 물가 출처 문구(#inflSource)는 스켈레톤일 때 한 줄 높이만
+   차지하는데, 실제 문장("실시간 · OECD 기준 ...")은 좁은 화면에서
+   두 줄로 넘어갈 수 있어 값이 도착하는 순간 아래 내용이 밀린다.
+   항상 두 줄 높이를 미리 잡아 둔다. */
+#inflSource { line-height: 1.4; min-height: 2.8em; }
 /* 색만으로 표시하던 경고문을 배경 있는 알림 칩으로 — 색약 사용자도
    구분되고, 눈에도 훨씬 잘 띈다. display:flex는 [hidden]과 명시도가
    같아서 나중 선언이 이기므로, 숨김 상태를 명시적으로 다시 덮어써야
@@ -996,6 +1005,11 @@ span.vs-v.skeleton-bar { width: 4.4em; height: .8em; }
 /* 문단형 자리표시자(푸터의 데이터 갱신 안내, 실시간 물가 출처 표기 등) —
    실제 텍스트 폭과 비슷하게 잡아야 값이 채워질 때 레이아웃이 덜 튄다. */
 p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
+/* height:1em은 line-height를 1로 가정하는데, 본문 줄간격은 그보다
+   넉넉해서(실측 약 1.6배) 실제 문장이 채워지는 순간 살짝 더 커 보이는
+   틈이 있었다. 비트코인 시세처럼 아이콘이 같이 들어가는 한 줄짜리
+   자리표시자는 실측 줄높이에 맞춰 min-height로 덮어쓴다. */
+#btcLiveNote.skeleton-bar { height: auto; min-height: 1.6em; }
 .tick.skeleton-tick { border-color: transparent; }
 .tick.skeleton-tick .skeleton-bar { height: .9em; border-radius: 999px; }
 @media (prefers-reduced-motion: reduce) { .skeleton-bar { animation: none; } }
