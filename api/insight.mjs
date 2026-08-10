@@ -140,9 +140,9 @@ export async function POST(request) {
             contents: [{ role: "user", parts: [{ text: facts }] }],
             // thinkingConfig는 모델마다 지원이 갈려서(안 받는 모델은 400) 쓰지
             // 않는다. 대신 사고와 답변이 함께 들어갈 만큼 여유를 준다.
-            // 180으로 뒀을 때는 사고가 다 먹고 답변이 잘려
-            // "Exactly two sentences (두 문장)." 같은 쓰레기가 나왔다.
-            generationConfig: { temperature: 0.2, maxOutputTokens: 800 },
+            // 180 → 답변이 아예 안 나옴, 800 → 두 번째 문장이 잘림.
+            // 사고형 모델은 사고에만 수백 토큰을 쓰므로 넉넉히 잡는다.
+            generationConfig: { temperature: 0.2, maxOutputTokens: 1500 },
           }),
         }
       );
