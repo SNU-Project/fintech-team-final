@@ -163,10 +163,16 @@ export async function POST(request) {
     }
 
     const output = await response.json();
-    const checked = safeText(
-      output?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(" "),
-      input
-    );
+    // 사고형 모델(gemini-flash-latest 등)은 내부 사고를 parts에 함께 담고
+    // thought: true 로 표시한다. 이걸 걸러내지 않으면 프롬프트를 곱씹는
+    // 내용이 그대로 해설 자리에 나온다.
+    const parts = output?.candidates?.[0]?.content?.parts || [];
+    const answer = parts
+      .filter((part) => !part.thought)
+      .map((part) => part.text)
+      .filter(Boolean)
+      .join(" ");
+    const checked = safeText(answer, input);
     if (!checked.text) {
       console.error(`[insight] ${model} 출력 거부: ${checked.reason} | ${checked.raw}`);
       return Response.json({
