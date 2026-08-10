@@ -274,7 +274,7 @@ def main() -> None:
 
     cleaning_log: list[str] = []
 
-    print("[1/3] 원/달러 환율 수집")
+    print("[1/5] 원/달러 환율 수집")
     fx = fetch_monthly_closes(FX_SYMBOL)
     fx, dropped = reject_outliers(fx, "원/달러")
     cleaning_log += dropped
@@ -282,7 +282,7 @@ def main() -> None:
         print(f"    ! {d}")
     print(f"    · {len(fx)}개월 ({min(fx)} ~ {max(fx)})")
 
-    print("[2/3] 자산별 월말 종가 수집")
+    print("[2/5] 자산별 월말 종가 수집")
     raw_series: dict[str, dict[str, float]] = {}
     for asset in ASSETS:
         series = fetch_monthly_closes(asset["symbol"])
@@ -297,7 +297,7 @@ def main() -> None:
         raw_series[asset["id"]] = series
         print(f"    · {asset['name']:<18} {len(series):>3}개월{note}")
 
-    print("[3/4] 한국 소비자물가지수 수집 (OECD)")
+    print("[3/5] 한국 소비자물가지수 수집 (OECD)")
     start = f"{fetched_at.year - YEARS}-01"
     cpi_index = fetch_oecd_cpi("IX", "_Z", start)
     cpi_yoy = fetch_oecd_cpi("PA", "GY", start)
