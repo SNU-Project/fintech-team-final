@@ -520,15 +520,6 @@ input[type="range"]::-moz-range-thumb {
 input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--brand); outline-offset: 2px; }
 input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--brand); outline-offset: 2px; }
 
-/* 다른 탭에서 적용한 값이 이 필드로 넘어왔을 때 잠깐 반짝여서
-   "진짜 바뀌었다"는 걸 눈으로 바로 확인시켜준다. */
-@keyframes fieldFlash {
-  0%   { box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 35%, transparent); border-radius: var(--radius-sm); }
-  100% { box-shadow: 0 0 0 4px transparent; border-radius: var(--radius-sm); }
-}
-.field-flash { animation: fieldFlash 1.8s ease-out; }
-@media (prefers-reduced-motion: reduce) { .field-flash { animation: none; } }
-
 .seg { display: flex; gap: .25rem; background: var(--surface-sunk); border-radius: var(--radius-sm); padding: .22rem; }
 .seg button {
   flex: 1; appearance: none; border: 0; background: none; font-family: inherit; font-size: .8rem;
@@ -686,7 +677,6 @@ input[readonly]::placeholder { color: var(--text-muted); font-weight: 600; opaci
 }
 .bento > * { min-width: 0; margin-top: 0 !important; }
 .bento .chart-box svg { width: 100%; }
-.bento-action .apply-btn { margin-top: .8rem; }
 
 /* 스크롤하며 섹션이 하나씩 나타나는 연출 — stepIn 키프레임(온보딩 문항
    전환에도 쓰는 것과 같은 모양)을 재사용한다. JS(setupScrollReveal)가
@@ -846,13 +836,6 @@ input[readonly]::placeholder { color: var(--text-muted); font-weight: 600; opaci
 }
 .spend-total b { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 
-.apply-btn {
-  margin-top: 1rem; width: 100%; appearance: none; border: 0; cursor: pointer;
-  background: var(--brand); color: #fff; font-family: inherit; font-weight: 700;
-  font-size: .9rem; padding: .72rem 1rem; border-radius: var(--radius-sm);
-}
-.apply-btn:hover { filter: brightness(1.06); }
-.apply-btn:active { transform: translateY(1px); }
 .ai-explain-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
   margin-top: .75rem; appearance: none; cursor: pointer;
