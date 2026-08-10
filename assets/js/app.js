@@ -188,7 +188,7 @@
     const snap = new Date(state.market.source_fetched_at);
     items.push(`<span class="tick"><span class="live-dot stale"></span><span class="lbl">시세 스냅샷</span>
       <b>${snap.getFullYear()}.${String(snap.getMonth() + 1).padStart(2, "0")}.${String(snap.getDate()).padStart(2, "0")}</b>
-      <span class="lbl">매일 자동 갱신</span></span>`);
+      <span class="lbl">주 1회 갱신</span></span>`);
 
     $("#ticker").innerHTML = items.join("");
   }
@@ -1293,7 +1293,25 @@
     const { cur, next, budget, valid } = readGapInputs();
     $("#inflVal").textContent = `${state.inflation.toFixed(1)}%`;
     $("#budgetVal").textContent = `${man(budget)}만원`;
-    if (!valid) return;
+
+    // 연봉이 0이면 그냥 return 하던 탓에 차트 자리가 빈 칸으로 남았다.
+    // '내 물가' 탭처럼 왜 비어 있는지 알려 준다. 안내 없이 비어 있으면
+    // 사용자는 고장난 걸로 읽는다.
+    if (!valid) {
+      const guide = "현재 연봉을 입력하면 물가와 비교해 보여드립니다.";
+      $("#salaryChart").innerHTML = `<p class="skeleton">${guide}</p>`;
+      $("#trendChart").innerHTML = `<p class="skeleton">현재 연봉을 입력하면 격차가 어떻게 벌어지는지 계산합니다.</p>`;
+      $("#trendLegend").innerHTML = "";
+      $("#gapStats").innerHTML = "";
+      $("#negoStats").innerHTML = "";
+      $("#gapVerdict").className = "verdict";
+      $("#gapVerdict").textContent = guide;
+      $("#trendVerdict").className = "verdict";
+      $("#trendVerdict").textContent = guide;
+      $("#negoVerdict").className = "verdict";
+      $("#negoVerdict").textContent = guide;
+      return;
+    }
 
     const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
 
@@ -1790,7 +1808,7 @@
     const gen = new Date(state.meta.generated_at);
     $("#buildInfo").classList.remove("skeleton-bar");
     $("#buildInfo").textContent =
-      `데이터 갱신 ${gen.toLocaleString("ko-KR")} · 시세 스냅샷은 GitHub Actions가 매일 자동 수집합니다.`;
+      `데이터 갱신 ${gen.toLocaleString("ko-KR")} · 물가·환율·비트코인은 실시간 조회, 시세 시계열은 주 1회 수집한 스냅샷입니다.`;
   }
 
   /* ══════════════ 전체 렌더 ══════════════ */

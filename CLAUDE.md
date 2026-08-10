@@ -29,7 +29,9 @@ const wave = 1 + Math.sin(step * 0.82) * asset.risk * 0.08;
 
 ### 2. 빌드 도구를 추가하지 마세요
 
-npm, webpack, vite, TypeScript, React — **전부 금지**입니다. 순수 HTML/CSS/JS + 인라인 SVG만 씁니다.
+npm, webpack, vite, TypeScript, React — **전부 금지**입니다. 화면은 순수 HTML/CSS/JS + 인라인 SVG만 씁니다.
+
+유일한 예외는 `api/insight.mjs`(Vercel 서버리스 함수)이며, 이것도 빌드 없이 그대로 배포됩니다. **여기에도 npm 의존성을 추가하지 마세요.**
 
 이유: 발표 당일 평가자가 배포 URL을 직접 엽니다. 빌드 단계가 없으면 CI가 깨질 일이 없습니다. 실제로 팀원 중 한 명의 Next.js 프로토타입은 `basePath` 불일치로 Pages에서 404가 났습니다.
 
@@ -42,7 +44,7 @@ npm, webpack, vite, TypeScript, React — **전부 금지**입니다. 순수 HTM
 const RISK_RETURNS = { stable: 0.03, balanced: 0.06, aggressive: 0.09 };
 ```
 
-모든 수치는 `data/market.json`, `data/cpi.json`에서 읽습니다. 이 파일들은 GitHub Actions가 매일 실제 API에서 받아 갱신합니다.
+모든 수치는 `data/market.json`, `data/cpi.json`에서 읽습니다. 이 파일들은 GitHub Actions가 주 1회 실제 API에서 받아 PR로 갱신합니다.
 
 **유일한 예외**는 예금 수익률(`pipeline/transform.py`의 `CASH_ANNUAL_RETURN = 0.030`)입니다. 시장 시세가 없어서 가정값이고, 화면에 `가정값` 배지로 명시하고 있습니다. 새 가정값을 추가하려면 반드시 화면과 `meta.json`의 `assumptions`에 함께 노출하세요.
 
@@ -58,7 +60,8 @@ const RISK_RETURNS = { stable: 0.03, balanced: 0.06, aggressive: 0.09 };
 - 서울대 빅데이터 핀테크 13기 · 웹 개발 및 시각화 팀 프로젝트
 - 팀원 5명의 개별 프로토타입을 하나로 통합한 결과물 (통합 내역은 `README.md` 6절)
 
-**탭 4개**
+**흐름**: 홈에서 5단계 설문 → 연봉 성적표(100점) → 아래 4개 탭의 상세 리포트
+
 1. **내 물가** — 소비 습관 기반 개인 물가지수 (우리 팀의 차별화 기능)
 2. **실질임금 진단** — 연봉 vs 물가, 협상 가이드
 3. **목표 자산 모으기** — 목표 역산, 성장 곡선
@@ -69,13 +72,16 @@ const RISK_RETURNS = { stable: 0.03, balanced: 0.06, aggressive: 0.09 };
 ## 구조
 
 ```
-index.html                  마크업 (탭 4개)
+index.html                  마크업 (패널 6개: home, mine, gap, goal, time, final)
 assets/css/styles.css       디자인 시스템 (CSS 변수, 라이트/다크)
 assets/js/
   charts.js                 SVG 차트 — barChart, hBarChart, lineChart, contributionChart
   engine.js                 계산 로직 — 순수 함수, DOM 안 건드림
   live.js                   실시간 API 레이어
+  personas.js               가구 유형별 지출 시작값 (국가데이터처 가계동향조사)
   app.js                    화면 조립, 이벤트 바인딩
+api/
+  insight.mjs               AI 해설 서버리스 함수 (Vercel) — 아래 설명 참고
 data/                       ← 손으로 고치지 마세요. Actions가 덮어씁니다
   market.json               자산 시계열·지표·포트폴리오
   cpi.json                  물가 (전체 + COICOP 12품목)
@@ -84,9 +90,20 @@ pipeline/
   fetch_data.py             수집 (표준 라이브러리만 사용, 의존성 0)
   transform.py              정제·지표 산출
 docs/
+  pr-protocol.md            PR 올리기 전 자체 점검 (AI에게 읽히세요)
   ai-usage.md               AI 활용 및 검증 내역 (채점 7번 대응)
   presentation.md           발표 구성·데모 시나리오
 ```
+
+### `api/insight.mjs` — 유일한 서버 코드
+
+화면은 정적이지만 **AI 해설 하나만 서버리스 함수**입니다. Vercel에서만 동작하고, GitHub Pages 배포본에는 이 기능이 없습니다(Pages는 함수를 못 돌립니다).
+
+여기 있어야 하는 이유는 하나입니다 — **AI Gateway 토큰을 브라우저에 노출할 수 없어서**입니다. 앞으로도 키가 필요한 기능은 전부 여기로 보내세요. `assets/` 안에 키를 넣으면 그대로 공개됩니다.
+
+이 함수는 모델 출력도 검증합니다. **전달한 값에 없는 숫자가 응답에 나오면 통째로 버립니다**(`safeText`). "데이터를 지어내지 않는다"는 원칙을 AI 출력에까지 적용한 것이니, 이 검증을 약화시키지 마세요.
+
+### 코드를 어디에 둘지
 
 **계산은 `engine.js`에, 렌더링은 `app.js`에** 두세요. `engine.js`의 함수는 전부 순수 함수라 콘솔에서 바로 테스트할 수 있습니다.
 
@@ -101,7 +118,7 @@ docs/
 | OECD SDMX | 물가 (전체 + 12품목) | ✅ | 브라우저 실시간 |
 | Frankfurter (ECB) | 원/달러 | ✅ | 브라우저 실시간 |
 | CoinGecko | 비트코인 | ✅ | 브라우저 실시간 |
-| Yahoo Finance | 주식·금·채권 10년 시계열 | ❌ | Actions가 매일 수집 |
+| Yahoo Finance | 주식·금·채권 10년 시계열 | ❌ | Actions가 주 1회 수집 → PR |
 
 **새 데이터 소스를 추가할 때는 반드시 CORS부터 실측하세요:**
 
@@ -111,7 +128,9 @@ curl -sI -H "Origin: https://fintech-team-final.vercel.app" "<API_URL>" | grep -
 
 헤더가 없으면 브라우저에서 못 씁니다. `pipeline/`에 넣어 스냅샷으로 처리하세요. **프록시 서비스를 끼워 넣지 마세요** — 발표날 죽으면 대책이 없습니다.
 
-API 키가 필요한 서비스도 피하세요. 현재 **키 없이** 전부 돌아가고 있고, 정적 사이트에 키를 넣으면 그대로 공개됩니다.
+API 키가 필요한 서비스는 되도록 피하세요. 화면이 쓰는 데이터는 전부 **키 없이** 돌아갑니다.
+
+키가 꼭 필요하면 `api/` 안의 서버리스 함수에서만 쓰세요(현재 AI 해설이 유일). `assets/` 안에 넣으면 그대로 공개됩니다.
 
 ---
 
@@ -154,7 +173,7 @@ python3 pipeline/fetch_data.py && python3 pipeline/transform.py
 - [ ] 브라우저 콘솔 에러 0건
 - [ ] **모바일 375px에서 가로 스크롤 없음** — `document.body.scrollWidth === document.documentElement.clientWidth`
 - [ ] 라이트/다크 양쪽 확인 (우상단 "테마" 버튼)
-- [ ] 탭 4개 전부 렌더되는지
+- [ ] 홈 설문 → 성적표 → 탭 4개 전부 렌더되는지
 - [ ] 입력 엣지 케이스: 0, 음수, 극단값
 - [ ] 새 수치를 넣었다면 **외부 사실과 교차 검증** (예: 금 2021.08→2026.08은 USD +140% × 환율 +22% ≈ +193%, 화면값 +194.4% ✅)
 
@@ -174,7 +193,9 @@ git push -u origin feat/이름-작업내용
 브랜치 이름은 `feat/`(기능), `fix/`(버그), `docs/`(문서) 뒤에 본인 이름과 작업을 붙입니다.
 예: `feat/somin-차트툴팁`, `fix/yeju-모바일레이아웃`
 
-**승인자는 0명**이라 검사만 통과하면 혼자 Merge할 수 있습니다. 다만 다른 사람 영역을 건드렸다면 한 번 물어보세요.
+**승인자는 0명**이라 검사만 통과하면 혼자 Merge할 수 있습니다.
+
+올리기 전에 [`docs/pr-protocol.md`](docs/pr-protocol.md)를 읽고 자체 점검을 돌리세요. 회의 없이 굴리기 위한 최소 장치입니다.
 
 ### PR 자동검사 (`.github/workflows/pr-check.yml`)
 
@@ -194,7 +215,7 @@ PR을 올리면 아래를 자동으로 검사합니다. 하나라도 실패하�
 ### 커밋
 
 - 커밋 메시지에 **왜 그렇게 했는지**를 적으세요. 이 리포에는 대화 기록이 없어서 커밋 메시지가 유일한 맥락입니다.
-- `data/` 자동 갱신 커밋은 `github-actions[bot]`이 만듭니다. 손대지 마세요.
+- `data/` 갱신은 `github-actions[bot]`이 **PR로** 올립니다(주 1회). 내용은 손대지 말고 머지만 하세요.
 - 워크플로 파일(`.github/workflows/`)을 수정하려면 토큰에 `workflow` 스코프가 필요합니다 (`gh auth refresh -s workflow`).
 
 ---

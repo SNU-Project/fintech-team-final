@@ -1,16 +1,21 @@
 name: Update market data
 
 # Yahoo Finance는 CORS를 열어 주지 않아 브라우저에서 직접 못 부른다.
-# 그래서 여기서 매일 받아 data/*.json으로 커밋한다.
+# 그래서 여기서 주기적으로 받아 data/*.json으로 갱신한다.
 # (물가·환율·비트코인은 CORS가 열려 있어 페이지가 직접 실시간 조회한다)
+#
+# main은 보호되어 있어 봇이 직접 push할 수 없다(2026-08-07~09 3일간 이것 때문에
+# 계속 실패했다). 그래서 직접 push하지 않고 PR을 연다. 관리자는 검사 없이도
+# 머지할 수 있으므로 클릭 한 번이면 끝난다.
 
 on:
   schedule:
-    - cron: "0 21 * * *"   # UTC 21:00 = KST 06:00
+    - cron: "0 21 * * 0"   # UTC 일 21:00 = KST 월 06:00 (주 1회)
   workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: update-data
@@ -56,24 +61,74 @@ jobs:
 
           if len(cpi["index"]) < 24:
               problems.append(f"CPI 관측치 {len(cpi['index'])}개월")
+          if len(cpi.get("categories", [])) != 12:
+              problems.append(f"품목별 물가 {len(cpi.get('categories', []))}개 (12개여야 함)")
 
           if problems:
-              print("::error::검증 실패")
+              print("::error::검증 실패 — PR을 만들지 않습니다")
               for p in problems:
                   print(f"  - {p}")
               sys.exit(1)
 
-          print(f"검증 통과 — 자산 {len(market['assets'])}종, CPI {len(cpi['index'])}개월")
+          print(f"검증 통과 — 자산 {len(market['assets'])}종, CPI {len(cpi['index'])}개월, "
+                f"품목 {len(cpi['categories'])}개")
           PY
 
-      - name: 변경사항 커밋
+      - name: 변경 여부 확인
+        id: diff
         run: |
+          if git diff --quiet -- data/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "데이터 변경 없음 — PR 생략"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --stat -- data/
+          fi
+
+      - name: 갱신 PR 열기
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="data/auto-refresh-$DATE"
+
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add data/
-          if git diff --staged --quiet; then
-            echo "변경 없음 — 커밋 생략"
+          git commit -m "chore(data): 시세·물가 스냅샷 갱신 ($DATE)"
+          git push -f origin "$BRANCH"
+
+          SNAP=$(python -c "import json;print(json.load(open('data/market.json'))['source_fetched_at'][:10])")
+
+          # 같은 날짜 PR이 이미 있으면 새로 만들지 않는다
+          if gh pr list --head "$BRANCH" --state open --json number --jq 'length' | grep -q '^0$'; then
+            gh pr create --base main --head "$BRANCH" \
+              --title "chore(data): 시세·물가 스냅샷 갱신 ($DATE)" \
+              --body "$(cat <<EOF
+## 무엇을 왜 바꿨나
+
+GitHub Actions가 Yahoo Finance와 OECD에서 데이터를 다시 받아 \`data/*.json\`을 갱신했습니다.
+수집 시각: **$SNAP**
+
+브라우저에서 직접 못 부르는 시세 시계열만 여기서 갱신합니다. 물가·환율·비트코인은 페이지가 실시간으로 조회합니다.
+
+## 자체 검증 결과
+
+판정: 🟢 자동 검증 통과
+
+- 자산별 관측치 24개월 이상
+- CAGR·변동성·최대낙폭 정상 범위 (오류 틱 없음)
+- CPI 12품목 전부 수신
+- 코드 변경 없음 — \`data/\` 하위 JSON만 변경
+
+> 봇이 만든 PR이라 \`check\` 워크플로가 자동으로 돌지 않습니다.
+> 위 검증은 이 워크플로 안에서 같은 기준으로 이미 수행했습니다.
+> 관리자는 검사 없이 머지할 수 있습니다.
+EOF
+)"
           else
-            git commit -m "chore(data): 시세·물가 스냅샷 갱신 ($(date -u +%Y-%m-%d))"
-            git push
+            echo "이미 열린 PR이 있습니다 — 브랜치만 갱신했습니다"
           fi
