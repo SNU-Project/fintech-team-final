@@ -1,4 +1,11 @@
-const MODEL = "gemini-2.5-flash-lite";
+// 사용할 모델 후보. 앞에서부터 시도하고 404(모델 없음/미제공)면 다음으로 넘어간다.
+// 구글이 모델을 수시로 정리해서 하나만 박아 두면 어느 날 조용히 죽는다.
+// 실제로 gemini-2.5-flash-lite가 "no longer available to new users"로 404가 났다.
+const MODELS = [
+  "gemini-flash-latest",
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+];
 const SYSTEM_PROMPT =
   "당신은 금융 초보자를 돕는 한국어 데이터 해설자입니다. 제공된 계산 결과만 사용해 " +
   "두 문장으로 쉽게 설명하세요. 숫자·기호·목록·마크다운을 출력하지 마세요. " +
@@ -92,42 +99,52 @@ export async function POST(request) {
     `그 품목의 물가상승률: ${input.topRatePct}%`,
   ].join("\n");
 
-  try {
-    const gatewayResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "x-goog-api-key": apiKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: [{ role: "user", parts: [{ text: facts }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 180 },
-        }),
-      }
-    );
-    if (!gatewayResponse.ok) {
-      // 게이트웨이가 왜 거부했는지 남긴다. 상태 코드만으로는 키가 틀린 건지,
-      // 크레딧이 없는 건지, 모델 권한이 없는 건지 구분할 수 없어서
-      // 2026-08-07~10 사이 403 원인을 못 찾고 시간을 썼다.
-      // 응답 본문에는 우리 토큰이 들어가지 않으므로 노출해도 안전하다.
-      let detail = "";
-      try {
-        detail = (await gatewayResponse.text()).replace(/\s+/g, " ").slice(0, 200);
-      } catch (_ignored) {
-        detail = "(본문 없음)";
-      }
-      console.error(`[insight] gateway ${gatewayResponse.status}: ${detail}`);
+  // 모델을 앞에서부터 시도한다. 404(그 모델이 없거나 내 계정에 안 열림)면
+  // 다음 후보로 넘어가고, 그 외 오류는 바로 반환한다.
+  let lastStatus = 0;
+  let lastDetail = "";
+
+  for (const model of MODELS) {
+    let response;
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "x-goog-api-key": apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: [{ role: "user", parts: [{ text: facts }] }],
+            generationConfig: { temperature: 0.2, maxOutputTokens: 180 },
+          }),
+        }
+      );
+    } catch (_error) {
       return Response.json({
         error: "AI 해설을 불러오지 못했습니다.",
-        code: `gateway-${gatewayResponse.status}`,
-        detail,
-        authSource: "gemini-api-key",
+        code: "gateway-unreachable",
       }, { status: 502 });
     }
-    const output = await gatewayResponse.json();
+
+    if (!response.ok) {
+      // 상태 코드만으로는 키가 틀린 건지, 모델이 없는 건지, 할당량이 떨어진
+      // 건지 구분할 수 없다. 응답 본문을 남겨야 원인을 짚을 수 있다.
+      // (응답에 우리 키는 들어가지 않으므로 노출해도 안전하다)
+      lastStatus = response.status;
+      try {
+        lastDetail = (await response.text()).replace(/\s+/g, " ").slice(0, 200);
+      } catch (_ignored) {
+        lastDetail = "(본문 없음)";
+      }
+      console.error(`[insight] ${model} → ${lastStatus}: ${lastDetail}`);
+      if (lastStatus === 404) continue;   // 이 모델만 없는 경우 → 다음 후보
+      break;                              // 인증·할당량 문제 → 더 시도해도 소용없다
+    }
+
+    const output = await response.json();
     const text = safeText(
       output?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(" "),
       input
@@ -138,15 +155,17 @@ export async function POST(request) {
         code: "model-output-rejected",
       }, { status: 502 });
     }
-    return Response.json({ text, model: MODEL }, {
+    return Response.json({ text, model }, {
       headers: { "Cache-Control": "no-store" },
     });
-  } catch (_error) {
-    return Response.json({
-      error: "AI 해설을 불러오지 못했습니다.",
-      code: "gateway-unreachable",
-    }, { status: 502 });
   }
+
+  return Response.json({
+    error: "AI 해설을 불러오지 못했습니다.",
+    code: `gateway-${lastStatus || "unknown"}`,
+    detail: lastDetail,
+    authSource: "gemini-api-key",
+  }, { status: 502 });
 }
 
 export function GET() {
