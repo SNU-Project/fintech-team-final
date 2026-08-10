@@ -183,11 +183,8 @@
     <!-- 처음 보는 사람은 "내 물가"가 뭔지 모른다. 결과 숫자를 보여주기 전에
          왜 평균이 내 물가가 아닌지부터 한 번 짚는다. -->
     <div class="concept-note">
-      <p>뉴스의 <b>“물가 2.8%”</b>는 전 국민 평균 장바구니 기준입니다.
-         그런데 같은 달에도 품목별로 오른 정도가 완전히 다릅니다.</p>
-      <div class="concept-bars" id="conceptBars"></div>
-      <p>차로 출퇴근하는 사람과 지하철만 타는 사람의 체감이 같을 리 없죠.
-         <b>내가 실제로 쓰는 비중으로 다시 계산한 것</b>이 내 물가입니다.</p>
+      <p>공식 물가는 전 국민 평균이에요. 그런데 품목마다 물가 상승률이 다르기 때문에,
+         내가 실제로 쓰는 품목 비중으로 다시 계산한 게 <b>'내 물가'</b>예요.</p>
     </div>
     <div class="bento">
 
@@ -195,31 +192,19 @@
            이어져야 "이렇게 답해서 → 이런 결과" 흐름이 보인다. -->
       <div class="card bento-input">
         <div class="section-head">
-          <div><h2>나와 가까운 생활 유형</h2><p>설문에서 답하신 내용이에요.</p></div>
+          <div><h2>나와 가까운 생활 유형</h2><p>설문에서 입력하신 내용이에요.</p></div>
         </div>
 
-        <div class="persona-grid is-locked" id="personaSeg" role="group" aria-label="생활 유형 선택">
-          <button type="button" data-persona="solo" aria-pressed="true" tabindex="-1">
-            <b>혼자 생활비를 관리해요</b><span>1인 가구 통계</span>
-          </button>
-          <button type="button" data-persona="couple" aria-pressed="false" tabindex="-1">
-            <b>둘이 생활비를 함께 써요</b><span>2인 가구 통계</span>
-          </button>
-          <button type="button" data-persona="family" aria-pressed="false" tabindex="-1">
-            <b>가족과 목표를 준비해요</b><span>4인 가구 통계</span>
-          </button>
-        </div>
-
-        <p class="field-note persona-basis" id="personaBasis"></p>
+        <label class="field total-field">가구 유형
+          <p class="field-value" id="personaLabel">—</p>
+        </label>
 
         <label class="field total-field">내 월 생활비
-          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0"><span>만원</span></span>
+          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0" readonly><span>만원</span></span>
         </label>
-        <p class="field-note">설문에서 답하신 월 생활비예요. 세부 항목은 아래에서 조정할 수 있어요.</p>
 
         <details class="spend-details">
-          <summary>내 지출에 맞게 세부 금액 수정</summary>
-          <p class="field-note">정확히 몰라도 괜찮습니다. 자주 쓰는 항목만 고치면 결과가 바로 바뀝니다.</p>
+          <summary>세부 품목별 금액 보기</summary>
           <div id="spendFields"></div>
         </details>
 
@@ -234,24 +219,9 @@
       <!-- 헤드라인: 공식 vs 내 물가 -->
       <div class="card bento-hero">
         <p class="kicker">뉴스에 나오는 물가는 전국 평균입니다</p>
-        <div class="vs-row" id="vsRow">
-          <div class="vs-side">
-            <span class="vs-k">공식 물가</span>
-            <span class="vs-v skeleton-bar" id="officialRate"></span>
-            <span class="vs-s" id="officialMonth">—</span>
-          </div>
-          <div class="vs-mid" id="vsGap">—</div>
-          <div class="vs-side accent">
-            <span class="vs-k">내 물가</span>
-            <span class="vs-v skeleton-bar" id="personalRate"></span>
-            <span class="vs-s">내 지출 기준</span>
-          </div>
-        </div>
         <p class="verdict" id="mineVerdict">—</p>
+        <p class="vs-figures" id="vsFigures">—</p>
         <div class="americano-callout" id="americanoCallout"></div>
-        <button class="ai-explain-btn" id="aiExplainBtn" type="button" disabled>
-          <span aria-hidden="true">✦</span> AI로 쉽게 풀어보기
-        </button>
       </div>
 
       <!-- 기여도 분해 -->
@@ -259,19 +229,11 @@
         <h3 class="block-title">내 물가를 밀어올린 범인</h3>
         <p class="verdict" id="contribSummary" hidden>—</p>
         <ol class="contrib-rank" id="contribRank"></ol>
-        <details class="calc-detail" id="contribRankMore" hidden>
-          <summary>나머지 항목 더 보기</summary>
-          <ol class="contrib-rank" id="contribRankMoreList"></ol>
-        </details>
         <details class="calc-detail">
           <summary>상세 계산 보기</summary>
           <p class="block-q">막대 = 지출 비중 × 그 품목의 물가상승률. 다 더하면 내 물가입니다.</p>
           <div class="calc-walk" id="contribMath"></div>
           <div class="chart-box" id="contribChart"></div>
-        </details>
-        <details class="cat-legend">
-          <summary>각 항목에 뭐가 들어가나요?</summary>
-          <dl id="catLegend"></dl>
         </details>
         <span class="src-note" id="mineSrc">—</span>
       </div>
@@ -281,20 +243,6 @@
         <h3 class="block-title">그래서 얼마를 벌어야 하나</h3>
         <div class="stat-grid" id="mineActionStats"></div>
         <p class="verdict" id="mineAction">—</p>
-      </div>
-
-      <!-- 10년 누적 -->
-      <div class="card bento-cum">
-        <h3 class="block-title">10년을 이렇게 살았다면</h3>
-        <details class="calc-detail">
-          <summary>10년 추이 더 보기</summary>
-          <p class="block-q">지출 비중을 고정하고 과거 10년을 되돌렸습니다. 두 선이 벌어질수록 공식 통계와 체감의 차이가 큽니다.</p>
-          <div class="chart-box" id="cumChart"></div>
-          <div class="legend" id="cumLegend"></div>
-          <div class="stat-grid" id="cumStats"></div>
-          <p class="verdict" id="cumNote" hidden></p>
-          <p class="field-note" id="spreadNote">—</p>
-        </details>
       </div>
 
     </div>
@@ -321,10 +269,10 @@
 
           <div class="field-grid">
             <label class="field">현재 연봉
-              <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600" readonly><span>만원</span></span>
             </label>
             <label class="field">내년 예상 연봉
-              <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750" readonly><span>만원</span></span>
             </label>
           </div>
           <p class="err-text" id="salaryErr" hidden></p>
@@ -589,25 +537,6 @@
 </main>
 
 <div id="tooltip" hidden></div>
-
-<dialog class="ai-dialog" id="aiInsightDialog" aria-labelledby="aiInsightTitle">
-  <div class="ai-dialog-head">
-    <div>
-      <span class="ai-eyebrow">GEMINI 숫자 해설</span>
-      <h2 id="aiInsightTitle">내 물가, 한눈에 이해하기</h2>
-    </div>
-    <button class="ai-close" id="aiCloseBtn" type="button" aria-label="AI 해설 창 닫기">×</button>
-  </div>
-  <div class="ai-facts" aria-label="AI에 전달한 계산 결과">
-    <div><span>공식 물가</span><b id="aiOfficialRate">—</b></div>
-    <div><span>내 물가</span><b id="aiPersonalRate">—</b></div>
-    <div><span>가장 큰 영향</span><b id="aiTopCategory">—</b></div>
-  </div>
-  <div class="ai-message" id="aiInsightBody" aria-live="polite"></div>
-  <p class="ai-status" id="aiInsightStatus">검증된 계산 결과만 해설합니다.</p>
-  <button class="ai-retry-btn" id="aiRetryBtn" type="button" hidden>다시 시도</button>
-  <p class="ai-privacy">개인정보·지출 금액은 보내지 않습니다 · 투자 권유가 아닙니다</p>
-</dialog>
 
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/engine.js"></script>

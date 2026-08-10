@@ -277,12 +277,6 @@
     };
   }
 
-  // 구매력이 절반이 되기까지 걸리는 시간
-  function halfLife(annualRate) {
-    if (annualRate <= 0) return null;
-    return Math.log(2) / Math.log(1 + annualRate);
-  }
-
   /* ---------- 7. 연봉 성적 (종합 점수) ----------
      "실질임금 진단"과 "내 물가" 탭에서 이미 계산 중인 두 신호(실질임금
      성장·물가 방어)만 0~100점으로 정규화해 평균한다. 새 숫자를 만들어
@@ -347,7 +341,7 @@
   global.Engine = {
     diagnose, negotiate, project, requiredMonthly, monthsToGoal,
     backtest, backtestWindow, inflationPath, planOf, customPlan, badYear,
-    personalInflation, personalIndexPath, aggregateByGroup, halfLife, salaryScore,
+    personalInflation, personalIndexPath, aggregateByGroup, salaryScore,
     monthToNum, monthLabel, addMonths,
   };
 })(window);

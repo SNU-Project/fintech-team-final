@@ -113,8 +113,6 @@
     spending: roundSpending(PERSONAS[DEFAULT_PERSONA].spending),
     persona: DEFAULT_PERSONA,
     personalRate: null,
-    aiContext: null,
-    aiCache: new Map(),
   };
 
   /* 지금 적용 중인 배분. 사용자가 슬라이더로 맞췄으면 그것을, 아니면
@@ -289,14 +287,11 @@
   const personaDefaultTotal = (persona) =>
     Math.round(spendingTotal((PERSONAS[persona] || PERSONAS[DEFAULT_PERSONA]).spending));
 
-  /* 리포트 탭의 입력칸은 원래 readonly였다. 설문이 원본이고 탭은 보여주기만
-     한다는 설계였는데, 입력칸처럼 생겨서 사람들이 눌러 보고 "안 된다"고 느꼈다.
-     이제 탭에서 바로 고칠 수 있게 열고, 고친 값은 저장까지 반영한다.
-     안 그러면 새로고침 때 설문값으로 되돌아가 또 고장처럼 보인다. */
+  /* 설문값(월 생활비·세부 지출·연봉)은 리포트에서 읽기 전용이라 여기 없다
+     — 바꾸려면 "처음부터 다시 입력하기"로 설문을 다시 풀어야 한다. 목표
+     자산은 설문 문항이 아니라 리포트 안의 "직접 넣어보는" 계산기라 계속
+     편집 가능하고, 고친 값은 새로고침 후에도 남도록 저장까지 반영한다. */
   const REPORT_FIELDS = {
-    monthlySpend: "monthlySpend",
-    curSalary: "curSalary",
-    nextSalary: "nextSalary",
     goalAmount: "goalAmount",
     goalCurrent: "goalCurrent",
     goalYears: "goalYears",
@@ -345,8 +340,7 @@
   // 그대로 반영한다. persona부터 눌러야 월 생활비 스케일링이 그 지출
   // 비중을 기준으로 계산된다.
   function applyOnboardProfile(profile) {
-    const personaBtn = $(`#personaSeg button[data-persona="${profile.persona || DEFAULT_PERSONA}"]`);
-    if (personaBtn) personaBtn.click();
+    applyPersona(profile.persona || DEFAULT_PERSONA);
 
     // 설문에서 항목별로 실제 입력한 지출이 있으면 그대로 이어받는다 —
     // persona 클릭이 방금 비례 재분배로 덮어썼을 수 있으니 그 다음에
@@ -962,29 +956,13 @@
     }
   }
 
-  // 출처 링크는 맨 아래 "계산에 들어간 근거와 데이터 출처"에 이미 모아
-  // 두므로(renderBasis) 여기서는 중복해서 안 보여준다.
-  function renderPersonaBasis() {
-    const p = state.persona ? PERSONAS[state.persona] : null;
-    // 기준 시점을 함께 밝힌다. 이 값은 분기별 통계라 수동 갱신인데,
-    // 언제 기준인지 안 보이면 시간이 지났을 때 오래된 값을 최신인 척
-    // 보여주는 꼴이 된다.
-    const vintage = PERSONA_DATA && PERSONA_DATA.updated
-      ? ` <span class="vintage">${PERSONA_DATA.updated} 기준</span>` : "";
-    $("#personaBasis").innerHTML = p
-      ? `<b>${p.basis}</b>으로 채웠습니다.${vintage} 개인 상황에 맞게 바꿀 수 있습니다.`
-      : `세부 금액을 직접 수정한 상태입니다.`;
-  }
-
   function applyPersona(key) {
     const p = PERSONAS[key];
     if (!p) return;
     state.persona = key;
     state.spending = roundSpending(p.spending);
-    $$("#personaSeg button").forEach((button) =>
-      button.setAttribute("aria-pressed", String(button.dataset.persona === key)));
+    $("#personaLabel").textContent = p.label;
     syncSpendingFields();
-    renderPersonaBasis();
     renderMine();
   }
 
@@ -1003,7 +981,7 @@
           <small>${g.hint}</small>
         </label>
         <span class="input-wrap">
-          <input type="number" id="sp-${g.id}" min="0" step="1" inputmode="numeric" value="${Math.round(groupTotal(g))}">
+          <input type="number" id="sp-${g.id}" min="0" step="1" inputmode="numeric" value="${Math.round(groupTotal(g))}" readonly>
           <span>만원</span>
         </span>
       </div>`;
@@ -1011,27 +989,11 @@
 
     $("#spendFields").innerHTML = SPEND_GROUPS.map(row).join("");
 
-    SPEND_GROUPS.forEach((g) => {
-      $(`#sp-${g.id}`).addEventListener("input", (e) => {
-        const nextGroupTotal = Math.max(0, +e.target.value || 0);
-        const base = groupTotal(g) > 0
-          ? state.spending
-          : (state.persona ? PERSONAS[state.persona].spending : PERSONAS[DEFAULT_PERSONA].spending);
-        state.spending = scaleSpending(base, nextGroupTotal, g.members);
-        $$("#personaSeg button").forEach((b) => b.setAttribute("aria-pressed", "false"));
-        state.persona = null;
-        $("#monthlySpend").value = Math.round(spendingTotal(state.spending));
-        renderPersonaBasis();
-        renderMine();
-      });
-    });
-
-    $$("#personaSeg button").forEach((b) => {
-      b.addEventListener("click", () => {
-        applyPersona(b.dataset.persona);
-      });
-    });
-
+    // 이 탭의 지출 입력은 이제 전부 readonly라 사용자가 직접 타이핑해서
+    // "input" 이벤트를 쏠 일이 없다. 그래도 이 리스너는 남겨 둔다 —
+    // applyOnboardProfile이 setInputAndFire("#monthlySpend", ...)로
+    // 설문에서 입력한 총액을 프로그램적으로 밀어넣을 때, 그 총액에 맞게
+    // 지출 비중을 재조정(scaleSpending)하는 유일한 통로이기 때문이다.
     $("#monthlySpend").addEventListener("input", (e) => {
       const nextTotal = Math.max(0, +e.target.value || 0);
       const base = spendingTotal(state.spending) > 0
@@ -1043,60 +1005,13 @@
     });
 
     syncSpendingFields();
-    renderPersonaBasis();
-
-    $("#aiExplainBtn").addEventListener("click", openAIInsight);
-    $("#aiRetryBtn").addEventListener("click", openAIInsight);
-    $("#aiCloseBtn").addEventListener("click", () => $("#aiInsightDialog").close());
-    $("#aiInsightDialog").addEventListener("click", (event) => {
-      if (event.target === $("#aiInsightDialog")) $("#aiInsightDialog").close();
-    });
-  }
-
-  /* 개념 설명 안의 작은 막대. "품목마다 다르다"는 말을 글로만 하면
-     안 와닿아서, 가장 많이 오른 것과 가장 적게 오른 것을 실제 값으로
-     나란히 보여준다. 실시간으로 받아온 값이라 매달 바뀐다. */
-  function renderConceptBars() {
-    const box = $("#conceptBars");
-    const cats = state.cpi.categories || [];
-    if (!box || !cats.length) return;
-
-    const sorted = [...cats].sort((a, b) => b.latest.yoy - a.latest.yoy);
-    const official = state.cpi.latest.yoy;
-    const picks = [sorted[0], sorted[1], null, sorted[sorted.length - 2], sorted[sorted.length - 1]];
-    const max = Math.max(...cats.map((c) => Math.abs(c.latest.yoy)), official, 1);
-
-    box.innerHTML = picks.map((c) => {
-      if (!c) {
-        return `<div class="concept-row is-avg">
-          <span class="concept-name">전체 평균</span>
-          <span class="concept-bar"><i style="width:${(official / max) * 100}%"></i></span>
-          <span class="concept-val">${official.toFixed(1)}%</span>
-        </div>`;
-      }
-      const hot = c.latest.yoy >= official;
-      return `<div class="concept-row">
-        <span class="concept-name">${c.name.split("·")[0]}</span>
-        <span class="concept-bar"><i class="${hot ? "hot" : "cool"}"
-          style="width:${(Math.abs(c.latest.yoy) / max) * 100}%"></i></span>
-        <span class="concept-val">${c.latest.yoy >= 0 ? "+" : ""}${c.latest.yoy.toFixed(1)}%</span>
-      </div>`;
-    }).join("");
+    $("#personaLabel").textContent = (PERSONAS[state.persona] || PERSONAS[DEFAULT_PERSONA]).label;
   }
 
   /* "비중 × 상승률을 다 더한다"는 말은 식으로만 보면 안 와닿는다.
      그래서 내가 지금 넣은 숫자로 실제 계산을 한 줄씩 따라가게 보여준다.
      기여도가 가장 큰 항목 하나를 예로 들고, 마지막에 합이 내 물가라는
-     것까지 이어 준다. 툴팁은 마우스를 올려야 보여서 발견되지 않는다. */
-  /* 툴팁은 마우스가 있어야 보인다. 발표 때 휴대폰으로 여는 사람이
-     대부분이라, 같은 내용을 접이식 목록으로도 항상 열어 볼 수 있게 둔다. */
-  function renderCatLegend() {
-    const box = $("#catLegend");
-    if (!box || box.childElementCount) return;
-    box.innerHTML = SPEND_GROUPS.map((g) =>
-      `<dt>${g.name}</dt><dd>${g.examples}</dd>`).join("");
-  }
-
+     것까지 이어 준다. */
   function renderContribMath(grouped, result, official) {
     const box = $("#contribMath");
     if (!box) return;
@@ -1135,26 +1050,14 @@
 
     if (!result) {
       state.personalRate = null;
-      state.aiContext = null;
-      $("#aiExplainBtn").disabled = true;
-      $("#officialRate").textContent = `${official.toFixed(1)}%`;
-      $("#officialRate").classList.remove("skeleton-bar");
-      $("#officialMonth").textContent = `${state.cpi.latest.month} 기준`;
-      $("#personalRate").textContent = "—";
-      $("#personalRate").classList.remove("skeleton-bar");
-      $("#vsGap").className = "vs-mid";
-      $("#vsGap").textContent = "입력 필요";
       $("#mineVerdict").className = "verdict";
       $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
+      $("#vsFigures").textContent = "—";
       $("#americanoCallout").innerHTML = "";
       $("#spendTotal").textContent = "0만원";
       $("#contribSummary").hidden = true;
       $("#contribRank").innerHTML = "";
-      $("#contribRankMore").hidden = true;
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
-      $("#cumChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 10년 누적 물가를 계산합니다.</p>`;
-      $("#cumLegend").innerHTML = "";
-      $("#cumStats").innerHTML = "";
       $("#mineActionStats").innerHTML = "";
       $("#mineAction").className = "verdict";
       $("#mineAction").textContent = "월 생활비를 입력하면 필요한 소득·수익률 기준을 계산합니다.";
@@ -1165,52 +1068,30 @@
     $("#spendTotal").textContent = `${man(result.total)}만원`;
     const diff = result.rate - official;
 
-    $("#officialRate").textContent = `${official.toFixed(1)}%`;
-    $("#officialRate").classList.remove("skeleton-bar");
-    $("#officialMonth").textContent = `${state.cpi.latest.month} 기준`;
-    $("#personalRate").textContent = `${result.rate.toFixed(1)}%`;
-    $("#personalRate").classList.remove("skeleton-bar");
+    // 기여도 분해 — 헤드라인이 "무엇 때문에" 비싼지 가리키는 항목도
+    // 이 그룹 랭킹(아래 "내 물가를 밀어올린 범인"과 같은 5개 그룹) 1위를
+    // 그대로 쓴다 — 카드 두 개가 서로 다른 항목을 "1위"라고 하면 안 되니까.
+    const grouped = E.aggregateByGroup(result.contributions, SPEND_GROUPS)
+      .sort((a, b) => b.contribution - a.contribution);
+    const ranked = grouped.filter((g) => g.amount > 0);
 
-    const mid = $("#vsGap");
-    const side = $("#vsRow").querySelector(".vs-side.accent");
-    if (Math.abs(diff) < 0.05) {
-      mid.className = "vs-mid"; mid.textContent = "거의 같음";
-      side.classList.remove("under");
-    } else if (diff > 0) {
-      mid.className = "vs-mid over"; mid.textContent = `+${diff.toFixed(1)}포인트 높음`;
-      side.classList.remove("under");
-    } else {
-      mid.className = "vs-mid under"; mid.textContent = `${diff.toFixed(1)}포인트 낮음`;
-      side.classList.add("under");
-    }
-
-    // 결론 문장 — 조작하면 같이 바뀐다
-    const sorted = [...result.contributions].sort((a, b) => b.contribution - a.contribution);
-    const top = sorted[0];
-    state.aiContext = {
-      officialRate: official,
-      personalRate: result.rate,
-      gapPp: diff,
-      topCategoryId: top.id,
-      topCategory: top.name,
-      topSharePct: top.weight * 100,
-      topRatePct: top.rate,
-    };
-    $("#aiExplainBtn").disabled = false;
+    // %p 숫자보다 "나는 비싸게/저렴하게 살고 있다"는 체감 결론을 먼저
+    // 보여주고, 정확한 수치는 그 아래 작은 보조 정보로만 남긴다.
     const v = $("#mineVerdict");
-    if (diff > 0.05) {
-      v.className = "verdict warn";
-      v.innerHTML = `당신의 물가는 공식 통계보다 <b>${diff.toFixed(1)}포인트 높습니다.</b>
-        가장 크게 밀어올린 건 <b>${top.name}</b>(지출의 ${(top.weight * 100).toFixed(0)}%,
-        이 품목만 ${top.rate >= 0 ? "+" : ""}${top.rate.toFixed(1)}%)입니다.`;
-    } else if (diff < -0.05) {
+    if (Math.abs(diff) < 0.05) {
       v.className = "verdict";
-      v.innerHTML = `당신의 물가는 공식 통계보다 <b>${Math.abs(diff).toFixed(1)}포인트 낮습니다.</b>
-        물가가 덜 오른 품목에 지출이 몰려 있습니다.`;
+      v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 거의 같아요.`;
+    } else if (diff > 0) {
+      const causeName = ranked[0] ? ranked[0].name : null;
+      v.className = "verdict warn";
+      v.innerHTML = `당신은 다른 사람들보다${causeName ? ` <b>${causeName}</b> 기준으로` : ""}
+        <b>더 비싸게 살고 있어요!</b>`;
     } else {
       v.className = "verdict";
-      v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 공식 통계와 거의 같습니다.`;
+      v.innerHTML = `당신은 다른 사람들보다 <b>더 저렴하게 살고 있어요!</b>`;
     }
+    $("#vsFigures").textContent =
+      `공식 물가 ${official.toFixed(1)}% · 내 물가 ${result.rate.toFixed(1)}% (${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%p)`;
 
     // 만원 단위 %p 격차보다 실물로 와닿는 지표 — 이번 달 체감 격차를
     // 아이스 아메리카노 잔수로 환산한다.
@@ -1222,46 +1103,21 @@
         <span class="risk-badge risk-mid">가정값</span></p>
       <p class="americano-sub">기준가 ${ICED_AMERICANO_PRICE.toLocaleString("ko-KR")}원 · 이번 달 격차 기준</p>`;
 
-    const sp = state.cpi.spread;
-    if (sp) {
-      $("#spreadNote").innerHTML =
-        `같은 달인데도 <b>${sp.high.name} +${sp.high.yoy.toFixed(1)}%</b>,
-         <b>${sp.low.name} +${sp.low.yoy.toFixed(1)}%</b>로 ${sp.gap.toFixed(1)}%p 벌어져 있습니다.
-         "물가 ${official.toFixed(1)}%"는 아무의 물가도 아닙니다.`;
-    }
-
-    // 기여도 분해 — 계산(top)은 12개 실카테고리 그대로 쓰고, 그래프만
-    // 5개 그룹으로 묶어서 보여준다(품목이 너무 많아 읽기 힘들다는
+    // 그래프는 12개 실카테고리(top)를 5개 그룹(grouped/ranked, 위에서
+    // 이미 계산)으로 묶어서 보여준다(품목이 너무 많아 읽기 힘들다는
     // 피드백). 품목이 전체 평균보다 빨리 오르는지는 막대 색(오렌지/
     // 그린)만으로 표시했었다. 색약 사용자를 위해 방향 기호(▲/▼)도
     // 라벨에 같이 붙인다.
-    const grouped = E.aggregateByGroup(result.contributions, SPEND_GROUPS)
-      .sort((a, b) => b.contribution - a.contribution);
-
-    // 기본 노출은 1~2위 요약 문장 + 랭킹 2개까지만. 나머지 순위와 계산
-    // 과정(①②③)·막대그래프는 토글을 펼쳐야 보인다. grouped는 이미
-    // contribution 내림차순.
     const rankRow = (g, i) => `
-      <li class="rank-row ${g.rate >= official ? "is-hot" : "is-cool"}">
+      <li class="rank-row">
         <span class="rank-no">${i + 1}위</span>
         <span class="rank-name">${g.name}</span>
-        <span class="rank-val">${g.contribution >= 0 ? "+" : ""}${g.contribution.toFixed(2)}포인트</span>
       </li>`;
-    const ranked = grouped.filter((g) => g.amount > 0);
-    const top2 = ranked.slice(0, 2);
-    const rest = ranked.slice(2);
-    $("#contribRank").innerHTML = top2.map((g, i) => rankRow(g, i)).join("");
-    const moreToggle = $("#contribRankMore");
-    if (rest.length) {
-      moreToggle.hidden = false;
-      $("#contribRankMoreList").innerHTML = rest.map((g, i) => rankRow(g, i + 2)).join("");
-    } else {
-      moreToggle.hidden = true;
-    }
+    $("#contribRank").innerHTML = ranked.map((g, i) => rankRow(g, i)).join("");
 
     const summary = $("#contribSummary");
-    if (top2.length) {
-      const first = top2[0];
+    if (ranked.length) {
+      const first = ranked[0];
       const monthlyExtra = first.amount * (first.rate / 100);
       summary.hidden = false;
       summary.innerHTML = `<b>${first.name}</b>${first.rate >= official
@@ -1277,176 +1133,15 @@
         ...g, examples: (SPEND_GROUPS.find((s) => s.id === g.id) || {}).examples,
         hot: g.rate >= official, color: g.rate >= official ? "var(--series-2)" : "var(--series-3)",
       })));
-    renderCatLegend();
     renderContribMath(grouped, result, official);
     $("#mineSrc").textContent =
       `OECD 한국 소비자물가 COICOP 12분류 · ${result.month} 기준 · 브라우저에서 실시간 조회`;
 
-    renderCumulative(result);
     renderMineAction(result, official);
-  }
-
-  function fallbackInsight(context) {
-    if (context.gapPp > 0.05) {
-      return `공식 평균보다 체감 물가가 높은 편이에요. ${context.topCategory} 지출을 조금 바꿔 보며 내 물가가 얼마나 달라지는지 확인해 보세요.`;
-    }
-    if (context.gapPp < -0.05) {
-      return `공식 평균보다 체감 물가가 낮은 편이에요. 지금의 지출 구성이 장기 누적에서도 같은 흐름인지 아래 그래프로 함께 확인해 보세요.`;
-    }
-    return `지금의 지출 구성은 전국 평균과 비슷해요. 세부 지출을 실제 금액에 맞게 바꾸면 나에게 더 가까운 결과를 볼 수 있습니다.`;
-  }
-
-  async function openAIInsight() {
-    const context = state.aiContext;
-    if (!context) return;
-
-    const dialog = $("#aiInsightDialog");
-    const body = $("#aiInsightBody");
-    const status = $("#aiInsightStatus");
-    $("#aiOfficialRate").textContent = `${context.officialRate.toFixed(1)}%`;
-    $("#aiPersonalRate").textContent = `${context.personalRate.toFixed(1)}%`;
-    $("#aiTopCategory").textContent = context.topCategory;
-    body.textContent = fallbackInsight(context);
-    body.classList.add("is-loading");
-    status.textContent = "Gemini가 계산 결과를 쉬운 말로 정리하고 있어요…";
-    $("#aiRetryBtn").hidden = true;
-    if (!dialog.open) dialog.showModal();
-
-    const payload = {
-      officialRate: context.officialRate,
-      personalRate: context.personalRate,
-      gapPp: context.gapPp,
-      topCategoryId: context.topCategoryId,
-      topSharePct: context.topSharePct,
-      topRatePct: context.topRatePct,
-    };
-    const cacheKey = JSON.stringify(payload);
-    if (state.aiCache.has(cacheKey)) {
-      body.textContent = state.aiCache.get(cacheKey);
-      body.classList.remove("is-loading");
-      status.textContent = "Gemini 해설 · 계산은 연봉 성적표 엔진이 수행했습니다.";
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-    try {
-      const response = await fetch("/api/insight", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: cacheKey,
-        signal: controller.signal,
-      });
-      const data = await response.json().catch(() => ({}));
-      if (response.ok && typeof data.text === "string") {
-        state.aiCache.set(cacheKey, data.text);
-        body.textContent = data.text;
-        status.textContent = "Gemini 해설 · 계산은 연봉 성적표 엔진이 수행했습니다.";
-      } else if (response.status === 503) {
-        // 서버에 AI 연결 자체가(API 키 등) 설정돼 있지 않은 상태 —
-        // 다시 눌러도 같은 이유로 또 실패하니 재시도 버튼을 안 보여준다.
-        status.textContent = "AI 해설 기능이 아직 준비되지 않았어요. 검증된 기본 해설을 보여드립니다.";
-      } else {
-        status.textContent = "AI 연결이 늦어 검증된 기본 해설을 보여드립니다.";
-        $("#aiRetryBtn").hidden = false;
-      }
-    } catch (error) {
-      status.textContent = error.name === "AbortError"
-        ? "응답이 오래 걸려 자동으로 취소했어요. 다시 시도해 주세요."
-        : "AI 연결이 늦어 검증된 기본 해설을 보여드립니다.";
-      $("#aiRetryBtn").hidden = false;
-    } finally {
-      clearTimeout(timeout);
-      body.classList.remove("is-loading");
-    }
-  }
-
-  function renderCumulative(result) {
-    const cats = state.cpi.categories;
-    const mine = E.personalIndexPath(state.spending, cats);
-    if (!mine) return;
-
-    // 공식 지수도 같은 구간으로 잘라 100 기준으로 맞춘다
-    const officialIdx = state.cpi.index;
-    const months = mine.months.filter((m) => officialIdx[m] != null);
-    if (months.length < 2) return;
-    const oBase = officialIdx[months[0]];
-    const officialPath = months.map((m) => ({
-      x: E.monthToNum(m), y: (officialIdx[m] / oBase) * 100, meta: E.monthLabel(m),
-    }));
-    const minePath = mine.path
-      .filter((p) => months.includes(p.month))
-      .map((p) => ({ x: E.monthToNum(p.month), y: p.value, meta: E.monthLabel(p.month) }));
-
-    const labels = [];
-    const x0 = E.monthToNum(months[0]), x1 = E.monthToNum(months[months.length - 1]);
-    for (let x = x0; x <= x1; x += 24) labels.push({ at: x, text: `${Math.floor(x / 12)}` });
-
-    lineChart($("#cumChart"), {
-      series: [
-        { id: "official", label: "공식 물가", color: "var(--text-muted)", dashed: true, points: officialPath },
-        { id: "mine", label: "내 물가", color: "var(--accent, #b76442)", points: minePath },
-      ],
-      xLabels: labels,
-      yFormat: (val) => `${val.toFixed(0)}`,
-    });
-
-    $("#cumLegend").innerHTML =
-      `<span class="legend-item"><span class="legend-swatch" style="background:var(--text-muted)"></span>공식 물가</span>
-       <span class="legend-item"><span class="legend-swatch" style="background:var(--accent,#b76442)"></span>내 물가</span>`;
-
-    const mineCum = mine.cumulative;
-    const officialCum = officialIdx[months[months.length - 1]] / oBase - 1;
-    const gap = mineCum - officialCum;
-    const years = months.length / 12;
-
-    // 10년 누적 차이를 실제 돈으로 환산하면 얼마인가
-    const monthlySpend = result.total;
-    const extraPerYear = monthlySpend * 12 * gap;
-
-    $("#cumStats").innerHTML = `
-      <div class="stat"><span class="k">내 물가 누적</span><span class="v">${signPct(mineCum, 1)}</span>
-        <span class="s">${E.monthLabel(months[0])} ~ ${E.monthLabel(months[months.length - 1])}</span></div>
-      <div class="stat"><span class="k">공식 물가 누적</span><span class="v">${signPct(officialCum, 1)}</span>
-        <span class="s">같은 기간</span></div>
-      <div class="stat ${gap > 0 ? "is-bad" : "is-good"}"><span class="k">차이</span>
-        <span class="v">${gap >= 0 ? "+" : ""}${(gap * 100).toFixed(1)}%p</span>
-        <span class="s">${years.toFixed(0)}년 누적</span></div>
-      <div class="stat ${gap > 0 ? "is-bad" : "is-good"}"><span class="k">돈으로 환산하면</span>
-        <span class="v">${gap >= 0 ? "" : "−"}${man(Math.abs(extraPerYear))}만원</span>
-        <span class="s">현재 지출 기준 연간 ${gap >= 0 ? "더 냄" : "덜 냄"}</span></div>`;
-
-    // 현재 물가와 10년 누적의 방향이 엇갈릴 때가 있다. 화면만 보면 오류처럼
-    // 보이므로 왜 그런지 짚어 준다. (예: 식료품은 지금 +0.9%지만 10년간 +43%)
-    const nowDiff = state.personalRate - state.cpi.latest.yoy;
-    const note = $("#cumNote");
-    if (note) {
-      if (nowDiff < -0.05 && gap > 0.005) {
-        const cats = state.cpi.categories;
-        const worst = [...cats]
-          .filter((c) => (state.spending[c.id] || 0) > 0 && c.cum10y != null)
-          .sort((a, b) => b.cum10y - a.cum10y)[0];
-        note.hidden = false;
-        note.className = "verdict warn";
-        note.innerHTML = `지금은 공식 물가보다 낮은데, 10년 누적으로는 오히려 높습니다.
-          ${worst ? `최근 ${worst.latest.yoy >= 0 ? "+" : ""}${worst.latest.yoy.toFixed(1)}%로 잠잠한
-          <b>${worst.name}</b>${josa(worst.name, "이", "가")} 10년 동안은
-          <b>+${worst.cum10y.toFixed(0)}%</b> 올랐기 때문입니다.` : ""}
-          최근 한 달의 물가만 보면 놓치는 부분입니다.`;
-      } else if (nowDiff > 0.05 && gap < -0.005) {
-        note.hidden = false;
-        note.className = "verdict";
-        note.innerHTML = `지금은 공식 물가보다 높지만, 10년 누적으로는 낮습니다.
-          최근 오른 품목에 지출이 몰려 있을 뿐 장기적으로는 유리한 구성이었습니다.`;
-      } else {
-        note.hidden = true;
-      }
-    }
   }
 
   function renderMineAction(result, official) {
     const rate = result.rate;
-    const hl = E.halfLife(rate / 100);
 
     // 최소 연봉 인상액 — 퍼센트가 아니라 현재 연봉 기준 실제 금액으로.
     const cur = Math.max(0, +$("#curSalary").value || 0);
@@ -1466,29 +1161,16 @@
       ? ` · ${man(goalCurrent)}만원을 넣어뒀다면 1년에 약 ${man(goalCurrent * rate / 100)}만원은 불어나야 해요`
       : "";
 
-    // 구매력 반감기 — 반감기 연수(hl) 계산은 그대로, 그 값을 사용자가
-    // 입력한 실제 보유 자산에 곱해서 "숫자"로 와닿게 한다. 입력이 없으면
-    // 100만원을 예시로 쓰되 "(예시)"라고 명시해 실제 값처럼 보이지 않게 한다.
-    const rawCurrent = Math.max(0, +$("#goalCurrent").value || 0);
-    const isReal = rawCurrent > 0;
-    const base = isReal ? rawCurrent : 100;
-    const half = base / 2;
-
     $("#mineActionStats").innerHTML = `
       <div class="stat"><span class="k">최소 연봉 인상액</span><span class="v">약 ${man(neededRaise)}만원</span>
         <span class="s">이만큼은 올라야 본전 (${rate.toFixed(1)}%)</span></div>
       <div class="stat"><span class="k">필요 투자 수익률</span><span class="v">${rate.toFixed(1)}%</span>
-        <span class="s">${compare}${goalCurrentNote}</span></div>
-      <div class="stat ${hl && hl < 20 ? "is-warn" : ""}"><span class="k">구매력 반감기</span>
-        <span class="v">${hl ? `약 ${man(half)}만원` : "—"}</span>
-        <span class="s">${hl ? `${hl.toFixed(0)}년 뒤, 지금 ${man(base)}만원${isReal ? "" : "(예시)"}의 가치` : "지금 돈의 가치가 절반 되는 시점"}</span></div>`;
+        <span class="s">${compare}${goalCurrentNote}</span></div>`;
 
     const a = $("#mineAction");
     a.className = "verdict";
     a.innerHTML = `내 물가 <b>${rate.toFixed(1)}%</b>를 넘기려면 연봉을 그만큼 올려받거나,
-      연 <b>${rate.toFixed(1)}%</b> 이상으로 굴려야 합니다. 아무것도 안 하면
-      지금 가진 ${man(base)}만원${isReal ? "" : "(예시)"}은 ${hl ? hl.toFixed(0) : "—"}년 뒤
-      약 ${man(half)}만원 가치가 됩니다.`;
+      연 <b>${rate.toFixed(1)}%</b> 이상으로 굴려야 합니다.`;
   }
 
   /* ══════════════ 탭 1 · 실질임금 진단 ══════════════ */
@@ -2145,7 +1827,6 @@
   /* ══════════════ 전체 렌더 ══════════════ */
   function renderAll() {
     if (!state.market) return;
-    renderConceptBars();
     renderMine();
     renderGap();
     renderGoal();
