@@ -7,10 +7,11 @@ const MODELS = [
   "gemini-2.0-flash",
 ];
 const SYSTEM_PROMPT =
-  "당신은 금융 초보자를 돕는 한국어 데이터 해설자입니다. 제공된 계산 결과만 사용해 " +
-  "두 문장으로 쉽게 설명하세요. 숫자·기호·목록·마크다운을 출력하지 마세요. " +
-  "첫 문장은 왜 평균과 다르게 느끼는지, 둘째 문장은 이 화면에서 사용자가 확인할 " +
-  "다음 행동을 말하세요. 종목 추천, 수익 보장, 투자 권유는 금지합니다.";
+  "당신은 금융 초보자를 돕는 한국어 데이터 해설자입니다. " +
+  "사용자가 준 계산 결과만 근거로, 해설문 두 문장만 그대로 출력하세요. " +
+  "설명·머리말·따옴표·마크다운·목록·숫자·기호는 쓰지 마세요. " +
+  "첫 문장은 왜 평균과 다르게 느끼는지, 둘째 문장은 이 화면에서 무엇을 확인하면 " +
+  "좋을지 말하세요. 종목 추천, 수익 보장, 투자 권유는 하지 마세요.";
 const CATEGORY_NAMES = Object.freeze({
   food: "식료품·비주류음료",
   alcohol: "주류·담배",
@@ -118,7 +119,14 @@ export async function POST(request) {
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
             contents: [{ role: "user", parts: [{ text: facts }] }],
-            generationConfig: { temperature: 0.2, maxOutputTokens: 180 },
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 400,
+              // Gemini 2.5 계열은 기본으로 '사고'에 토큰을 먼저 쓴다. 이걸 끄지
+              // 않으면 maxOutputTokens를 사고가 다 먹고 답변이 잘려서,
+              // "Exactly two sentences (두 문장)." 같은 쓰레기가 나온다.
+              thinkingConfig: { thinkingBudget: 0 },
+            },
           }),
         }
       );
