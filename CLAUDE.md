@@ -90,6 +90,7 @@ pipeline/
   fetch_data.py             수집 (표준 라이브러리만 사용, 의존성 0)
   transform.py              정제·지표 산출
 docs/
+  fork-guide.md             개인 계정으로 복제할 때 (Vercel·API 키 재설정)
   pr-protocol.md            PR 올리기 전 자체 점검 (AI에게 읽히세요)
   ai-usage.md               AI 활용 및 검증 내역 (채점 7번 대응)
   presentation.md           발표 구성·데모 시나리오
