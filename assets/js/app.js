@@ -127,6 +127,7 @@
     setupGoalTab();
     setupTimeTab();
     setupHomeFlow();
+    setupReportEditing();
     setupFinalConclusion();
     setupScrollReveal();
     renderBasis();
@@ -279,6 +280,38 @@
 
   const personaDefaultTotal = (persona) =>
     Math.round(spendingTotal((PERSONAS[persona] || PERSONAS[DEFAULT_PERSONA]).spending));
+
+  /* 리포트 탭의 입력칸은 원래 readonly였다. 설문이 원본이고 탭은 보여주기만
+     한다는 설계였는데, 입력칸처럼 생겨서 사람들이 눌러 보고 "안 된다"고 느꼈다.
+     이제 탭에서 바로 고칠 수 있게 열고, 고친 값은 저장까지 반영한다.
+     안 그러면 새로고침 때 설문값으로 되돌아가 또 고장처럼 보인다. */
+  const REPORT_FIELDS = {
+    monthlySpend: "monthlySpend",
+    curSalary: "curSalary",
+    nextSalary: "nextSalary",
+    goalAmount: "goalAmount",
+    goalCurrent: "goalCurrent",
+    goalYears: "goalYears",
+    goalMonths: "goalMonths",
+  };
+
+  function persistReportEdits() {
+    let saved;
+    try { saved = JSON.parse(localStorage.getItem(ONBOARD_KEY)); } catch { saved = null; }
+    if (!saved) return;   // 설문을 마치지 않은 상태면 건드리지 않는다
+    for (const [key, id] of Object.entries(REPORT_FIELDS)) {
+      const el = $(`#${id}`);
+      if (el) saved[key] = Math.max(0, +el.value || 0);
+    }
+    try { localStorage.setItem(ONBOARD_KEY, JSON.stringify(saved)); } catch { /* 저장 실패는 무시 */ }
+  }
+
+  function setupReportEditing() {
+    Object.values(REPORT_FIELDS).forEach((id) => {
+      const el = $(`#${id}`);
+      if (el) el.addEventListener("change", persistReportEdits);
+    });
+  }
 
   function setInputAndFire(sel, value) {
     if (value == null) return;
@@ -1558,6 +1591,22 @@
       err.textContent = "목표 금액이 현재 보유 자산보다 크지 않습니다.";
       err.hidden = false;
     } else { err.hidden = true; }
+
+    // 목표는 설문에서 선택 문항이라 건너뛰기 쉽다. 그때 0으로만 채워
+    // "0만원이면 0만원으로 목표를 0만원 넘어섭니다" 같은 문장이 나왔다.
+    // 고장으로 보이므로, 왜 비었는지와 무엇을 하면 되는지 알려 준다.
+    if (goal <= 0) {
+      const guide = "목표 금액을 입력하면 매달 얼마를 모아야 하는지 계산해 드려요.";
+      $("#goalStats").innerHTML = "";
+      $("#goalScenarioTable").innerHTML = "";
+      $("#growthChart").innerHTML = `<p class="skeleton">${guide}</p>`;
+      $("#goalScenarioChart").innerHTML =
+        `<p class="skeleton">목표를 정하면 투자 성향별로 필요한 저축액을 비교해 드려요.</p>`;
+      $("#goalVerdict").className = "verdict";
+      $("#goalVerdict").textContent = guide;
+      $("#goalRiskNote").textContent = "";
+      return;
+    }
 
     const plan = E.planOf(state.market, state.goalRisk);
     if (!plan) return;
