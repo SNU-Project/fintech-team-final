@@ -162,6 +162,7 @@
     setupFinalConclusion();
     setupNextSteps();
     setupScrollReveal();
+    setupScrollTopButton();
     renderBasis();
     renderAll();
 
@@ -392,6 +393,15 @@
     return SCORE_GRADES.find((g) => total >= g.min);
   }
 
+  // 점수만 보면 좋은 건지 나쁜 건지 바로 와닿지 않는다는 피드백 — 새
+  // 기준을 따로 두지 않고, 이미 있는 등급의 cls(색상 그룹)를 그대로
+  // 재사용해 세 단계 톤으로만 묶는다.
+  const SCORE_TONE_BY_CLS = {
+    "is-good": "아직 괜찮아요 🙂",
+    "is-warn": "주의가 필요해요 ⚠️",
+    "is-bad": "위험해요 🚨",
+  };
+
   // 점수·도넛·등급을 하나로, 세부 수치는 기본 접힌 "어떻게 계산했나요?"
   // 안에만 둔다 — 같은 숫자가 화면에 3번(큰 텍스트/링/카드) 반복되던
   // 걸 링 하나로 줄이고, 나머지는 궁금한 사람만 펼쳐보게 한다.
@@ -399,6 +409,11 @@
     const data = E.salaryScore(computeScoreInputs());
     const heroEl = $("#scoreHero");
     const headline = $("#homeSummaryHeadline");
+    const previewEl = $("#scorePreviewConclusion");
+
+    const conclusionHeadline = buildConclusionHeadline();
+    previewEl.hidden = conclusionHeadline == null;
+    if (conclusionHeadline != null) previewEl.textContent = conclusionHeadline;
 
     if (!data) {
       heroEl.hidden = true;
@@ -417,6 +432,8 @@
     $("#scoreRing").style.background = `conic-gradient(${color} ${total}%, var(--surface-sunk) 0)`;
     $("#scoreGradeLine").textContent = band.grade;
     $("#scoreGradeLine").className = `score-grade-line ${band.cls}`;
+    $("#scoreToneLine").textContent = SCORE_TONE_BY_CLS[band.cls];
+    $("#scoreToneLine").className = `score-tone-line ${band.cls}`;
 
     $("#scoreDetailItems").innerHTML = items.map((it) =>
       `<li><b>${it.label} ${it.score}점</b> · ${it.note}</li>`).join("");
@@ -527,18 +544,24 @@
     typewriterTimers.set(el, { interval, watchdog, skip: finish });
   }
 
+  // 결론의 핵심 한 문장 — 점수 카드 아래 미리보기와 맨 끝 결론 카드
+  // 첫 줄이 같은 문장을 반복해서 계산하다 어긋나지 않도록 한 곳으로 모았다.
+  function buildConclusionHeadline() {
+    const rate = state.personalRate;
+    if (rate == null) return null;
+    return `체감 물가 ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`;
+  }
+
   // 리포트 맨 끝의 결론 — 4개 섹션 결과를 한데 모아 정리한다.
   // 투자 권유로 읽히면 안 되므로 단정 대신 "~해볼 만해요" 같은 선택지
   // 톤을 쓰고, 마지막 줄에서 참고자료라는 점을 다시 한 번 짚는다.
   function buildFinalConclusion() {
-    const rate = state.personalRate;
-    if (rate == null) {
+    const headline = buildConclusionHeadline();
+    if (headline == null) {
       return "아직 결과를 계산할 수 없어요.\n리포트에서 값을 입력하면 여기서 정리해 드릴게요.";
     }
 
-    const lines = [];
-
-    lines.push(`체감 물가 ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`);
+    const lines = [headline];
 
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
@@ -554,7 +577,11 @@
   }
 
   // 스크롤로 맨 아래 결론 카드에 처음 닿는 순간에만 타이핑한다 —
-  // 스크롤을 왔다갔다 할 때마다 다시 타이핑되면 산만하다.
+  // 스크롤을 왔다갔다 할 때마다 다시 타이핑되면 산만하다. 새로고침
+  // 등으로 같은 세션 안에서 다시 방문했을 때도 매번 재생되면
+  // 불필요하게 느껴진다는 피드백이 있어, sessionStorage에 한 번
+  // 재생했다는 표시를 남기고 이후로는 완성된 문장을 바로 보여준다.
+  const FINAL_TYPED_KEY = "sr_finalConclusionTyped";
   function setupFinalConclusion() {
     const target = $("#panel-final");
     const body = $("#finalBody");
@@ -563,7 +590,13 @@
       entries.forEach((entry) => {
         if (!entry.isIntersecting || typed || target.hidden) return;
         typed = true;
-        typewriter(body, buildFinalConclusion());
+        const text = buildFinalConclusion();
+        if (sessionStorage.getItem(FINAL_TYPED_KEY)) {
+          body.textContent = text;
+        } else {
+          typewriter(body, text);
+          sessionStorage.setItem(FINAL_TYPED_KEY, "1");
+        }
         observer.disconnect();
       });
     }, { threshold: 0.35 });
@@ -599,6 +632,26 @@
       });
     }, { threshold: 0.1, rootMargin: "0px 0px -60px 0px" });
     targets.forEach((el) => observer.observe(el));
+  }
+
+  // 상단 탭 내비게이션이 없어서, 리포트가 길어지면 처음(설문 다시
+  // 입력하기 등)으로 돌아가려면 계속 스크롤해야 한다. 일정 이상
+  // 내려갔을 때만 나타나는 플로팅 버튼으로 보완한다.
+  function setupScrollTopButton() {
+    const btn = $("#scrollTopBtn");
+    let visible = false;
+    const THRESHOLD = 480;
+    const sync = () => {
+      const shouldShow = window.scrollY > THRESHOLD;
+      if (shouldShow === visible) return;
+      visible = shouldShow;
+      btn.hidden = !shouldShow;
+    };
+    document.addEventListener("scroll", sync, { passive: true });
+    sync();
+    btn.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
   }
 
   function setupHomeFlow() {
