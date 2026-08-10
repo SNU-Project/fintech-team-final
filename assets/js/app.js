@@ -35,6 +35,11 @@
   };
   const colorOf = (id) => ASSET_COLOR[id] || "var(--text-muted)";
 
+  // 체감 물가 격차를 실물 감각으로 보여주는 기준가 — 매장마다 다른
+  // 가정값이라 '가정값' 배지로 명시한다(CLAUDE.md의 "가정값 0개" 원칙에 대한
+  // 예외로 기록해 둠).
+  const ICED_AMERICANO_PRICE = 4500;
+
   const PERSONA_DATA = window.Personas;
   const PERSONAS = PERSONA_DATA.profiles;
   const DEFAULT_PERSONA = "solo";
@@ -58,6 +63,10 @@
     { id: "g-etc", name: "건강·기타", hint: "병원비, 술·담배, 보험 등",
       examples: "병원 진료비·약값, 건강보조식품, 술·담배, 미용실, 보험료", members: ["health", "alcohol", "misc"] },
   ];
+  const SPEND_GROUP_COLOR = {
+    "g-food": "var(--series-1)", "g-home": "var(--series-2)", "g-move": "var(--series-3)",
+    "g-play": "var(--series-4)", "g-etc": "var(--series-5)",
+  };
 
   const spendingTotal = (spending) =>
     Object.values(spending).reduce((sum, value) => sum + (Number(value) || 0), 0);
@@ -140,7 +149,6 @@
 
     // 스냅샷의 물가상승률을 기본값으로 먼저 세팅 (실시간이 오면 덮어씀)
     state.inflation = state.cpi.latest.yoy;
-    $("#inflation").value = state.inflation.toFixed(1);
 
     setupNumberInputGuards();
     setupTabs();
@@ -155,6 +163,7 @@
       renderAll();
     });
     setupFinalConclusion();
+    setupNextSteps();
     setupScrollReveal();
     renderBasis();
     renderAll();
@@ -176,7 +185,6 @@
       const d = res.inflation.data;
       state.inflation = d.value;
       state.inflationLive = true;
-      $("#inflation").value = d.value.toFixed(1);
       $("#inflSource").innerHTML =
         `<span class="live-dot" style="display:inline-block;vertical-align:middle"></span>
          실시간 · OECD 기준 ${d.month} 한국 소비자물가 <b>${d.value.toFixed(1)}%</b>를 기본값으로 넣었습니다.`;
@@ -295,13 +303,23 @@
      재방문 시 다시 묻지 않는다. */
   const ONBOARD_KEY = "salarygap-profile";
   const TOTAL_STEPS = 5;
-  const REPORT_PANEL_IDS = ["panel-mine", "panel-gap", "panel-goal", "panel-time", "panel-final"];
+  // panel-goal/panel-time은 일부러 뺐다 — 기본 리포트 스크롤에 자동으로
+  // 드러나지 않고, #nextSteps의 버튼을 눌러야 펼쳐진다(revealPanel 참고).
+  const REPORT_PANEL_IDS = ["panel-mine", "panel-gap", "panel-final"];
 
   function setReportVisible(visible) {
     REPORT_PANEL_IDS.forEach((id) => { $(`#${id}`).hidden = !visible; });
     $("#mainTabs").hidden = !visible;
     $("#ticker").hidden = !visible;
     $("#basis").hidden = !visible;
+    // 목표/타임머신은 항상 처음엔(그리고 재입력 시엔 다시) 접힌 상태로
+    // 되돌린다 — REPORT_PANEL_IDS에 없어서 위 루프가 안 건드리기 때문에
+    // 여기서 명시적으로 처리해야 재입력 후에도 이전에 펼쳤던 상태가
+    // 남아있지 않는다.
+    if (!visible) {
+      $("#panel-goal").hidden = true;
+      $("#panel-time").hidden = true;
+    }
   }
 
   const personaDefaultTotal = (persona) =>
@@ -353,6 +371,7 @@
     return {
       persona: DEFAULT_PERSONA,
       monthlySpend: personaDefaultTotal(DEFAULT_PERSONA),
+      spending: roundSpending(PERSONAS[DEFAULT_PERSONA].spending),
       curSalary: 3600, nextSalary: 3750,
       risk: "balanced",
       goalAmount: 0, goalYears: 1, goalMonths: 0, goalCurrent: 0,
@@ -365,6 +384,14 @@
   function applyOnboardProfile(profile) {
     const personaBtn = $(`#personaSeg button[data-persona="${profile.persona || DEFAULT_PERSONA}"]`);
     if (personaBtn) personaBtn.click();
+
+    // 설문에서 항목별로 실제 입력한 지출이 있으면 그대로 이어받는다 —
+    // persona 클릭이 방금 비례 재분배로 덮어썼을 수 있으니 그 다음에
+    // 덮어써야 사용자가 직접 조정한 값이 뭉개지지 않는다.
+    if (profile.spending) {
+      state.spending = profile.spending;
+      syncSpendingFields();
+    }
 
     if (profile.monthlySpend != null) setInputAndFire("#monthlySpend", profile.monthlySpend);
     setInputAndFire("#curSalary", profile.curSalary);
@@ -401,18 +428,16 @@
 
   // 등급 구간 — 링 안에 짧게 붙이고, 기준 자체는 "어떻게 계산했나요?"
   // 펼침 영역에 공개한다(숨겨진 기준으로 평가받는 느낌을 주지 않기 위해).
+  // 알파벳 등급(S/A/B/C/D/F)은 상/중상/중/중하/하 5단계로 바꿨다.
   const SCORE_GRADES = [
-    { min: 90, grade: "S", label: "최상" },
-    { min: 80, grade: "A", label: "우수" },
-    { min: 70, grade: "B", label: "양호" },
-    { min: 50, grade: "C", label: "보통" },
-    { min: 30, grade: "D", label: "주의" },
-    { min: 0,  grade: "F", label: "부족" },
+    { min: 80, grade: "상", cls: "is-good" },
+    { min: 60, grade: "중상", cls: "is-good" },
+    { min: 40, grade: "중", cls: "is-warn" },
+    { min: 20, grade: "중하", cls: "is-bad" },
+    { min: 0,  grade: "하", cls: "is-bad" },
   ];
   function scoreBand(total) {
-    const band = SCORE_GRADES.find((g) => total >= g.min);
-    const cls = total >= 70 ? "is-good" : total >= 50 ? "is-warn" : total >= 30 ? "is-warn" : "is-bad";
-    return { ...band, cls };
+    return SCORE_GRADES.find((g) => total >= g.min);
   }
 
   // 점수·도넛·등급을 하나로, 세부 수치는 기본 접힌 "어떻게 계산했나요?"
@@ -438,7 +463,7 @@
     heroEl.hidden = false;
     $("#scoreNum").textContent = total;
     $("#scoreRing").style.background = `conic-gradient(${color} ${total}%, var(--surface-sunk) 0)`;
-    $("#scoreGradeLine").textContent = `${band.grade} · ${band.label}`;
+    $("#scoreGradeLine").textContent = band.grade;
     $("#scoreGradeLine").className = `score-grade-line ${band.cls}`;
 
     $("#scoreDetailItems").innerHTML = items.map((it) =>
@@ -631,6 +656,19 @@
     observer.observe(target);
   }
 
+  // 목표 자산/타임머신은 기본 스크롤에 없다 — 버튼을 눌러야 펼쳐진다.
+  // renderAll()이 이미 renderGoal()/renderTime()을 항상 호출해 두므로
+  // 내용은 hidden 상태에서도 다 그려져 있다 — hidden만 풀면 된다.
+  function setupNextSteps() {
+    function revealPanel(id) {
+      const el = $(`#${id}`);
+      el.hidden = false;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    $("#revealGoalBtn").addEventListener("click", () => revealPanel("panel-goal"));
+    $("#revealTimeBtn").addEventListener("click", () => revealPanel("panel-time"));
+  }
+
   // 리포트를 스크롤해서 내려갈 때 섹션이 하나씩 나타나게 한다 — 설문
   // 중엔 패널 자체가 hidden이라 관찰해도 안 걸리다가, 리포트가 공개된
   // 뒤 스크롤하면서 순서대로 걸린다. 한 번 나타난 블록은 다시 안 건드림
@@ -687,7 +725,11 @@
         progressText.textContent = `${i} / ${TOTAL_STEPS}`;
       }
       // 방금 고른 생활 유형의 평균값을 미리 채워 둔다 — 사용자는 그대로 두거나 고칠 수 있다.
-      if (i === 2) $("#onbMonthlySpend").value = draft.monthlySpend;
+      if (i === 2) {
+        $("#onbMonthlySpend").value = Math.round(draft.monthlySpend);
+        renderOnbSpendFields();
+        renderOnbSpendDonut();
+      }
       scrollHomeToTop();
     }
 
@@ -750,12 +792,69 @@
       b.addEventListener("click", () => {
         draft.persona = b.dataset.persona;
         draft.monthlySpend = personaDefaultTotal(draft.persona);
+        draft.spending = roundSpending(PERSONAS[draft.persona].spending);
         $$("#onbPersonaGrid button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       });
     });
     $("#onbNext1").addEventListener("click", () => showStep(2));
 
-    // ---- 2 · 월 생활비 ----
+    // ---- 2 · 월 생활비 (세부 항목 토글 + 도넛 미리보기) ----
+    // 리포트 "내 물가" 탭이 쓰는 SPEND_GROUPS/scaleSpending을 그대로
+    // draft.spending에 적용한다 — 계산 로직을 새로 만들지 않는다.
+    const draftGroupTotal = (g) => g.members.reduce((sum, id) => sum + (draft.spending[id] || 0), 0);
+
+    function renderOnbSpendFields() {
+      $("#onbSpendFields").innerHTML = SPEND_GROUPS.map((g) => `
+        <div class="spend-row">
+          <label for="onb-sp-${g.id}">
+            <b>${g.name}</b>
+            <small>${g.hint}</small>
+          </label>
+          <span class="input-wrap">
+            <input type="number" id="onb-sp-${g.id}" min="0" step="1" inputmode="numeric" value="${Math.round(draftGroupTotal(g))}">
+            <span>만원</span>
+          </span>
+        </div>`).join("");
+
+      SPEND_GROUPS.forEach((g) => {
+        $(`#onb-sp-${g.id}`).addEventListener("input", (e) => {
+          const nextGroupTotal = Math.max(0, +e.target.value || 0);
+          draft.spending = scaleSpending(draft.spending, nextGroupTotal, g.members);
+          draft.monthlySpend = spendingTotal(draft.spending);
+          $("#onbMonthlySpend").value = Math.round(draft.monthlySpend);
+          renderOnbSpendDonut();
+        });
+      });
+    }
+
+    function renderOnbSpendDonut() {
+      const total = spendingTotal(draft.spending);
+      let acc = 0;
+      const stops = SPEND_GROUPS.map((g) => {
+        const weight = total > 0 ? draftGroupTotal(g) / total : 0;
+        const from = acc * 100, to = (acc + weight) * 100;
+        acc += weight;
+        return `${SPEND_GROUP_COLOR[g.id]} ${from.toFixed(2)}% ${to.toFixed(2)}%`;
+      });
+      $("#onbSpendDonut").style.background =
+        total > 0 ? `conic-gradient(${stops.join(",")})` : "var(--surface-sunk)";
+      $("#onbSpendDonutCenter").innerHTML =
+        `<div style="font-size:.68rem;color:var(--text-muted)">총 생활비</div>
+         <div style="font-size:1.2rem;font-weight:800">${man(total)}만원</div>`;
+      $("#onbSpendLegend").innerHTML = SPEND_GROUPS.map((g) => {
+        const weight = total > 0 ? (draftGroupTotal(g) / total) * 100 : 0;
+        return `<span class="legend-item"><span class="legend-swatch" style="background:${SPEND_GROUP_COLOR[g.id]}"></span>
+          ${g.name} ${weight.toFixed(0)}%</span>`;
+      }).join("");
+    }
+
+    $("#onbMonthlySpend").addEventListener("input", (e) => {
+      const nextTotal = Math.max(0, +e.target.value || 0);
+      draft.spending = scaleSpending(draft.spending, nextTotal);
+      renderOnbSpendFields();
+      renderOnbSpendDonut();
+    });
+
     $("#onbNext2").addEventListener("click", () => {
       draft.monthlySpend = Math.max(0, +$("#onbMonthlySpend").value || 0);
       showStep(3);
@@ -1146,7 +1245,9 @@
       $("#vsGap").textContent = "입력 필요";
       $("#mineVerdict").className = "verdict";
       $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
+      $("#americanoCallout").innerHTML = "";
       $("#spendTotal").textContent = "0만원";
+      $("#contribRank").innerHTML = "";
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
       $("#cumChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 10년 누적 물가를 계산합니다.</p>`;
       $("#cumLegend").innerHTML = "";
@@ -1208,6 +1309,16 @@
       v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 공식 통계와 거의 같습니다.`;
     }
 
+    // 만원 단위 %p 격차보다 실물로 와닿는 지표 — 이번 달 체감 격차를
+    // 아이스 아메리카노 잔수로 환산한다.
+    const monthlyGapWon = result.total * (diff / 100); // 만원
+    const cups = Math.round((Math.abs(monthlyGapWon) * 10000) / ICED_AMERICANO_PRICE);
+    $("#americanoCallout").innerHTML = `
+      <span class="americano-icon" aria-hidden="true">☕</span>
+      <p>아이스 아메리카노 기준으로 보면, 한 달에 <b>${cups}잔</b> 값이 ${diff >= 0 ? "더 들어요" : "덜 들어요"}
+        <span class="risk-badge risk-mid">가정값</span></p>
+      <p class="americano-sub">기준가 ${ICED_AMERICANO_PRICE.toLocaleString("ko-KR")}원 · 이번 달 격차 기준</p>`;
+
     const sp = state.cpi.spread;
     if (sp) {
       $("#spreadNote").innerHTML =
@@ -1223,6 +1334,16 @@
     // 라벨에 같이 붙인다.
     const grouped = E.aggregateByGroup(result.contributions, SPEND_GROUPS)
       .sort((a, b) => b.contribution - a.contribution);
+
+    // 기본 노출은 순위 요약만 — 계산 과정(①②③)과 막대그래프는 "상세
+    // 계산 보기"를 펼쳐야 보인다. grouped는 이미 contribution 내림차순.
+    $("#contribRank").innerHTML = grouped.filter((g) => g.amount > 0).map((g, i) => `
+      <li class="rank-row ${g.rate >= official ? "is-hot" : "is-cool"}">
+        <span class="rank-no">${i + 1}위</span>
+        <span class="rank-name">${g.name}</span>
+        <span class="rank-val">${g.contribution >= 0 ? "+" : ""}${g.contribution.toFixed(2)}%p</span>
+      </li>`).join("");
+
     Charts.contributionChart($("#contribChart"),
       grouped.filter((g) => g.amount > 0).map((g) => ({
         ...g, examples: (SPEND_GROUPS.find((s) => s.id === g.id) || {}).examples,
@@ -1429,15 +1550,8 @@
 
   /* ══════════════ 탭 1 · 실질임금 진단 ══════════════ */
   function setupGapTab() {
-    ["#curSalary", "#nextSalary", "#inflation"].forEach((sel) => {
-      $(sel).addEventListener("input", () => {
-        if (sel === "#inflation") {
-          state.inflation = parseFloat($("#inflation").value);
-          state.inflationLive = false;
-          $("#inflSource").textContent = "직접 조정한 값으로 계산 중입니다.";
-        }
-        renderGap();
-      });
+    ["#curSalary", "#nextSalary"].forEach((sel) => {
+      $(sel).addEventListener("input", () => renderGap());
     });
   }
 
@@ -1476,7 +1590,6 @@
 
   function renderGap() {
     const { cur, next, valid } = readGapInputs();
-    $("#inflVal").textContent = `${state.inflation.toFixed(1)}%`;
 
     // 연봉이 0이면 그냥 return 하던 탓에 차트 자리가 빈 칸으로 남았다.
     // '내 물가' 탭처럼 왜 비어 있는지 알려 준다. 안내 없이 비어 있으면
@@ -1733,26 +1846,28 @@
       curSalary: cur, inflationPct: state.inflation,
       offeredRatePct: d.nominalRatePct, desiredRealRatePct: 1,
     });
+    const defendAmount = cur * (state.inflation / 100);
+    const offeredAmount = cur * (d.nominalRatePct / 100);
+    const targetAmount = n.targetSalary - cur;
     $("#negoStats").innerHTML = `
-      <div class="stat"><span class="k">물가 방어 인상률</span><span class="v">${state.inflation.toFixed(1)}%</span>
-        <span class="s">최소 기준선</span></div>
-      <div class="stat"><span class="k">실질 +1% 목표</span><span class="v">${n.targetRatePct.toFixed(1)}%</span>
-        <span class="s">목표 연봉 ${man(n.targetSalary)}만원</span></div>
-      <div class="stat"><span class="k">제안받은 인상률</span><span class="v">${d.nominalRatePct.toFixed(1)}%</span>
-        <span class="s">현재 입력값</span></div>
+      <div class="stat"><span class="k">물가 방어 최소 인상액</span><span class="v">${man(defendAmount)}만원</span>
+        <span class="s">최소 기준선 (${state.inflation.toFixed(1)}%)</span></div>
+      <div class="stat"><span class="k">실질 +1% 목표 인상액</span><span class="v">${man(targetAmount)}만원</span>
+        <span class="s">목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</span></div>
+      <div class="stat"><span class="k">제안받은 인상액</span><span class="v">${man(offeredAmount)}만원</span>
+        <span class="s">현재 입력값 (${d.nominalRatePct.toFixed(1)}%)</span></div>
       <div class="stat ${n.shortfallPp <= 0 ? "is-good" : "is-warn"}"><span class="k">차이</span>
-        <span class="v">${n.shortfallPp <= 0 ? "달성" : `${n.shortfallPp.toFixed(1)}%p`}</span>
-        <span class="s">${n.shortfallPp <= 0 ? "목표 이상" : `${man(n.shortfallAmount)}만원 부족`}</span></div>`;
+        <span class="v">${n.shortfallPp <= 0 ? "달성" : `${man(n.shortfallAmount)}만원 부족`}</span>
+        <span class="s">${n.shortfallPp <= 0 ? "목표 이상" : `${n.shortfallPp.toFixed(1)}%p 차이`}</span></div>`;
 
     const v = $("#negoVerdict");
     if (n.shortfallPp <= 0) {
       v.className = "verdict";
-      v.innerHTML = `제안받은 <b>${d.nominalRatePct.toFixed(1)}%</b>는 물가에 실질 +1%를 더한 목표선을 이미 넘었습니다.`;
+      v.innerHTML = `제안받은 <b>${man(offeredAmount)}만원</b>(${d.nominalRatePct.toFixed(1)}%)은 물가에 실질 +1%를 더한 목표선을 이미 넘었습니다.`;
     } else {
       v.className = "verdict warn";
-      v.innerHTML = `협상 테이블에서 말할 숫자는 <b>${n.targetRatePct.toFixed(1)}%</b>입니다.
-        물가 ${state.inflation.toFixed(1)}%에 실질 인상 1%를 더한 값이고, 연봉으로는
-        <b>${man(n.targetSalary)}만원</b>입니다. 현재 제안과는 ${n.shortfallPp.toFixed(1)}%p 차이입니다.`;
+      v.innerHTML = `협상 테이블에서 말할 숫자는 <b>${man(targetAmount)}만원</b>(연봉 ${man(n.targetSalary)}만원, ${n.targetRatePct.toFixed(1)}%)입니다.
+        물가 방어분 ${man(defendAmount)}만원에 실질 인상 1%를 더한 값이고, 현재 제안과는 ${man(n.shortfallAmount)}만원 차이입니다.`;
     }
   }
 

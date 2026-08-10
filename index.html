@@ -20,8 +20,8 @@
       <a class="tab" id="tab-home" href="#panel-home">홈</a>
       <a class="tab" id="tab-mine" href="#panel-mine">내 물가</a>
       <a class="tab" id="tab-gap"  href="#panel-gap">실질임금 진단</a>
-      <a class="tab" id="tab-goal" href="#panel-goal">목표 자산 모으기</a>
-      <a class="tab" id="tab-time" href="#panel-time">자산 타임머신</a>
+      <a class="tab" id="tab-goal" href="#nextSteps">목표 자산 모으기</a>
+      <a class="tab" id="tab-time" href="#nextSteps">자산 타임머신</a>
     </nav>
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="테마 전환" title="라이트/다크 테마 전환">
       <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -81,12 +81,11 @@
             <ul class="score-detail-items" id="scoreDetailItems"></ul>
             <p class="score-detail-heading">등급 기준</p>
             <ul class="score-grade-list">
-              <li>90점 이상 — S · 최상</li>
-              <li>80~89점 — A · 우수</li>
-              <li>70~79점 — B · 양호</li>
-              <li>50~69점 — C · 보통</li>
-              <li>30~49점 — D · 주의</li>
-              <li>29점 이하 — F · 부족</li>
+              <li>80점 이상 — 상</li>
+              <li>60~79점 — 중상</li>
+              <li>40~59점 — 중</li>
+              <li>20~39점 — 중하</li>
+              <li>19점 이하 — 하</li>
             </ul>
             <p class="score-detail-narrative" id="homeSummarySub">—</p>
           </div>
@@ -137,7 +136,18 @@
           <label class="field">내 월 생활비
             <span class="input-wrap"><input type="number" id="onbMonthlySpend" min="0" step="10" inputmode="numeric"><span>만원</span></span>
           </label>
-          <p class="field-note">방금 고른 생활 유형의 평균값을 채워 뒀어요. 품목별로 더 세밀하게 조정하고 싶다면 리포트에서 바로 바꿀 수 있습니다.</p>
+          <p class="field-note">방금 고른 생활 유형의 평균값을 채워 뒀어요.</p>
+          <details class="spend-details">
+            <summary>세부 항목 입력하기</summary>
+            <div class="donut-row">
+              <div id="onbSpendFields" style="flex:1;min-width:230px"></div>
+              <div class="donut-wrap">
+                <div class="donut" id="onbSpendDonut"></div>
+                <div class="donut-center" id="onbSpendDonutCenter"></div>
+              </div>
+            </div>
+            <div class="legend" id="onbSpendLegend"></div>
+          </details>
         </div>
         <div class="onboarding-nav">
           <button class="onboarding-back" data-back type="button">← 이전</button>
@@ -287,6 +297,7 @@
           </div>
         </div>
         <p class="verdict" id="mineVerdict">—</p>
+        <div class="americano-callout" id="americanoCallout"></div>
         <button class="ai-explain-btn" id="aiExplainBtn" type="button" disabled>
           <span aria-hidden="true">✦</span> AI로 쉽게 풀어보기
         </button>
@@ -296,8 +307,12 @@
       <div class="card bento-contrib">
         <h3 class="block-title">내 물가를 밀어올린 범인</h3>
         <p class="block-q">막대 = 지출 비중 × 그 품목의 물가상승률. 다 더하면 내 물가입니다.</p>
-        <div class="calc-walk" id="contribMath"></div>
-        <div class="chart-box" id="contribChart"></div>
+        <ol class="contrib-rank" id="contribRank"></ol>
+        <details class="calc-detail">
+          <summary>상세 계산 보기</summary>
+          <div class="calc-walk" id="contribMath"></div>
+          <div class="chart-box" id="contribChart"></div>
+        </details>
         <details class="cat-legend">
           <summary>각 항목에 뭐가 들어가나요?</summary>
           <dl id="catLegend"></dl>
@@ -355,11 +370,6 @@
           </div>
           <p class="err-text" id="salaryErr" hidden></p>
 
-          <label class="range-label" id="inflLabel">
-            예상 물가상승률 <span class="val" id="inflVal">2.8%</span>
-            <input type="range" id="inflation" min="0" max="8" step="0.1" value="2.8">
-            <span class="range-scale"><span>0%</span><span>8%</span></span>
-          </label>
           <p class="field-note skeleton-bar" id="inflSource">—</p>
 
           <p class="answer-bridge">이 내용으로 아래 결과를 계산했어요 ↓</p>
@@ -383,7 +393,7 @@
 
       <div class="card bento-half-b">
         <h3 class="block-title">연봉 협상 가이드</h3>
-        <p class="block-q">물가를 방어하려면 최소 몇 %를 올려야 하는지.</p>
+        <p class="block-q">물가를 방어하려면 최소 얼마를 올려야 하는지.</p>
         <div class="stat-grid" id="negoStats"></div>
         <p class="verdict" id="negoVerdict">—</p>
       </div>
@@ -559,6 +569,21 @@
           <tbody id="timingTable"></tbody>
         </table></div>
         <p class="verdict" id="timingVerdict">—</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 다음 단계 ══════════════
+       목표 자산 모으기/자산 타임머신은 기본 리포트 스크롤에서 뺐다 —
+       원하는 사람만 버튼을 눌러 펼쳐 보게 한다. -->
+  <section class="panel" id="nextSteps">
+    <div class="card">
+      <p class="kicker">더 보고 싶다면</p>
+      <h3 class="block-title">목표와 과거 성과도 확인해 보세요</h3>
+      <p class="block-q">필요하면 펼쳐서 볼 수 있어요 — 기본 리포트에는 포함하지 않았습니다.</p>
+      <div class="next-step-actions">
+        <button class="home-start-btn" id="revealGoalBtn" type="button">목표 자산 계획 보기 →</button>
+        <button class="home-start-btn" id="revealTimeBtn" type="button">자산 타임머신으로 확인하기 →</button>
       </div>
     </div>
   </section>
