@@ -1058,9 +1058,6 @@
       $("#contribSummary").hidden = true;
       $("#contribRank").innerHTML = "";
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
-      $("#cumChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 10년 누적 물가를 계산합니다.</p>`;
-      $("#cumLegend").innerHTML = "";
-      $("#cumStats").innerHTML = "";
       $("#mineActionStats").innerHTML = "";
       $("#mineAction").className = "verdict";
       $("#mineAction").textContent = "월 생활비를 입력하면 필요한 소득·수익률 기준을 계산합니다.";
@@ -1106,14 +1103,6 @@
         <span class="risk-badge risk-mid">가정값</span></p>
       <p class="americano-sub">기준가 ${ICED_AMERICANO_PRICE.toLocaleString("ko-KR")}원 · 이번 달 격차 기준</p>`;
 
-    const sp = state.cpi.spread;
-    if (sp) {
-      $("#spreadNote").innerHTML =
-        `같은 달인데도 <b>${sp.high.name} +${sp.high.yoy.toFixed(1)}%</b>,
-         <b>${sp.low.name} +${sp.low.yoy.toFixed(1)}%</b>로 ${sp.gap.toFixed(1)}%p 벌어져 있습니다.
-         "물가 ${official.toFixed(1)}%"는 아무의 물가도 아닙니다.`;
-    }
-
     // 그래프는 12개 실카테고리(top)를 5개 그룹(grouped/ranked, 위에서
     // 이미 계산)으로 묶어서 보여준다(품목이 너무 많아 읽기 힘들다는
     // 피드백). 품목이 전체 평균보다 빨리 오르는지는 막대 색(오렌지/
@@ -1148,91 +1137,7 @@
     $("#mineSrc").textContent =
       `OECD 한국 소비자물가 COICOP 12분류 · ${result.month} 기준 · 브라우저에서 실시간 조회`;
 
-    renderCumulative(result);
     renderMineAction(result, official);
-  }
-
-  function renderCumulative(result) {
-    const cats = state.cpi.categories;
-    const mine = E.personalIndexPath(state.spending, cats);
-    if (!mine) return;
-
-    // 공식 지수도 같은 구간으로 잘라 100 기준으로 맞춘다
-    const officialIdx = state.cpi.index;
-    const months = mine.months.filter((m) => officialIdx[m] != null);
-    if (months.length < 2) return;
-    const oBase = officialIdx[months[0]];
-    const officialPath = months.map((m) => ({
-      x: E.monthToNum(m), y: (officialIdx[m] / oBase) * 100, meta: E.monthLabel(m),
-    }));
-    const minePath = mine.path
-      .filter((p) => months.includes(p.month))
-      .map((p) => ({ x: E.monthToNum(p.month), y: p.value, meta: E.monthLabel(p.month) }));
-
-    const labels = [];
-    const x0 = E.monthToNum(months[0]), x1 = E.monthToNum(months[months.length - 1]);
-    for (let x = x0; x <= x1; x += 24) labels.push({ at: x, text: `${Math.floor(x / 12)}` });
-
-    lineChart($("#cumChart"), {
-      series: [
-        { id: "official", label: "공식 물가", color: "var(--text-muted)", dashed: true, points: officialPath },
-        { id: "mine", label: "내 물가", color: "var(--accent, #b76442)", points: minePath },
-      ],
-      xLabels: labels,
-      yFormat: (val) => `${val.toFixed(0)}`,
-    });
-
-    $("#cumLegend").innerHTML =
-      `<span class="legend-item"><span class="legend-swatch" style="background:var(--text-muted)"></span>공식 물가</span>
-       <span class="legend-item"><span class="legend-swatch" style="background:var(--accent,#b76442)"></span>내 물가</span>`;
-
-    const mineCum = mine.cumulative;
-    const officialCum = officialIdx[months[months.length - 1]] / oBase - 1;
-    const gap = mineCum - officialCum;
-    const years = months.length / 12;
-
-    // 10년 누적 차이를 실제 돈으로 환산하면 얼마인가
-    const monthlySpend = result.total;
-    const extraPerYear = monthlySpend * 12 * gap;
-
-    $("#cumStats").innerHTML = `
-      <div class="stat"><span class="k">내 물가 누적</span><span class="v">${signPct(mineCum, 1)}</span>
-        <span class="s">${E.monthLabel(months[0])} ~ ${E.monthLabel(months[months.length - 1])}</span></div>
-      <div class="stat"><span class="k">공식 물가 누적</span><span class="v">${signPct(officialCum, 1)}</span>
-        <span class="s">같은 기간</span></div>
-      <div class="stat ${gap > 0 ? "is-bad" : "is-good"}"><span class="k">차이</span>
-        <span class="v">${gap >= 0 ? "+" : ""}${(gap * 100).toFixed(1)}%p</span>
-        <span class="s">${years.toFixed(0)}년 누적</span></div>
-      <div class="stat ${gap > 0 ? "is-bad" : "is-good"}"><span class="k">돈으로 환산하면</span>
-        <span class="v">${gap >= 0 ? "" : "−"}${man(Math.abs(extraPerYear))}만원</span>
-        <span class="s">현재 지출 기준 연간 ${gap >= 0 ? "더 냄" : "덜 냄"}</span></div>`;
-
-    // 현재 물가와 10년 누적의 방향이 엇갈릴 때가 있다. 화면만 보면 오류처럼
-    // 보이므로 왜 그런지 짚어 준다. (예: 식료품은 지금 +0.9%지만 10년간 +43%)
-    const nowDiff = state.personalRate - state.cpi.latest.yoy;
-    const note = $("#cumNote");
-    if (note) {
-      if (nowDiff < -0.05 && gap > 0.005) {
-        const cats = state.cpi.categories;
-        const worst = [...cats]
-          .filter((c) => (state.spending[c.id] || 0) > 0 && c.cum10y != null)
-          .sort((a, b) => b.cum10y - a.cum10y)[0];
-        note.hidden = false;
-        note.className = "verdict warn";
-        note.innerHTML = `지금은 공식 물가보다 낮은데, 10년 누적으로는 오히려 높습니다.
-          ${worst ? `최근 ${worst.latest.yoy >= 0 ? "+" : ""}${worst.latest.yoy.toFixed(1)}%로 잠잠한
-          <b>${worst.name}</b>${josa(worst.name, "이", "가")} 10년 동안은
-          <b>+${worst.cum10y.toFixed(0)}%</b> 올랐기 때문입니다.` : ""}
-          최근 한 달의 물가만 보면 놓치는 부분입니다.`;
-      } else if (nowDiff > 0.05 && gap < -0.005) {
-        note.hidden = false;
-        note.className = "verdict";
-        note.innerHTML = `지금은 공식 물가보다 높지만, 10년 누적으로는 낮습니다.
-          최근 오른 품목에 지출이 몰려 있을 뿐 장기적으로는 유리한 구성이었습니다.`;
-      } else {
-        note.hidden = true;
-      }
-    }
   }
 
   function renderMineAction(result, official) {
