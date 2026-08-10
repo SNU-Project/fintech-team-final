@@ -1482,7 +1482,10 @@
       const a = it.asset;
       if (!a) return "";
       const mdd = a.mdd ? signPct(a.mdd.depth) : "—";
-      const flag = a.assumed ? ` <span class="risk-badge risk-mid">가정값</span>` : "";
+      // 예금은 가격이 아니라 금리 기반이라 근거를 따로 밝힌다.
+      const flag = a.id === "cash"
+        ? ` <span class="risk-badge risk-low">금리 기준</span>`
+        : "";
       return `<tr>
         <td><span class="legend-swatch" style="background:${colorOf(it.id)};display:inline-block;margin-right:.4rem"></span>${a.name}${flag}</td>
         <td class="num">${(it.weight * 100).toFixed(0)}%</td>
@@ -1493,7 +1496,8 @@
 
     const src = state.market.assets.find((a) => a.id === "kodex200");
     $("#planSrc").textContent =
-      `실제 월말 종가 ${src ? src.range[0] : ""}~${src ? src.range[1] : ""} 기준 · 예금은 가정값 ${pct(state.market.cash_assumption, 1)}`;
+      `실제 월말 종가 ${src ? src.range[0] : ""}~${src ? src.range[1] : ""} 기준 · ` +
+      `예금은 OECD 한국 3개월 은행간금리 (최근 ${state.market.deposit_rate_latest}%)`;
   }
 
   function renderNegotiation(cur, d) {
@@ -1646,7 +1650,8 @@
 
   /* ══════════════ 탭 3 · 자산 타임머신 ══════════════ */
   function setupTimeTab() {
-    const assets = state.market.assets.filter((a) => !a.assumed);
+    // 예금은 '그때 샀다면' 비교 대상이 아니라 기준선이므로 목록에서 뺀다.
+    const assets = state.market.assets.filter((a) => a.id !== "cash");
     const allMonths = assets.flatMap((a) => Object.keys(a.index || {}));
     const minMonth = allMonths.sort()[0];
     const maxMonth = allMonths.sort()[allMonths.length - 1];

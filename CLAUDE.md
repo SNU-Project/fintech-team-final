@@ -46,7 +46,7 @@ const RISK_RETURNS = { stable: 0.03, balanced: 0.06, aggressive: 0.09 };
 
 모든 수치는 `data/market.json`, `data/cpi.json`에서 읽습니다. 이 파일들은 GitHub Actions가 주 1회 실제 API에서 받아 PR로 갱신합니다.
 
-**유일한 예외**는 예금 수익률(`pipeline/transform.py`의 `CASH_ANNUAL_RETURN = 0.030`)입니다. 시장 시세가 없어서 가정값이고, 화면에 `가정값` 배지로 명시하고 있습니다. 새 가정값을 추가하려면 반드시 화면과 `meta.json`의 `assumptions`에 함께 노출하세요.
+**현재 화면에 가정값은 하나도 없습니다.** 예금도 OECD 한국 3개월 은행간금리(IR3TIB)를 월 복리로 굴린 실데이터입니다. 가정값을 새로 도입해야 한다면 반드시 화면과 `meta.json`의 `assumptions`에 함께 노출하세요.
 
 ---
 
@@ -120,7 +120,7 @@ Vercel AI Gateway를 쓰다가 옮겼는데, 무료 사용량이 있어도 **신
 
 | API | 용도 | CORS | 방식 |
 |---|---|---|---|
-| OECD SDMX | 물가 (전체 + 12품목) | ✅ | 브라우저 실시간 |
+| OECD SDMX | 물가 (전체 + 12품목) · 예금 금리 | ✅ | 브라우저 실시간 / 파이프라인 |
 | Frankfurter (ECB) | 원/달러 | ✅ | 브라우저 실시간 |
 | CoinGecko | 비트코인 | ✅ | 브라우저 실시간 |
 | Yahoo Finance | 주식·금·채권 10년 시계열 | ❌ | Actions가 주 1회 수집 → PR |
