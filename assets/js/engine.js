@@ -346,7 +346,7 @@
 
   global.Engine = {
     diagnose, negotiate, project, requiredMonthly, monthsToGoal,
-    backtest, backtestWindow, inflationPath, planOf,
+    backtest, backtestWindow, inflationPath, planOf, customPlan, badYear,
     personalInflation, personalIndexPath, aggregateByGroup, halfLife, salaryScore,
     monthToNum, monthLabel, addMonths,
   };
