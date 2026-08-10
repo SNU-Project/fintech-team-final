@@ -1,4 +1,9 @@
-const MODEL = "google/gemini-2.5-flash-lite";
+const MODEL = "gemini-2.5-flash-lite";
+const SYSTEM_PROMPT =
+  "당신은 금융 초보자를 돕는 한국어 데이터 해설자입니다. 제공된 계산 결과만 사용해 " +
+  "두 문장으로 쉽게 설명하세요. 숫자·기호·목록·마크다운을 출력하지 마세요. " +
+  "첫 문장은 왜 평균과 다르게 느끼는지, 둘째 문장은 이 화면에서 사용자가 확인할 " +
+  "다음 행동을 말하세요. 종목 추천, 수익 보장, 투자 권유는 금지합니다.";
 const CATEGORY_NAMES = Object.freeze({
   food: "식료품·비주류음료",
   alcohol: "주류·담배",
@@ -63,12 +68,20 @@ export async function POST(request) {
   }
   if (!input) return Response.json({ error: "계산 결과 형식이 올바르지 않습니다." }, { status: 400 });
 
-  // Vercel Functions는 런타임 OIDC를 요청 헤더로 주고, 로컬/구형 런타임은
-  // 환경변수로 줄 수 있다. 둘 다 받아야 기존 정적 프로젝트에서도 동작한다.
-  const token = process.env.AI_GATEWAY_API_KEY ||
-    process.env.VERCEL_OIDC_TOKEN ||
-    request.headers.get("x-vercel-oidc-token");
-  if (!token) return Response.json({ error: "AI 연결이 설정되지 않았습니다." }, { status: 503 });
+  // Google AI Studio 키를 쓴다. Vercel AI Gateway는 무료 사용량이 있어도
+  // 신용카드가 등록돼 있어야 요청을 처리해 주는데(2026-08-10에 403의 원인으로
+  // 확인), 학교 과제에 카드를 걸 이유가 없다. AI Studio는 카드 없이 무료
+  // 할당량을 준다.
+  //
+  // 키는 반드시 서버에서만 읽는다. assets/ 안에 두면 정적 파일이라 그대로
+  // 공개된다.
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return Response.json({
+      error: "AI 연결이 설정되지 않았습니다.",
+      code: "missing-api-key",
+    }, { status: 503 });
+  }
 
   const facts = [
     `공식 물가: ${input.officialRate}%`,
@@ -80,25 +93,21 @@ export async function POST(request) {
   ].join("\n");
 
   try {
-    const gatewayResponse = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        temperature: 0.2,
-        max_tokens: 180,
-        messages: [
-          {
-            role: "system",
-            content: "당신은 금융 초보자를 돕는 한국어 데이터 해설자입니다. 제공된 계산 결과만 사용해 두 문장으로 쉽게 설명하세요. 숫자·기호·목록·마크다운을 출력하지 마세요. 첫 문장은 왜 평균과 다르게 느끼는지, 둘째 문장은 이 화면에서 사용자가 확인할 다음 행동을 말하세요. 종목 추천, 수익 보장, 투자 권유는 금지합니다.",
-          },
-          { role: "user", content: facts },
-        ],
-      }),
-    });
+    const gatewayResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [{ role: "user", parts: [{ text: facts }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 180 },
+        }),
+      }
+    );
     if (!gatewayResponse.ok) {
       // 게이트웨이가 왜 거부했는지 남긴다. 상태 코드만으로는 키가 틀린 건지,
       // 크레딧이 없는 건지, 모델 권한이 없는 건지 구분할 수 없어서
@@ -115,12 +124,14 @@ export async function POST(request) {
         error: "AI 해설을 불러오지 못했습니다.",
         code: `gateway-${gatewayResponse.status}`,
         detail,
-        authSource: process.env.AI_GATEWAY_API_KEY ? "api-key"
-          : process.env.VERCEL_OIDC_TOKEN ? "oidc-env" : "oidc-header",
+        authSource: "gemini-api-key",
       }, { status: 502 });
     }
     const output = await gatewayResponse.json();
-    const text = safeText(output?.choices?.[0]?.message?.content, input);
+    const text = safeText(
+      output?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(" "),
+      input
+    );
     if (!text) {
       return Response.json({
         error: "AI 해설을 불러오지 못했습니다.",
