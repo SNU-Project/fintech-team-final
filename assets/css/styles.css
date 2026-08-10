@@ -276,6 +276,13 @@ section { scroll-margin-top: 5rem; }
 .home-hero h1 em { font-style: normal; color: var(--brand); }
 .home-hero .lede { font-size: clamp(.95rem, 2vw, 1.1rem); color: var(--text-secondary); margin: 0; max-width: 32rem; }
 .home-hero .kicker { margin: 0; }
+/* "당신의 연봉 성적표"는 이 화면의 제목 역할을 하는데도 다른 자잘한
+   kicker(Q1·내 물가 같은 문항 안내)와 같은 톤이라 존재감이 없었다.
+   이 화면 전용으로 더 크고 진하게, 브랜드색을 줘서 확실히 눈에 띄게
+   한다(다른 화면의 .kicker는 손대지 않는다). */
+#homeSummaryKicker {
+  margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--brand); letter-spacing: -.01em;
+}
 
 /* ---------- 연봉 성적표 점수 ----------
    "실질임금 진단"·"내 물가" 두 계산만 100점 만점 하나로 묶어 보여준다
@@ -284,13 +291,12 @@ section { scroll-margin-top: 5rem; }
    뚫는 게 아니라 radial-gradient mask로 가려서 만든다(이미 이
    코드베이스에서 검증된 패턴).
 
-   같은 숫자(예: 56점)가 큰 텍스트·링·세부 카드에 세 번 반복되던 걸
-   링 하나로 줄였다 — 점수·등급은 링 안에서만 보여주고, 세부 수치와
-   기존 물가 풀이 문단은 기본 접힌 "어떻게 계산했나요?" 안에서만
-   보여준다. */
+   세부 수치("실질임금 성장 64점" 등)와 기존 물가 풀이 문단은 기본
+   접힌 "어떻게 계산했나요?" 안에서만 보여준다 — 링 아래에 다시
+   요약 줄로 반복하면 같은 숫자가 또 겹친다. */
 .score-hero { display: flex; flex-direction: column; align-items: center; gap: .6rem; margin-top: .3rem; }
 .score-hero[hidden] { display: none; }
-.score-ring-wrap { width: 148px; height: 148px; position: relative; margin-top: .3rem; }
+.score-ring-wrap { width: 168px; height: 168px; position: relative; margin-top: .3rem; }
 .score-ring {
   position: absolute; inset: 0; border-radius: 50%;
   -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%);
@@ -298,14 +304,13 @@ section { scroll-margin-top: 5rem; }
 }
 .score-ring-center {
   position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: .1rem;
+  align-items: center; justify-content: center; gap: .05rem;
 }
-.score-num { font-size: 2.7rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-primary); line-height: 1; }
-.score-grade-line { font-size: .82rem; font-weight: 700; }
+.score-num { font-size: 2.5rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-primary); line-height: 1; }
+.score-grade-line { font-size: .82rem; font-weight: 700; margin-top: .15rem; }
 .score-grade-line.is-good { color: var(--good-text); }
 .score-grade-line.is-warn { color: var(--warning-text); }
 .score-grade-line.is-bad  { color: var(--critical-text); }
-.score-summary-line { margin: 0; font-size: .85rem; color: var(--text-secondary); font-weight: 600; word-break: keep-all; }
 
 /* "어떻게 계산했나요?" 펼침 — 기본 닫힘. 다른 <details> 펼침과 같은
    시각 언어(요약은 브랜드색, 목록은 왼쪽 정렬)를 쓴다. */
