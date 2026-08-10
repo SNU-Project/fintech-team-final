@@ -194,6 +194,10 @@
     // scrollIntoView를 호출한다 — 상단 고정 헤더가 있는 페이지에서
     // 브라우저의 기본 해시 스크롤이 안 먹는 경우가 있었다. 섹션에는
     // scroll-margin-top이 이미 걸려 있어 고정 헤더에 제목이 안 가린다.
+    // URL 해시는 일부러 안 바꾼다 — 바꾸면 이후에 새로고침했을 때
+    // scrollToHashSection이 그 해시를 "공유 링크로 들어온 것"과
+    // 구분 못 하고 다시 그 섹션으로 스크롤시켜서, 홈 요약·티커가 있는
+    // 맨 위가 안 보이는 것처럼 느껴지는 문제가 있었다.
     tabs.forEach((tab) => {
       tab.addEventListener("click", (e) => {
         const id = tab.getAttribute("href").slice(1);
@@ -201,7 +205,6 @@
         if (!target || target.hidden) return;
         e.preventDefault();
         target.scrollIntoView({ behavior: "smooth", block: "start" });
-        history.pushState(null, "", `#${id}`);
       });
     });
 
