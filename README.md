@@ -201,6 +201,7 @@ python3 pipeline/fetch_data.py && python3 pipeline/transform.py
 │   ├── fetch_data.py           수집
 │   └── transform.py            정제·지표 산출
 ├── docs/
+│   ├── team-briefing.md        팀원용 해설서 (발표 전 필독)
 │   ├── fork-guide.md           ⚠️ 개인 계정으로 복제할 때 주의사항
 │   ├── pr-protocol.md          PR 올리기 전 자체 점검
 │   ├── ai-usage.md             AI 활용 과정과 검증 내역
