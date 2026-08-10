@@ -151,7 +151,6 @@
     state.inflation = state.cpi.latest.yoy;
 
     setupNumberInputGuards();
-    setupTabs();
     setupMineTab();
     setupGapTab();
     setupGoalTab();
@@ -243,45 +242,6 @@
     $("#ticker").innerHTML = items.join("");
   }
 
-  /* ══════════════ 탭 ══════════════ */
-  // 탭은 더 이상 패널을 숨기지 않는다 — 내 물가부터 자산 타임머신까지
-  // 전부 리포트처럼 항상 이어져 보이고, 탭은 그 안의 위치로 스크롤만
-  // 시켜주는 앵커 링크(<a href="#panel-x">)다. 여기서는 지금 화면에
-  // 걸쳐 있는 섹션이 어떤 탭인지만 aria-current로 표시해 준다.
-  function setupTabs() {
-    const tabs = $$(".tab");
-    const tabBySection = new Map(tabs.map((t) => [t.getAttribute("href").slice(1), t]));
-    const sections = $$(".panel").filter((p) => tabBySection.has(p.id));
-
-    // 네이티브 앵커 점프(href="#panel-x")에만 기대지 않고 명시적으로
-    // scrollIntoView를 호출한다 — 상단 고정 헤더가 있는 페이지에서
-    // 브라우저의 기본 해시 스크롤이 안 먹는 경우가 있었다. 섹션에는
-    // scroll-margin-top이 이미 걸려 있어 고정 헤더에 제목이 안 가린다.
-    // URL 해시는 일부러 안 바꾼다 — 바꾸면 이후에 새로고침했을 때
-    // scrollToHashSection이 그 해시를 "공유 링크로 들어온 것"과
-    // 구분 못 하고 다시 그 섹션으로 스크롤시켜서, 홈 요약·티커가 있는
-    // 맨 위가 안 보이는 것처럼 느껴지는 문제가 있었다.
-    tabs.forEach((tab) => {
-      tab.addEventListener("click", (e) => {
-        const id = tab.getAttribute("href").slice(1);
-        const target = document.getElementById(id);
-        if (!target || target.hidden) return;
-        e.preventDefault();
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    });
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        tabs.forEach((t) => t.removeAttribute("aria-current"));
-        tabBySection.get(entry.target.id).setAttribute("aria-current", "true");
-      });
-    }, { rootMargin: "-40% 0px -55% 0px", threshold: 0 });
-
-    sections.forEach((s) => observer.observe(s));
-  }
-
   // 리포트가 막 보이기 시작하는 시점(설문을 마쳤거나 재방문자라 바로
   // 공개될 때)에 한 번 호출한다. 공유 링크 등으로 해시를 이미 들고
   // 들어온 경우, 그 순간까지는 섹션이 hidden이라 스크롤해도 자리가
@@ -301,15 +261,19 @@
      설문 아래로 결과가 미리 보이면 안 된다. 설문을 마치면(또는
      재방문자면) 한꺼번에 드러낸다. 한 번 마치면 localStorage에 저장해
      재방문 시 다시 묻지 않는다. */
+  // 서비스명은 "연봉 성적표"로 바뀌었지만 키는 그대로 둔다 — 이미 저장된
+  // 기존 사용자의 값과의 연결이 끊기기만 할 뿐 바꿔서 얻는 게 없다.
   const ONBOARD_KEY = "salarygap-profile";
-  const TOTAL_STEPS = 5;
+  const TOTAL_STEPS = 3;
   // panel-goal/panel-time은 일부러 뺐다 — 기본 리포트 스크롤에 자동으로
   // 드러나지 않고, #nextSteps의 버튼을 눌러야 펼쳐진다(revealPanel 참고).
-  const REPORT_PANEL_IDS = ["panel-mine", "panel-gap", "panel-final"];
+  // nextSteps 자체는 여기 포함시켜서, 설문 도중에는 그 버튼 2개조차
+  // DOM에 안 보이게 한다(전에는 hidden이 아예 없어서 설문 중에도
+  // 스크롤하면 보이는 버그가 있었다).
+  const REPORT_PANEL_IDS = ["panel-mine", "panel-gap", "panel-final", "nextSteps"];
 
   function setReportVisible(visible) {
     REPORT_PANEL_IDS.forEach((id) => { $(`#${id}`).hidden = !visible; });
-    $("#mainTabs").hidden = !visible;
     $("#ticker").hidden = !visible;
     $("#basis").hidden = !visible;
     // 목표/타임머신은 항상 처음엔(그리고 재입력 시엔 다시) 접힌 상태로
@@ -363,17 +327,16 @@
     $(sel).dispatchEvent(new Event("input", { bubbles: true }));
   }
 
-  // 목표 자산(Q5)은 선택 문항이라 일부러 기본값을 주지 않는다 — 안 채우면
-  // 0으로 남고, collectGoalAndFinish가 실제 입력 필드 값으로 항상 덮어쓰기
-  // 때문에 여기 goalAmount/goalYears/goalCurrent는 그 전까지 잠깐 쓰이는
-  // 자리표시자일 뿐이다(실제 화면에 노출되지 않음).
+  // 투자 성향은 이제 설문에서 안 묻는다 — 목표 자산 탭의 #riskCompare에서
+  // 직접 고른다(state.goalRisk 기본값 "balanced"가 그때까지의 fallback).
+  // goalAmount 등은 그 탭이 열릴 때까지 쓰이는 안전한 기본값일 뿐이다
+  // (applyOnboardProfile이 그대로 반영).
   function freshDraft() {
     return {
       persona: DEFAULT_PERSONA,
       monthlySpend: personaDefaultTotal(DEFAULT_PERSONA),
       spending: roundSpending(PERSONAS[DEFAULT_PERSONA].spending),
       curSalary: 3600, nextSalary: 3750,
-      risk: "balanced",
       goalAmount: 0, goalYears: 1, goalMonths: 0, goalCurrent: 0,
     };
   }
@@ -400,11 +363,6 @@
     setInputAndFire("#goalYears", profile.goalYears);
     setInputAndFire("#goalMonths", profile.goalMonths);
     setInputAndFire("#goalCurrent", profile.goalCurrent);
-
-    if (profile.risk) {
-      const goalRiskBtn = $(`#goalRiskSeg button[data-risk="${profile.risk}"]`);
-      if (goalRiskBtn) goalRiskBtn.click();
-    }
     renderAll();
   }
 
@@ -822,31 +780,12 @@
       showStep(3);
     });
 
-    // ---- 3 · 연봉 ----
-    $("#onbNext3").addEventListener("click", () => {
+    // ---- 3 · 연봉 (마지막 문항) ----
+    $("#onbFinish").addEventListener("click", () => {
       draft.curSalary = Math.max(0, +$("#onbCurSalary").value || 0);
       draft.nextSalary = Math.max(0, +$("#onbNextSalary").value || 0);
-      showStep(4);
-    });
-
-    // ---- 4 · 투자 성향 (건너뛰기 가능) ----
-    $$("#onbRiskSeg button").forEach((b) => {
-      b.addEventListener("click", () => {
-        draft.risk = b.dataset.risk;
-        $$("#onbRiskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-      });
-    });
-    $("#onbNext4").addEventListener("click", () => showStep(5));
-
-    // ---- 5 · 목표 자산 ----
-    function collectGoalAndFinish() {
-      draft.goalAmount = Math.max(0, +$("#onbGoalAmount").value || 0);
-      draft.goalYears = Math.max(0, Math.min(40, +$("#onbGoalYears").value || 0));
-      draft.goalMonths = Math.max(0, Math.min(11, +$("#onbGoalMonths").value || 0));
-      draft.goalCurrent = Math.max(0, +$("#onbGoalCurrent").value || 0);
       finish(draft);
-    }
-    $("#onbFinish").addEventListener("click", collectGoalAndFinish);
+    });
 
     // ---- 뒤로가기 (모든 문항 공통) ----
     $$("[data-back]").forEach((b) => {
@@ -854,7 +793,8 @@
     });
 
     // ---- 요약 화면 ----
-    $("#homeReportBtn").addEventListener("click", () => $("#tab-mine").click());
+    $("#homeReportBtn").addEventListener("click", () =>
+      $("#panel-mine").scrollIntoView({ behavior: "smooth", block: "start" }));
     $("#homeRestartBtn").addEventListener("click", () => {
       // 바로 위 "리포트 보기" 버튼과 가까이 있어 오클릭하기 쉬운데,
       // 이 버튼은 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라
@@ -865,7 +805,6 @@
       setReportVisible(false);
       draft = freshDraft();
       $$("#onbPersonaGrid button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.persona === DEFAULT_PERSONA)));
-      $$("#onbRiskSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.risk === "balanced")));
       wizardView.hidden = false;
       showStep(0);
     });
@@ -920,10 +859,10 @@
       { test: (id) => id === "monthlySpend" || id === "onbMonthlySpend", min: 0, max: 5000, label: "월 생활비", money: true, amount: true },
       { test: (id) => id.startsWith("sp-"), min: 0, max: 3000, label: "지출 항목", money: true, amount: true },
       { test: (id) => id === "curSalary" || id === "onbCurSalary" || id === "nextSalary" || id === "onbNextSalary", min: 0, max: 100000, label: "연봉", money: true, amount: true },
-      { test: (id) => id === "goalAmount" || id === "onbGoalAmount", min: 0, max: 100000, label: "목표 금액", money: true, amount: true },
-      { test: (id) => id === "goalCurrent" || id === "onbGoalCurrent", min: 0, max: 100000, label: "현재 보유 자산", money: true, amount: true },
-      { test: (id) => id === "goalYears" || id === "onbGoalYears", min: 0, max: 40, label: "목표 기간(년)", money: true },
-      { test: (id) => id === "goalMonths" || id === "onbGoalMonths", min: 0, max: 11, label: "목표 기간(개월)", money: true },
+      { test: (id) => id === "goalAmount", min: 0, max: 100000, label: "목표 금액", money: true, amount: true },
+      { test: (id) => id === "goalCurrent", min: 0, max: 100000, label: "현재 보유 자산", money: true, amount: true },
+      { test: (id) => id === "goalYears", min: 0, max: 40, label: "목표 기간(년)", money: true },
+      { test: (id) => id === "goalMonths", min: 0, max: 11, label: "목표 기간(개월)", money: true },
       { test: (id) => id === "goalMonthly", min: 0, max: 5000, label: "월 저축 가능액", money: true, amount: true },
       { test: (id) => id === "investAmount", min: 0, max: 100000, label: "투자 금액", money: true, amount: true },
     ];
@@ -1385,7 +1324,7 @@
     if (state.aiCache.has(cacheKey)) {
       body.textContent = state.aiCache.get(cacheKey);
       body.classList.remove("is-loading");
-      status.textContent = "Gemini 해설 · 계산은 샐러리갭 엔진이 수행했습니다.";
+      status.textContent = "Gemini 해설 · 계산은 연봉 성적표 엔진이 수행했습니다.";
       return;
     }
 
@@ -1402,7 +1341,7 @@
       if (response.ok && typeof data.text === "string") {
         state.aiCache.set(cacheKey, data.text);
         body.textContent = data.text;
-        status.textContent = "Gemini 해설 · 계산은 샐러리갭 엔진이 수행했습니다.";
+        status.textContent = "Gemini 해설 · 계산은 연봉 성적표 엔진이 수행했습니다.";
       } else if (response.status === 503) {
         // 서버에 AI 연결 자체가(API 키 등) 설정돼 있지 않은 상태 —
         // 다시 눌러도 같은 이유로 또 실패하니 재시도 버튼을 안 보여준다.
@@ -1735,8 +1674,6 @@
       b.addEventListener("click", () => {
         state.goalRisk = b.dataset.mixRisk;
         state.customWeights = null;          // 프리셋을 고르면 직접 조정은 해제
-        $$("[data-risk]").forEach((x) =>
-          x.setAttribute("aria-pressed", String(x.dataset.risk === state.goalRisk)));
         renderAll();
       });
     });
@@ -1879,13 +1816,6 @@
   function setupGoalTab() {
     ["#goalAmount", "#goalYears", "#goalMonths", "#goalCurrent", "#goalMonthly"].forEach((sel) =>
       $(sel).addEventListener("input", renderGoal));
-    $$("#goalRiskSeg button").forEach((b) => {
-      b.addEventListener("click", () => {
-        state.goalRisk = b.dataset.risk;
-        $$("#goalRiskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-        renderGoal();
-      });
-    });
   }
 
   function renderGoal() {
