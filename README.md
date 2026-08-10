@@ -45,17 +45,16 @@
 
 > 카드 소비내역이 있으면 이 입력은 필요 없어집니다. 카테고리별 지출액만 넣으면 자동으로 계산되는 구조라, 금융앱의 소비 분석 데이터와 그대로 결합됩니다.
 
-**AI는 계산기가 아니라 번역기 역할만 합니다.** 내 물가와 기여도는 `engine.js`가 실제 데이터로 먼저 계산하고, 사용자가 버튼을 누른 경우에만 결과 일부를 Gemini에 전달해 초보자용 두 문장으로 바꿉니다. 연봉·월 지출액 같은 개인정보는 전송하지 않으며, AI가 새 숫자를 만들면 응답을 버리고 검증된 기본 해설로 돌아갑니다. 서버 함수가 Vercel AI Gateway의 배포용 인증을 사용하므로 브라우저와 저장소에 API 키가 노출되지 않습니다.
+**AI는 계산기가 아니라 번역기 역할만 합니다.** 내 물가와 기여도는 `engine.js`가 실제 데이터로 먼저 계산하고, 사용자가 버튼을 누른 경우에만 결과 일부를 Gemini에 전달해 초보자용 두 문장으로 바꿉니다. 연봉·월 지출액 같은 개인정보는 전송하지 않으며, AI가 새 숫자를 만들면 응답을 버리고 검증된 기본 해설로 돌아갑니다. 서버 함수는 Google AI Studio API 키를 서버에서만 읽으므로 브라우저와 저장소에 키가 노출되지 않습니다.
 
 ### 탭 1 — 실질임금 진단
 
 | 요구사항 | 구현 위치 |
 |---|---|
-| 현재/내년 연봉, 물가상승률, 월 투자가능액, 투자성향 입력 | `index.html` `#panel-gap` |
+| 현재/내년 연봉, 물가상승률 입력 | `index.html` `#panel-gap` |
 | 명목 인상액 / 물가 유지선 / 실질 인상률 / 부족분 계산 | `assets/js/engine.js` `diagnose()` |
 | 연봉 비교 막대그래프 | `#salaryChart` (`Charts.barChart`) |
 | 부족 금액(연간/월간) 숫자 카드 | `#gapStats` |
-| 투자성향별 포트폴리오 원형그래프 | `#donut` (conic-gradient) |
 | **물가 기반 적정 인상률 (연봉 협상 가이드)** | `#negoStats` (`engine.js` `negotiate()`) |
 
 ### 탭 2 — 목표 자산 모으기
@@ -77,7 +76,6 @@
 | 물가 대비 성과 비교선 | `engine.js` `inflationPath()` |
 | 수익률과 위험(변동성·최대낙폭) 병기 | `#timeTable` |
 | 선택일 앞뒤 6개월의 최종금액 범위·중앙값 | `engine.js` `backtestWindow()`, `#timingTable` |
-| 과거 결과를 현재 목표 계획으로 연결 | `#startFuturePlan` |
 
 ---
 
@@ -195,7 +193,7 @@ python3 pipeline/fetch_data.py && python3 pipeline/transform.py
 │       └── app.js              화면 조립
 ├── api/
 │   └── insight.mjs             Gemini 해설 서버 함수 (입력·출력 검증)
-├── data/                       ← Actions가 매일 갱신
+├── data/                       ← Actions가 주 1회 갱신
 │   ├── market.json             자산별 시계열·지표·포트폴리오
 │   ├── cpi.json                한국 소비자물가 (전체 + COICOP 12품목)
 │   └── meta.json               출처·가정·정제 내역

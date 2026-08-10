@@ -38,6 +38,18 @@
   const PERSONA_DATA = window.Personas;
   const PERSONAS = PERSONA_DATA.profiles;
   const DEFAULT_PERSONA = "solo";
+
+  // 12개 COICOP 실카테고리(물가 계산용, 손대지 않음)를 사람이 보기 편한
+  // 5개 그룹으로 묶어서 입력 UI에만 쓴다. id는 g- 접두사로 실카테고리
+  // id와 절대 안 겹치게 한다. 12개 전부 정확히 한 그룹에만 속한다.
+  const SPEND_GROUPS = [
+    { id: "g-food", name: "식비", hint: "장보기, 외식, 배달, 카페", members: ["food", "dining"] },
+    { id: "g-home", name: "주거·생활", hint: "월세, 관리비, 공과금, 생활용품", members: ["housing", "household"] },
+    { id: "g-move", name: "교통·통신", hint: "대중교통, 차량, 휴대폰·인터넷", members: ["transport", "comm"] },
+    { id: "g-play", name: "여가·문화", hint: "여행, 취미, 옷, 교육", members: ["leisure", "education", "clothing"] },
+    { id: "g-etc", name: "건강·기타", hint: "병원비, 술·담배, 보험 등", members: ["health", "alcohol", "misc"] },
+  ];
+
   const spendingTotal = (spending) =>
     Object.values(spending).reduce((sum, value) => sum + (Number(value) || 0), 0);
 
@@ -48,28 +60,33 @@
     Object.fromEntries(Object.entries(spending).map(([key, value]) => [key, Math.round(value)]));
 
   // 총액은 체감하기 쉬운 입력이고, 개인 물가는 지출 비중으로 계산된다.
-  // 그래서 총액을 바꿀 때는 통계에서 온 비중을 유지한 채 모든 항목을 같이 조정한다.
-  function scaleSpending(spending, nextTotal) {
-    const current = spendingTotal(spending);
+  // 그래서 총액을 바꿀 때는 통계에서 온 비중을 유지한 채 항목들을 같이
+  // 조정한다. keys를 생략하면(전체 12개) "월 생활비" 총액 편집에 쓰이고,
+  // 일부만 넘기면(그룹 멤버 2~3개) 그룹 총액 편집에 쓰인다 — 로직은
+  // 하나인데 대상 범위만 다르다.
+  function scaleSpending(spending, nextTotal, keys = Object.keys(spending)) {
+    const subset = Object.fromEntries(keys.map((k) => [k, spending[k] || 0]));
+    const current = spendingTotal(subset);
+    const zeroed = Object.fromEntries(keys.map((key) => [key, 0]));
     if (current <= 0 || nextTotal <= 0) {
-      return Object.fromEntries(Object.keys(spending).map((key) => [key, 0]));
+      return { ...spending, ...zeroed };
     }
     const scale = nextTotal / current;
-    const scaled = Object.fromEntries(Object.entries(spending).map(([key, value]) =>
+    const scaled = Object.fromEntries(Object.entries(subset).map(([key, value]) =>
       [key, Math.round(value * scale)]));
-    // 항목별 반올림 뒤 생기는 오차(만 원 단위)는 가장 큰 항목에 합쳐
-    // 사용자가 입력한 총액과 화면 합계가 정확히 같게 만든다.
+    // 항목별 반올림 뒤 생기는 오차(만 원 단위)는 대상 범위 안에서 가장 큰
+    // 항목에 합쳐 총액과 화면 합계가 정확히 같게 만든다.
     const largest = Object.keys(scaled).sort((a, b) => scaled[b] - scaled[a])[0];
     const roundingGap = Math.round(nextTotal - spendingTotal(scaled));
     if (largest && roundingGap) {
       scaled[largest] = Math.max(0, scaled[largest] + roundingGap);
     }
-    return scaled;
+    return { ...spending, ...scaled };
   }
 
   const state = {
     market: null, cpi: null, meta: null,
-    risk: "balanced", goalRisk: "balanced",
+    goalRisk: "balanced",
     inflation: 2.8, inflationLive: false,
     picks: new Set(["kodex200", "sp500", "gold"]),
     startMonth: null,
@@ -109,8 +126,6 @@
     setupGapTab();
     setupGoalTab();
     setupTimeTab();
-    // 월 투자 가능액(실질임금 진단)과 월 저축 가능액(목표 자산)은 같은 값으로 시작한다.
-    $("#goalMonthly").value = $("#budget").value;
     setupHomeFlow();
     setupFinalConclusion();
     setupScrollReveal();
@@ -267,10 +282,7 @@
 
   function setInputAndFire(sel, value) {
     if (value == null) return;
-    // 이 값들(연봉·목표 금액 등)은 0이 "진짜 0원"이 아니라 "설문에서
-    // 안 채웠다"는 뜻이다. 0을 그대로 보여주면 값이 있는 것처럼 보이니
-    // 빈 값으로 둬서, 아래 CSS의 placeholder("입력된 값 없음")가 뜨게 한다.
-    $(sel).value = value === 0 ? "" : value;
+    $(sel).value = value;
     $(sel).dispatchEvent(new Event("input", { bubbles: true }));
   }
 
@@ -284,7 +296,7 @@
       monthlySpend: personaDefaultTotal(DEFAULT_PERSONA),
       curSalary: 3600, nextSalary: 3750,
       risk: "balanced",
-      goalAmount: 0, goalYears: 1, goalCurrent: 0,
+      goalAmount: 0, goalYears: 1, goalMonths: 0, goalCurrent: 0,
     };
   }
 
@@ -300,11 +312,10 @@
     setInputAndFire("#nextSalary", profile.nextSalary);
     setInputAndFire("#goalAmount", profile.goalAmount);
     setInputAndFire("#goalYears", profile.goalYears);
+    setInputAndFire("#goalMonths", profile.goalMonths);
     setInputAndFire("#goalCurrent", profile.goalCurrent);
 
     if (profile.risk) {
-      const riskBtn = $(`#riskSeg button[data-risk="${profile.risk}"]`);
-      if (riskBtn) riskBtn.click();
       const goalRiskBtn = $(`#goalRiskSeg button[data-risk="${profile.risk}"]`);
       if (goalRiskBtn) goalRiskBtn.click();
     }
@@ -379,6 +390,21 @@
     $("#homeSummarySub").textContent = buildNarrative();
   }
 
+  // 목표 기간을 "년"과 "개월" 두 필드로 나눠 받다 보니, 이 값을 쓰는
+  // renderGoal·buildNarrative·buildFinalConclusion 세 곳이 각자 따로
+  // 읽고 클램프하면 어긋나기 쉽다. 한 곳에서만 읽고 총 개월 수로
+  // 변환해 나머지는 이 결과만 쓰게 한다.
+  function readGoalDuration() {
+    const years = Math.max(0, Math.min(40, +$("#goalYears").value || 0));
+    const extraMonths = Math.max(0, Math.min(11, +$("#goalMonths").value || 0));
+    return { years, extraMonths, months: Math.max(1, years * 12 + extraMonths) };
+  }
+  const formatDuration = (totalMonths) => {
+    const y = Math.floor(totalMonths / 12), m = totalMonths % 12;
+    if (y <= 0) return `${m}개월`;
+    return m ? `${y}년 ${m}개월` : `${y}년`;
+  };
+
   // 사주풀이처럼 숫자 하나만 던지지 않고, 물가·연봉·목표를 하나의
   // 이야기로 엮어서 풀어준다. 각 문장은 실제 계산 결과(요약 화면에
   // 도달했다는 건 renderAll이 이미 다 채워 놨다는 뜻)를 그대로 쓴다.
@@ -411,16 +437,16 @@
     }
 
     const goalAmount = Math.max(0, +$("#goalAmount").value || 0);
-    const goalYears = Math.max(1, Math.min(40, +$("#goalYears").value || 1));
+    const { months: goalMonths } = readGoalDuration();
     const goalCurrent = Math.max(0, +$("#goalCurrent").value || 0);
     const goalMonthly = Math.max(0, +$("#goalMonthly").value || 0);
     if (goalAmount > goalCurrent) {
       const plan = E.planOf(state.market, state.goalRisk);
       if (plan) {
-        const path = E.project({ initial: goalCurrent, monthly: goalMonthly, months: goalYears * 12, annualReturn: plan.expected_return });
+        const path = E.project({ initial: goalCurrent, monthly: goalMonthly, months: goalMonths, annualReturn: plan.expected_return });
         const gdiff = path[path.length - 1].value - goalAmount;
         lines.push(gdiff >= 0
-          ? `지금 페이스를 유지하면 목표 자산에도 ${goalYears}년 뒤 ${man(gdiff)}만원 여유 있게 도착할 것 같아요.`
+          ? `지금 페이스를 유지하면 목표 자산에도 ${formatDuration(goalMonths)} 뒤 ${man(gdiff)}만원 여유 있게 도착할 것 같아요.`
           : `다만 지금 페이스로는 목표 자산에 ${man(-gdiff)}만원 정도 못 미칠 것으로 보여요.`);
       }
     }
@@ -508,17 +534,16 @@
     }
 
     const goalAmount = Math.max(0, +$("#goalAmount").value || 0);
-    const goalYears = Math.max(1, Math.min(40, +$("#goalYears").value || 1));
+    const { months } = readGoalDuration();
     const goalCurrent = Math.max(0, +$("#goalCurrent").value || 0);
     const goalMonthly = Math.max(0, +$("#goalMonthly").value || 0);
     if (goalAmount > goalCurrent) {
       const plan = E.planOf(state.market, state.goalRisk);
       if (plan) {
-        const months = goalYears * 12;
         const path = E.project({ initial: goalCurrent, monthly: goalMonthly, months, annualReturn: plan.expected_return });
         const gdiff = path[path.length - 1].value - goalAmount;
         if (gdiff >= 0) {
-          lines.push(`목표 자산도 지금 페이스로 ${goalYears}년 안에 닿을 것으로 보여요.`);
+          lines.push(`목표 자산도 지금 페이스로 ${formatDuration(months)} 안에 닿을 것으로 보여요.`);
         } else {
           const need = Math.ceil(E.requiredMonthly({ goal: goalAmount, current: goalCurrent, months, annualReturn: plan.expected_return }));
           lines.push(`목표 자산에 닿으려면 월 저축액을 ${man(need)}만원 정도로 올리거나, 기간을 늘리는 방법을 함께 고려해볼 만해요.`);
@@ -696,7 +721,8 @@
     // ---- 5 · 목표 자산 ----
     function collectGoalAndFinish() {
       draft.goalAmount = Math.max(0, +$("#onbGoalAmount").value || 0);
-      draft.goalYears = Math.max(1, Math.min(40, +$("#onbGoalYears").value || 1));
+      draft.goalYears = Math.max(0, Math.min(40, +$("#onbGoalYears").value || 0));
+      draft.goalMonths = Math.max(0, Math.min(11, +$("#onbGoalMonths").value || 0));
       draft.goalCurrent = Math.max(0, +$("#onbGoalCurrent").value || 0);
       finish(draft);
     }
@@ -765,16 +791,34 @@
     // 결국 같은 값을 다루므로 접두사를 떼고 하나의 규칙으로 묶는다.
     // money: true인 필드는 소수점 없이 정수로만 남긴다 — 퍼센트·기간처럼
     // "돈"이 아닌 숫자(예: 목표 기간)는 그대로 소수 입력을 허용한다.
+    // amount: true인 필드는 실제 "금액"(만원 단위)이라 부호·소수점·지수
+    // 표기(-, ., e)가 나올 일이 없다 — 아래 beforeinput 가드가 이 필드에
+    // 한해 숫자 0~9 외의 입력을 아예 막는다. 목표 기간(년/개월)은 금액이
+    // 아니라 기간이라 이 필터에서 제외한다(0 하나만 입력해도 되는 필드라
+    // 굳이 막을 이유가 적고, 의미상으로도 "금액"이 아니다).
     const RULES = [
-      { test: (id) => id === "monthlySpend" || id === "onbMonthlySpend", min: 0, max: 5000, label: "월 생활비", money: true },
-      { test: (id) => id.startsWith("sp-"), min: 0, max: 3000, label: "지출 항목", money: true },
-      { test: (id) => id === "curSalary" || id === "onbCurSalary" || id === "nextSalary" || id === "onbNextSalary", min: 0, max: 100000, label: "연봉", money: true },
-      { test: (id) => id === "goalAmount" || id === "onbGoalAmount", min: 0, max: 100000, label: "목표 금액", money: true },
-      { test: (id) => id === "goalCurrent" || id === "onbGoalCurrent", min: 0, max: 100000, label: "현재 보유 자산", money: true },
-      { test: (id) => id === "goalYears" || id === "onbGoalYears", min: 1, max: 40, label: "목표 기간" },
-      { test: (id) => id === "goalMonthly", min: 0, max: 5000, label: "월 저축 가능액", money: true },
-      { test: (id) => id === "investAmount", min: 0, max: 100000, label: "투자 금액", money: true },
+      { test: (id) => id === "monthlySpend" || id === "onbMonthlySpend", min: 0, max: 5000, label: "월 생활비", money: true, amount: true },
+      { test: (id) => id.startsWith("sp-"), min: 0, max: 3000, label: "지출 항목", money: true, amount: true },
+      { test: (id) => id === "curSalary" || id === "onbCurSalary" || id === "nextSalary" || id === "onbNextSalary", min: 0, max: 100000, label: "연봉", money: true, amount: true },
+      { test: (id) => id === "goalAmount" || id === "onbGoalAmount", min: 0, max: 100000, label: "목표 금액", money: true, amount: true },
+      { test: (id) => id === "goalCurrent" || id === "onbGoalCurrent", min: 0, max: 100000, label: "현재 보유 자산", money: true, amount: true },
+      { test: (id) => id === "goalYears" || id === "onbGoalYears", min: 0, max: 40, label: "목표 기간(년)", money: true },
+      { test: (id) => id === "goalMonths" || id === "onbGoalMonths", min: 0, max: 11, label: "목표 기간(개월)", money: true },
+      { test: (id) => id === "goalMonthly", min: 0, max: 5000, label: "월 저축 가능액", money: true, amount: true },
+      { test: (id) => id === "investAmount", min: 0, max: 100000, label: "투자 금액", money: true, amount: true },
     ];
+
+    // 숫자가 아닌 문자(부호·소수점·"e" 등)는 타이핑이든 붙여넣기든
+    // 애초에 입력란에 들어가지 못하게 막는다. beforeinput은 실제로
+    // 텍스트가 삽입되기 직전에 뜨므로, 지우기·화살표 이동·전체선택
+    // 같은 비삽입 동작(e.data === null)은 건드리지 않는다.
+    document.addEventListener("beforeinput", (e) => {
+      const input = e.target;
+      if (input.tagName !== "INPUT" || input.type !== "number") return;
+      const rule = RULES.find((r) => r.test(input.id));
+      if (!rule || !rule.amount) return;
+      if (e.data != null && /[^0-9]/.test(e.data)) e.preventDefault();
+    });
     const guardMsgs = new WeakMap();
     function guardMsgFor(input) {
       let msg = guardMsgs.get(input);
@@ -847,10 +891,12 @@
   }
 
   /* ══════════════ 탭 0 · 내 물가 ══════════════ */
-  function syncSpendingFields(cats, syncTotal = true) {
-    cats.forEach((c) => {
-      const input = $(`#sp-${c.id}`);
-      if (input) input.value = Math.round(state.spending[c.id] || 0);
+  const groupTotal = (g) => g.members.reduce((sum, id) => sum + (state.spending[id] || 0), 0);
+
+  function syncSpendingFields(syncTotal = true) {
+    SPEND_GROUPS.forEach((g) => {
+      const input = $(`#sp-${g.id}`);
+      if (input) input.value = Math.round(groupTotal(g));
     });
     if (syncTotal) {
       $("#monthlySpend").value = Math.round(spendingTotal(state.spending));
@@ -866,14 +912,14 @@
       : `세부 금액을 직접 수정한 상태입니다.`;
   }
 
-  function applyPersona(key, cats) {
+  function applyPersona(key) {
     const p = PERSONAS[key];
     if (!p) return;
     state.persona = key;
     state.spending = roundSpending(p.spending);
     $$("#personaSeg button").forEach((button) =>
       button.setAttribute("aria-pressed", String(button.dataset.persona === key)));
-    syncSpendingFields(cats);
+    syncSpendingFields();
     renderPersonaBasis();
     renderMine();
   }
@@ -886,24 +932,28 @@
       return;
     }
 
-    const row = (c) => {
+    const row = (g) => {
       return `<div class="spend-row">
-        <label for="sp-${c.id}">
-          <b>${c.name}</b>
-          <small>${c.hint}</small>
+        <label for="sp-${g.id}">
+          <b>${g.name}</b>
+          <small>${g.hint}</small>
         </label>
         <span class="input-wrap">
-          <input type="number" id="sp-${c.id}" min="0" step="1" inputmode="numeric" value="${state.spending[c.id] ?? 0}">
+          <input type="number" id="sp-${g.id}" min="0" step="1" inputmode="numeric" value="${Math.round(groupTotal(g))}">
           <span>만원</span>
         </span>
       </div>`;
     };
 
-    $("#spendFields").innerHTML = cats.map(row).join("");
+    $("#spendFields").innerHTML = SPEND_GROUPS.map(row).join("");
 
-    cats.forEach((c) => {
-      $(`#sp-${c.id}`).addEventListener("input", (e) => {
-        state.spending[c.id] = Math.max(0, +e.target.value || 0);
+    SPEND_GROUPS.forEach((g) => {
+      $(`#sp-${g.id}`).addEventListener("input", (e) => {
+        const nextGroupTotal = Math.max(0, +e.target.value || 0);
+        const base = groupTotal(g) > 0
+          ? state.spending
+          : (state.persona ? PERSONAS[state.persona].spending : PERSONAS[DEFAULT_PERSONA].spending);
+        state.spending = scaleSpending(base, nextGroupTotal, g.members);
         $$("#personaSeg button").forEach((b) => b.setAttribute("aria-pressed", "false"));
         state.persona = null;
         $("#monthlySpend").value = Math.round(spendingTotal(state.spending));
@@ -914,7 +964,7 @@
 
     $$("#personaSeg button").forEach((b) => {
       b.addEventListener("click", () => {
-        applyPersona(b.dataset.persona, cats);
+        applyPersona(b.dataset.persona);
       });
     });
 
@@ -924,11 +974,11 @@
         ? state.spending
         : (state.persona ? PERSONAS[state.persona].spending : PERSONAS[DEFAULT_PERSONA].spending);
       state.spending = scaleSpending(base, nextTotal);
-      syncSpendingFields(cats, false);
+      syncSpendingFields(false);
       renderMine();
     });
 
-    syncSpendingFields(cats);
+    syncSpendingFields();
     renderPersonaBasis();
 
     $("#aiExplainBtn").addEventListener("click", openAIInsight);
@@ -1031,12 +1081,16 @@
          "물가 ${official.toFixed(1)}%"는 아무의 물가도 아닙니다.`;
     }
 
-    // 기여도 분해
-    // 품목이 전체 평균보다 빨리 오르는지는 막대 색(오렌지/그린)만으로 표시했었다.
-    // 색약 사용자를 위해 방향 기호(▲/▼)도 라벨에 같이 붙인다.
+    // 기여도 분해 — 계산(top)은 12개 실카테고리 그대로 쓰고, 그래프만
+    // 5개 그룹으로 묶어서 보여준다(품목이 너무 많아 읽기 힘들다는
+    // 피드백). 품목이 전체 평균보다 빨리 오르는지는 막대 색(오렌지/
+    // 그린)만으로 표시했었다. 색약 사용자를 위해 방향 기호(▲/▼)도
+    // 라벨에 같이 붙인다.
+    const grouped = E.aggregateByGroup(result.contributions, SPEND_GROUPS)
+      .sort((a, b) => b.contribution - a.contribution);
     Charts.contributionChart($("#contribChart"),
-      sorted.filter((c) => c.amount > 0).map((c) => ({
-        ...c, hot: c.rate >= official, color: c.rate >= official ? "var(--series-2)" : "var(--series-3)",
+      grouped.filter((g) => g.amount > 0).map((g) => ({
+        ...g, hot: g.rate >= official, color: g.rate >= official ? "var(--series-2)" : "var(--series-3)",
       })));
     $("#mineSrc").textContent =
       `OECD 한국 소비자물가 COICOP 12분류 · ${result.month} 기준 · 브라우저에서 실시간 조회`;
@@ -1096,13 +1150,23 @@
         body: cacheKey,
         signal: controller.signal,
       });
-      const data = await response.json();
-      if (!response.ok || typeof data.text !== "string") throw new Error("AI 응답 오류");
-      state.aiCache.set(cacheKey, data.text);
-      body.textContent = data.text;
-      status.textContent = "Gemini 해설 · 계산은 샐러리갭 엔진이 수행했습니다.";
-    } catch (_error) {
-      status.textContent = "AI 연결이 늦어 검증된 기본 해설을 보여드립니다.";
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && typeof data.text === "string") {
+        state.aiCache.set(cacheKey, data.text);
+        body.textContent = data.text;
+        status.textContent = "Gemini 해설 · 계산은 샐러리갭 엔진이 수행했습니다.";
+      } else if (response.status === 503) {
+        // 서버에 AI 연결 자체가(API 키 등) 설정돼 있지 않은 상태 —
+        // 다시 눌러도 같은 이유로 또 실패하니 재시도 버튼을 안 보여준다.
+        status.textContent = "AI 해설 기능이 아직 준비되지 않았어요. 검증된 기본 해설을 보여드립니다.";
+      } else {
+        status.textContent = "AI 연결이 늦어 검증된 기본 해설을 보여드립니다.";
+        $("#aiRetryBtn").hidden = false;
+      }
+    } catch (error) {
+      status.textContent = error.name === "AbortError"
+        ? "응답이 오래 걸려 자동으로 취소했어요. 다시 시도해 주세요."
+        : "AI 연결이 늦어 검증된 기본 해설을 보여드립니다.";
       $("#aiRetryBtn").hidden = false;
     } finally {
       clearTimeout(timeout);
@@ -1227,30 +1291,14 @@
 
   /* ══════════════ 탭 1 · 실질임금 진단 ══════════════ */
   function setupGapTab() {
-    ["#curSalary", "#nextSalary", "#budget", "#inflation"].forEach((sel) => {
+    ["#curSalary", "#nextSalary", "#inflation"].forEach((sel) => {
       $(sel).addEventListener("input", () => {
         if (sel === "#inflation") {
           state.inflation = parseFloat($("#inflation").value);
           state.inflationLive = false;
           $("#inflSource").textContent = "직접 조정한 값으로 계산 중입니다.";
         }
-        // "월 투자 가능액"과 목표 자산 탭의 "월 저축 가능액"은 같은 돈이다.
-        // 탭을 옮길 때마다 다시 입력하지 않도록 값을 그대로 맞춰준다.
-        if (sel === "#budget") {
-          $("#goalMonthly").value = $("#budget").value;
-          renderGoal();
-        }
         renderGap();
-      });
-    });
-    $$("#riskSeg button").forEach((b) => {
-      b.addEventListener("click", () => {
-        state.risk = b.dataset.risk;
-        state.goalRisk = b.dataset.risk;
-        $$("#riskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-        $$("#goalRiskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.risk === b.dataset.risk)));
-        renderGap();
-        renderGoal();
       });
     });
   }
@@ -1258,7 +1306,6 @@
   function readGapInputs() {
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
-    const budget = Math.max(0, +$("#budget").value || 0);
     const err = $("#salaryErr");
     if (cur === 0) {
       err.textContent = "현재 연봉을 입력해 주세요.";
@@ -1269,7 +1316,7 @@
     } else {
       err.hidden = true;
     }
-    return { cur, next, budget, valid: cur > 0 };
+    return { cur, next, valid: cur > 0 };
   }
 
   // 부족분을 "며칠 더 일해야 하는가"로 환산한다.
@@ -1290,9 +1337,8 @@
   }
 
   function renderGap() {
-    const { cur, next, budget, valid } = readGapInputs();
+    const { cur, next, valid } = readGapInputs();
     $("#inflVal").textContent = `${state.inflation.toFixed(1)}%`;
-    $("#budgetVal").textContent = `${man(budget)}만원`;
 
     // 연봉이 0이면 그냥 return 하던 탓에 차트 자리가 빈 칸으로 남았다.
     // '내 물가' 탭처럼 왜 비어 있는지 알려 준다. 안내 없이 비어 있으면
@@ -1314,11 +1360,6 @@
     }
 
     const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
-
-    // 투자로 만드는 연 수익. 슬라이더 바로 아래 KPI와 결론 문장에 함께 쓴다.
-    // (이 값이 화면 위쪽에 없으면 슬라이더를 움직여도 반응이 없어 보인다)
-    const plan = E.planOf(state.market, state.risk);
-    const annualGain = plan ? budget * 12 * plan.expected_return : 0;
 
     // 막대 3개
     barChart($("#salaryChart"), [
@@ -1345,38 +1386,21 @@
       <div class="stat"><span class="k">내년 연봉의 체감 가치</span>
         <span class="v">${man(d.realValue)}만원</span>
         <span class="s">올해 물가 기준</span></div>
-      ${workdayStat(next, d)}
-      <div class="stat ${annualGain > 0 ? "is-good" : ""}"><span class="k">투자로 만드는 연 수익</span>
-        <span class="v">${man(annualGain)}만원</span>
-        <span class="s">월 ${man(budget)}만원 · ${plan ? plan.label : ""} ${plan ? pct(plan.expected_return) : ""}</span></div>`;
+      ${workdayStat(next, d)}`;
 
-    // 조작하면 같이 바뀌는 결론.
-    // 부족분은 "매년 되풀이되는 소득 손실"이므로, 이를 메우는 것도 매년 들어오는
-    // 투자 '수익'이어야 한다. 투자 원금(budget×12)과 비교하면 안 된다 —
-    // 원금은 소득에서 저축으로 옮긴 것일 뿐 새로 생긴 돈이 아니다.
     const v = $("#gapVerdict");
     if (d.beatsInflation) {
       v.className = "verdict";
       v.innerHTML = `내년 연봉 <b>${man(next)}만원</b>은 물가 유지선(${man(d.requiredSalary)}만원)을
-        <b>${man(-d.gap)}만원 넘어섭니다.</b> 실질 소득이 늘어나는 구간입니다.
-        여기에 투자로 월 ${man(budget)}만원씩 더 굴리면 연 <b>${man(annualGain)}만원</b>이 추가로 쌓입니다.`;
+        <b>${man(-d.gap)}만원 넘어섭니다.</b> 실질 소득이 늘어나는 구간입니다.`;
     } else {
-      const rate = d.gap > 0 ? Math.min(100, (annualGain / d.gap) * 100) : 100;
       const days = next > 0 ? d.gap / (next / WORKDAYS_PER_YEAR) : 0;
-      const needMonthly = plan && plan.expected_return > 0
-        ? d.gap / plan.expected_return / 12 : null;
       v.className = d.gap > cur * 0.03 ? "verdict bad" : "verdict warn";
       v.innerHTML = `물가를 따라가려면 <b>${man(d.requiredSalary)}만원</b>이 필요한데
         내년 연봉은 ${man(next)}만원입니다. 연 <b>${man(d.gap)}만원</b>(월 ${man(d.monthlyGap)}만원)이 부족합니다.
-        <b>작년과 같은 생활을 하려면 ${days.toFixed(1)}일을 더 일해야 하는 셈입니다.</b>
-        지금 설정한 월 ${man(budget)}만원 투자로 생기는 연 수익 ${man(annualGain)}만원은
-        이 부족분의 <b>${rate.toFixed(0)}%</b>입니다.` +
-        (needMonthly && rate < 100
-          ? ` 전부 메우려면 월 <b>${man(Math.ceil(needMonthly))}만원</b>을 굴려야 합니다.`
-          : "");
+        <b>작년과 같은 생활을 하려면 ${days.toFixed(1)}일을 더 일해야 하는 셈입니다.</b>`;
     }
 
-    renderPlan(d, budget, plan, annualGain);
     renderTrend(cur, next, d);
     renderNegotiation(cur, d);
   }
@@ -1423,10 +1447,8 @@
     }
   }
 
-  function renderPlan(d, budget, plan, annualGain) {
+  function renderPlan(monthly, plan, annualGain) {
     if (!plan) return;
-
-    $("#riskNote").textContent = plan.desc;
 
     // 도넛 (conic-gradient — sangmi 방식)
     let acc = 0;
@@ -1448,7 +1470,7 @@
       <div class="stat ${real >= 0 ? "is-good" : "is-bad"}"><span class="k">실질 수익률</span>
         <span class="v">${signPct(real)}</span><span class="s">물가 ${state.inflation.toFixed(1)}% 차감</span></div>
       <div class="stat"><span class="k">예상 연 수익</span><span class="v">${man(annualGain)}만원</span>
-        <span class="s">월 ${man(budget)}만원 투자 시</span></div>
+        <span class="s">월 ${man(monthly)}만원 투자 시</span></div>
       <div class="stat"><span class="k">예상 변동성</span><span class="v">${pct(plan.expected_volatility)}</span>
         <span class="s">연 표준편차</span></div>`;
 
@@ -1504,33 +1526,23 @@
 
   /* ══════════════ 탭 2 · 목표 자산 ══════════════ */
   function setupGoalTab() {
-    ["#goalAmount", "#goalYears", "#goalCurrent", "#goalMonthly"].forEach((sel) =>
-      $(sel).addEventListener("input", () => {
-        // 실질임금 진단의 "월 투자 가능액"과 같은 돈이다 — 여기서 바꿔도 맞춰준다.
-        if (sel === "#goalMonthly") {
-          $("#budget").value = $("#goalMonthly").value;
-          renderGap();
-        }
-        renderGoal();
-      }));
+    ["#goalAmount", "#goalYears", "#goalMonths", "#goalCurrent", "#goalMonthly"].forEach((sel) =>
+      $(sel).addEventListener("input", renderGoal));
     $$("#goalRiskSeg button").forEach((b) => {
       b.addEventListener("click", () => {
         state.goalRisk = b.dataset.risk;
-        state.risk = b.dataset.risk;
         $$("#goalRiskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-        $$("#riskSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.risk === b.dataset.risk)));
         renderGoal();
-        renderGap();
       });
     });
   }
 
   function renderGoal() {
     const goal = Math.max(0, +$("#goalAmount").value || 0);
-    const years = Math.max(1, Math.min(40, +$("#goalYears").value || 1));
+    const { years, months } = readGoalDuration();
     const current = Math.max(0, +$("#goalCurrent").value || 0);
     const monthly = Math.max(0, +$("#goalMonthly").value || 0);
-    const months = years * 12;
+    $("#goalMonthlyVal").textContent = `${man(monthly)}만원`;
 
     const err = $("#goalErr");
     if (goal <= current) {
@@ -1542,6 +1554,7 @@
     if (!plan) return;
     $("#goalRiskNote").textContent =
       `${plan.desc} 기대수익률 ${pct(plan.expected_return)} (실제 시장 데이터 기준)`;
+    renderPlan(monthly, plan, monthly * 12 * plan.expected_return);
 
     // 필요 저축액은 올림한다. 내림하면 "100만원이면 된다"고 해놓고
     // 정작 100만원으로는 목표에 못 닿는 모순이 생긴다.
@@ -1552,22 +1565,41 @@
     const projected = path[path.length - 1].value;
     const diff = projected - goal;
 
+    // 목표 달성 시기 — 목표 기간 안에 이미 닿으면 그 안에서 찾고(더 일찍
+    // 닿을 수도 있다), 못 닿으면 기간을 넘어서(최대 50년) 실제로 언제
+    // 닿는지 다시 찾는다. 둘 다 월 적립액을 그대로 유지한다는 전제다.
+    const hitMonth = diff >= 0
+      ? (path.find((p) => p.value >= goal)?.month ?? months)
+      : E.monthsToGoal({ initial: current, monthly, goal, annualReturn: plan.expected_return });
+    const goalTimingCls = hitMonth == null ? "is-bad" : hitMonth <= months ? "is-good" : "is-warn";
+    const goalTimingValue = hitMonth == null ? "50년 내 달성 어려움" : `${formatDuration(hitMonth)} 후`;
+    const goalTimingSub = hitMonth == null
+      ? "월 저축액을 늘려야 해요"
+      : hitMonth === months
+        ? "목표 기간과 같아요"
+        : hitMonth < months
+          ? `목표보다 ${formatDuration(months - hitMonth)} 빨라요`
+          : `목표보다 ${formatDuration(hitMonth - months)} 늦어요`;
+
     $("#goalStats").innerHTML = `
       <div class="stat"><span class="k">필요 월 저축액</span><span class="v">${man(need)}만원</span>
         <span class="s">${plan.label} 기준</span></div>
       <div class="stat"><span class="k">현재 계획의 예상 자산</span><span class="v">${man(projected)}만원</span>
-        <span class="s">${years}년 후</span></div>
+        <span class="s">${formatDuration(months)} 후</span></div>
       <div class="stat ${diff >= 0 ? "is-good" : "is-bad"}"><span class="k">${diff >= 0 ? "여유" : "부족"}</span>
         <span class="v">${man(Math.abs(diff))}만원</span>
         <span class="s">목표 ${man(goal)}만원 대비</span></div>
       <div class="stat"><span class="k">원금 대비 수익</span>
         <span class="v">${man(projected - current - monthly * months)}만원</span>
-        <span class="s">복리 효과</span></div>`;
+        <span class="s">복리 효과</span></div>
+      <div class="stat ${goalTimingCls}"><span class="k">목표 달성 시기</span>
+        <span class="v">${goalTimingValue}</span>
+        <span class="s">${goalTimingSub}</span></div>`;
 
     const v = $("#goalVerdict");
     if (diff >= 0) {
       v.className = "verdict";
-      v.innerHTML = `월 <b>${man(monthly)}만원</b>이면 ${years}년 뒤 <b>${man(projected)}만원</b>으로
+      v.innerHTML = `월 <b>${man(monthly)}만원</b>이면 ${formatDuration(months)} 뒤 <b>${man(projected)}만원</b>으로
         목표를 <b>${man(diff)}만원</b> 넘어섭니다.`;
     } else {
       v.className = "verdict warn";
@@ -1581,7 +1613,8 @@
     const pts = path.filter((_, i) => i % step === 0 || i === path.length - 1)
       .map((p) => ({ x: p.month, y: p.value, meta: `${(p.month / 12).toFixed(1)}년차` }));
     const labels = [];
-    for (let y = 0; y <= years; y += Math.max(1, Math.round(years / 5))) {
+    const labelYears = Math.max(years, Math.ceil(months / 12));
+    for (let y = 0; y <= labelYears; y += Math.max(1, Math.round(labelYears / 5))) {
       labels.push({ at: y * 12, text: `${y}년` });
     }
     lineChart($("#growthChart"), {

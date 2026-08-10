@@ -152,10 +152,10 @@
         <div class="card onboarding-card">
           <div class="field-grid">
             <label class="field">현재 연봉
-              <span class="input-wrap"><input type="number" id="onbCurSalary" min="0" step="100" value="3600"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="onbCurSalary" min="0" step="100" value="3600" inputmode="numeric"><span>만원</span></span>
             </label>
             <label class="field">내년 예상 연봉
-              <span class="input-wrap"><input type="number" id="onbNextSalary" min="0" step="100" value="3750"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="onbNextSalary" min="0" step="100" value="3750" inputmode="numeric"><span>만원</span></span>
             </label>
           </div>
         </div>
@@ -189,13 +189,16 @@
         <div class="card onboarding-card">
           <div class="field-grid">
             <label class="field">목표 금액
-              <span class="input-wrap"><input type="number" id="onbGoalAmount" min="0" step="500" placeholder="예: 3000"><span>만원</span></span>
-            </label>
-            <label class="field">목표 기간
-              <span class="input-wrap"><input type="number" id="onbGoalYears" min="1" max="40" step="1" placeholder="예: 5"><span>년</span></span>
+              <span class="input-wrap"><input type="number" id="onbGoalAmount" min="0" step="500" placeholder="3000" inputmode="numeric"><span>만원</span></span>
             </label>
             <label class="field">현재 보유 자산
-              <span class="input-wrap"><input type="number" id="onbGoalCurrent" min="0" step="100" placeholder="예: 800"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="onbGoalCurrent" min="0" step="100" placeholder="800" inputmode="numeric"><span>만원</span></span>
+            </label>
+            <label class="field field-span2">목표 기간
+              <div class="duo-input">
+                <span class="input-wrap"><input type="number" id="onbGoalYears" min="0" max="40" step="1" placeholder="5"><span>년</span></span>
+                <span class="input-wrap"><input type="number" id="onbGoalMonths" min="0" max="11" step="1" placeholder="0"><span>개월</span></span>
+              </div>
             </label>
           </div>
         </div>
@@ -239,16 +242,14 @@
         <p class="field-note persona-basis" id="personaBasis"></p>
 
         <label class="field total-field">내 월 생활비
-          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" readonly placeholder="입력된 값 없음"><span>만원</span></span>
+          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0" readonly><span>만원</span></span>
         </label>
         <p class="field-note">설문에서 답하신 월 생활비예요. 세부 항목은 아래에서 조정할 수 있어요.</p>
 
         <details class="spend-details">
           <summary>내 지출에 맞게 세부 금액 수정</summary>
           <p class="field-note">정확히 몰라도 괜찮습니다. 자주 쓰는 항목만 고치면 결과가 바로 바뀝니다.</p>
-          <div class="spend-scroll">
-            <div id="spendFields"></div>
-          </div>
+          <div id="spendFields"></div>
         </details>
 
         <div class="spend-total">
@@ -323,10 +324,10 @@
 
           <div class="field-grid">
             <label class="field">현재 연봉
-              <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600" readonly placeholder="입력된 값 없음"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600" readonly><span>만원</span></span>
             </label>
             <label class="field">내년 예상 연봉
-              <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750" readonly placeholder="입력된 값 없음"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750" readonly><span>만원</span></span>
             </label>
           </div>
           <p class="err-text" id="salaryErr" hidden></p>
@@ -337,23 +338,6 @@
             <span class="range-scale"><span>0%</span><span>8%</span></span>
           </label>
           <p class="field-note skeleton-bar" id="inflSource">—</p>
-
-          <label class="range-label" style="margin-top:1rem">
-            월 투자 가능액 <span class="val" id="budgetVal">0만원</span>
-            <input type="range" id="budget" min="0" max="200" step="5" value="0">
-            <span class="range-scale"><span>0</span><span>200만원</span></span>
-          </label>
-          <p class="field-note">목표 자산 모으기의 월 저축 가능액과 같은 값을 씁니다.</p>
-
-          <div class="field" style="margin-bottom:.4rem">투자 성향
-            <div class="seg is-locked" id="riskSeg" role="group" style="margin-top:.35rem">
-              <button type="button" data-risk="stable" aria-pressed="false" tabindex="-1">안정형</button>
-              <button type="button" data-risk="balanced" aria-pressed="true" tabindex="-1">균형형</button>
-              <button type="button" data-risk="aggressive" aria-pressed="false" tabindex="-1">적극형</button>
-            </div>
-          </div>
-          <p class="field-note" id="riskNote">—</p>
-          <p class="field-note">설문에서 답하신 투자 성향이에요.</p>
 
           <p class="answer-bridge">이 내용으로 아래 결과를 계산했어요 ↓</p>
       </div>
@@ -380,26 +364,6 @@
         <div class="stat-grid" id="negoStats"></div>
         <p class="verdict" id="negoVerdict">—</p>
       </div>
-
-      <div class="card bento-full">
-        <h3 class="block-title">부족분을 메울 자산배분</h3>
-        <p class="block-q">기대수익률은 아래 자산들의 <strong>실제 10년 실현 수익률</strong>로 계산했습니다.</p>
-        <div class="donut-row">
-          <div class="donut-wrap">
-            <div class="donut" id="donut"></div>
-            <div class="donut-center" id="donutCenter"></div>
-          </div>
-          <div style="flex:1;min-width:230px">
-            <div class="stat-grid" id="planStats"></div>
-          </div>
-        </div>
-        <div class="legend" id="planLegend"></div>
-        <div class="table-scroll"><table>
-          <thead><tr><th>자산</th><th>비중</th><th class="num">10년 CAGR</th><th class="num">연 변동성</th><th class="num">최대 낙폭</th></tr></thead>
-          <tbody id="planTable"></tbody>
-        </table></div>
-        <span class="src-note" id="planSrc">—</span>
-      </div>
     </div>
   </section>
 
@@ -414,21 +378,25 @@
           </div>
           <div class="field-grid">
             <label class="field">목표 금액
-              <span class="input-wrap"><input type="number" id="goalAmount" min="0" step="500" readonly placeholder="입력된 값 없음"><span>만원</span></span>
-            </label>
-            <label class="field">목표 기간
-              <span class="input-wrap"><input type="number" id="goalYears" min="1" max="40" step="1" readonly placeholder="입력된 값 없음"><span>년</span></span>
+              <span class="input-wrap"><input type="number" id="goalAmount" min="0" step="500" value="0" readonly><span>만원</span></span>
             </label>
             <label class="field">현재 보유 자산
-              <span class="input-wrap"><input type="number" id="goalCurrent" min="0" step="100" readonly placeholder="입력된 값 없음"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="goalCurrent" min="0" step="100" value="0" readonly><span>만원</span></span>
+            </label>
+            <label class="field field-span2">목표 기간
+              <div class="duo-input">
+                <span class="input-wrap"><input type="number" id="goalYears" min="0" max="40" step="1" value="0" readonly><span>년</span></span>
+                <span class="input-wrap"><input type="number" id="goalMonths" min="0" max="11" step="1" value="0" readonly><span>개월</span></span>
+              </div>
             </label>
           </div>
           <p class="err-text" id="goalErr" hidden></p>
 
-          <label class="field" style="margin-top:1rem">월 저축 가능액
-            <span class="input-wrap"><input type="number" id="goalMonthly" min="0" step="10" value="0"><span>만원</span></span>
+          <label class="range-label" style="margin-top:1rem">
+            월 저축 가능액 <span class="val" id="goalMonthlyVal">0만원</span>
+            <input type="range" id="goalMonthly" min="0" max="200" step="5" value="0">
+            <span class="range-scale"><span>0</span><span>200만원</span></span>
           </label>
-          <p class="field-note">실질임금 진단의 월 투자 가능액과 같은 값을 씁니다.</p>
 
           <div class="field" style="margin-bottom:.4rem">투자 성향
             <div class="seg is-locked" id="goalRiskSeg" role="group" style="margin-top:.35rem">
@@ -465,6 +433,26 @@
           <tbody id="goalScenarioTable"></tbody>
         </table></div>
       </div>
+
+      <div class="card bento-full">
+        <h3 class="block-title">선택한 포트폴리오 구성</h3>
+        <p class="block-q">기대수익률은 아래 자산들의 <strong>실제 10년 실현 수익률</strong>로 계산했습니다.</p>
+        <div class="donut-row">
+          <div class="donut-wrap">
+            <div class="donut" id="donut"></div>
+            <div class="donut-center" id="donutCenter"></div>
+          </div>
+          <div style="flex:1;min-width:230px">
+            <div class="stat-grid" id="planStats"></div>
+          </div>
+        </div>
+        <div class="legend" id="planLegend"></div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>자산</th><th>비중</th><th class="num">10년 CAGR</th><th class="num">연 변동성</th><th class="num">최대 낙폭</th></tr></thead>
+          <tbody id="planTable"></tbody>
+        </table></div>
+        <span class="src-note" id="planSrc">—</span>
+      </div>
     </div>
   </section>
 
@@ -483,7 +471,7 @@
           <span class="input-wrap"><input type="month" id="startMonth"><span></span></span>
         </label>
         <label class="field">투자 금액
-          <span class="input-wrap"><input type="number" id="investAmount" min="0" step="100" value="1000"><span>만원</span></span>
+          <span class="input-wrap"><input type="number" id="investAmount" min="0" step="100" value="1000" inputmode="numeric"><span>만원</span></span>
         </label>
 
         <div class="field" style="margin-bottom:.3rem">비교할 자산</div>
@@ -522,12 +510,6 @@
           <tbody id="timingTable"></tbody>
         </table></div>
         <p class="verdict" id="timingVerdict">—</p>
-      </div>
-
-      <div class="card bento-full next-step-card">
-        <p class="kicker">과거는 답안이 아니라 참고자료입니다</p>
-        <h3 class="block-title">“그때 살걸”에서 멈추지 않고, 오늘부터의 계획으로</h3>
-        <p class="block-q">타임머신의 투자금액을 현재 자산으로 옮겨 목표 기간과 월 저축액을 조정해 보세요.</p>
       </div>
     </div>
   </section>
