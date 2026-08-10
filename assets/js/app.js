@@ -577,7 +577,11 @@
   }
 
   // 스크롤로 맨 아래 결론 카드에 처음 닿는 순간에만 타이핑한다 —
-  // 스크롤을 왔다갔다 할 때마다 다시 타이핑되면 산만하다.
+  // 스크롤을 왔다갔다 할 때마다 다시 타이핑되면 산만하다. 새로고침
+  // 등으로 같은 세션 안에서 다시 방문했을 때도 매번 재생되면
+  // 불필요하게 느껴진다는 피드백이 있어, sessionStorage에 한 번
+  // 재생했다는 표시를 남기고 이후로는 완성된 문장을 바로 보여준다.
+  const FINAL_TYPED_KEY = "sr_finalConclusionTyped";
   function setupFinalConclusion() {
     const target = $("#panel-final");
     const body = $("#finalBody");
@@ -586,7 +590,13 @@
       entries.forEach((entry) => {
         if (!entry.isIntersecting || typed || target.hidden) return;
         typed = true;
-        typewriter(body, buildFinalConclusion());
+        const text = buildFinalConclusion();
+        if (sessionStorage.getItem(FINAL_TYPED_KEY)) {
+          body.textContent = text;
+        } else {
+          typewriter(body, text);
+          sessionStorage.setItem(FINAL_TYPED_KEY, "1");
+        }
         observer.disconnect();
       });
     }, { threshold: 0.35 });
