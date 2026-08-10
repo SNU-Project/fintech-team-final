@@ -907,8 +907,13 @@
   // 두므로(renderBasis) 여기서는 중복해서 안 보여준다.
   function renderPersonaBasis() {
     const p = state.persona ? PERSONAS[state.persona] : null;
+    // 기준 시점을 함께 밝힌다. 이 값은 분기별 통계라 수동 갱신인데,
+    // 언제 기준인지 안 보이면 시간이 지났을 때 오래된 값을 최신인 척
+    // 보여주는 꼴이 된다.
+    const vintage = PERSONA_DATA && PERSONA_DATA.updated
+      ? ` <span class="vintage">${PERSONA_DATA.updated} 기준</span>` : "";
     $("#personaBasis").innerHTML = p
-      ? `<b>${p.basis}</b>으로 채웠습니다. 개인 상황에 맞게 바꿀 수 있습니다.`
+      ? `<b>${p.basis}</b>으로 채웠습니다.${vintage} 개인 상황에 맞게 바꿀 수 있습니다.`
       : `세부 금액을 직접 수정한 상태입니다.`;
   }
 
