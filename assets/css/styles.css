@@ -1023,22 +1023,6 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 .concept-note p + p { margin-top: .8rem; }
 .concept-note b { color: var(--text-primary); }
 
-.concept-bars { margin: .9rem 0 .2rem; display: grid; gap: .3rem; }
-.concept-row { display: grid; grid-template-columns: 4.6rem 1fr 3.2rem; align-items: center; gap: .6rem; }
-.concept-name { font-size: .78rem; color: var(--text-secondary); }
-.concept-bar { background: var(--surface-sunk); border-radius: 999px; height: 9px; overflow: hidden; }
-.concept-bar i { display: block; height: 100%; border-radius: 999px; background: var(--baseline); }
-.concept-bar i.hot { background: var(--series-2); }
-.concept-bar i.cool { background: var(--series-3); }
-.concept-val { font-size: .76rem; font-variant-numeric: tabular-nums; text-align: right; color: var(--text-secondary); }
-.concept-row.is-avg .concept-name,
-.concept-row.is-avg .concept-val { font-weight: 700; color: var(--text-primary); }
-.concept-row.is-avg .concept-bar i { background: var(--text-muted); }
-
-@media (max-width: 560px) {
-  .concept-row { grid-template-columns: 4rem 1fr 2.9rem; gap: .45rem; }
-}
-
 /* 다른 탭의 해설은 막대 없이 글만이라 조금 더 조인다 */
 .concept-note.is-compact { padding: .9rem 1.1rem; }
 .concept-note.is-compact p { font-size: .85rem; }

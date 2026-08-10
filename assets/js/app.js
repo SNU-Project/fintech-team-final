@@ -1053,37 +1053,6 @@
     });
   }
 
-  /* 개념 설명 안의 작은 막대. "품목마다 다르다"는 말을 글로만 하면
-     안 와닿아서, 가장 많이 오른 것과 가장 적게 오른 것을 실제 값으로
-     나란히 보여준다. 실시간으로 받아온 값이라 매달 바뀐다. */
-  function renderConceptBars() {
-    const box = $("#conceptBars");
-    const cats = state.cpi.categories || [];
-    if (!box || !cats.length) return;
-
-    const sorted = [...cats].sort((a, b) => b.latest.yoy - a.latest.yoy);
-    const official = state.cpi.latest.yoy;
-    const picks = [sorted[0], sorted[1], null, sorted[sorted.length - 2], sorted[sorted.length - 1]];
-    const max = Math.max(...cats.map((c) => Math.abs(c.latest.yoy)), official, 1);
-
-    box.innerHTML = picks.map((c) => {
-      if (!c) {
-        return `<div class="concept-row is-avg">
-          <span class="concept-name">전체 평균</span>
-          <span class="concept-bar"><i style="width:${(official / max) * 100}%"></i></span>
-          <span class="concept-val">${official.toFixed(1)}%</span>
-        </div>`;
-      }
-      const hot = c.latest.yoy >= official;
-      return `<div class="concept-row">
-        <span class="concept-name">${c.name.split("·")[0]}</span>
-        <span class="concept-bar"><i class="${hot ? "hot" : "cool"}"
-          style="width:${(Math.abs(c.latest.yoy) / max) * 100}%"></i></span>
-        <span class="concept-val">${c.latest.yoy >= 0 ? "+" : ""}${c.latest.yoy.toFixed(1)}%</span>
-      </div>`;
-    }).join("");
-  }
-
   /* "비중 × 상승률을 다 더한다"는 말은 식으로만 보면 안 와닿는다.
      그래서 내가 지금 넣은 숫자로 실제 계산을 한 줄씩 따라가게 보여준다.
      기여도가 가장 큰 항목 하나를 예로 들고, 마지막에 합이 내 물가라는
@@ -2145,7 +2114,6 @@
   /* ══════════════ 전체 렌더 ══════════════ */
   function renderAll() {
     if (!state.market) return;
-    renderConceptBars();
     renderMine();
     renderGap();
     renderGoal();
