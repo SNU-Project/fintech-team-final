@@ -1,8 +1,11 @@
 // 사용할 모델 후보. 앞에서부터 시도하고 404(모델 없음/미제공)면 다음으로 넘어간다.
 // 구글이 모델을 수시로 정리해서 하나만 박아 두면 어느 날 조용히 죽는다.
 // 실제로 gemini-2.5-flash-lite가 "no longer available to new users"로 404가 났다.
+// 할당량은 모델마다 따로 잡히므로 후보를 여럿 둔다.
+// 사고 단계가 없는 모델을 앞에 둬야 짧은 해설이 예측 가능하게 나온다.
 const MODELS = [
-  "gemini-2.0-flash",       // 사고 단계가 없어 짧은 해설에 가장 예측 가능하다
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
   "gemini-flash-latest",
   "gemini-2.5-flash",
 ];
@@ -145,8 +148,11 @@ export async function POST(request) {
         lastDetail = "(본문 없음)";
       }
       console.error(`[insight] ${model} → ${lastStatus}: ${lastDetail}`);
-      if (lastStatus === 404) continue;   // 이 모델만 없는 경우 → 다음 후보
-      break;                              // 인증·할당량 문제 → 더 시도해도 소용없다
+      // 404(그 모델 없음)와 429(그 모델 할당량 소진)는 다른 모델로 풀릴 수
+      // 있으므로 계속 시도한다. 401·403 같은 인증 문제는 모델을 바꿔도
+      // 소용없으니 즉시 중단한다.
+      if (lastStatus === 404 || lastStatus === 429) continue;
+      break;
     }
 
     const output = await response.json();
