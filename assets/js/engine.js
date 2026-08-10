@@ -61,6 +61,17 @@
     return remaining / factor;
   }
 
+  // 지금 페이스(월 적립액 고정)로 목표 금액에 실제로 몇 개월 뒤 도달하는지.
+  // requiredMonthly는 "기간을 고정하고 필요한 월 적립액"을 구하는 반대
+  // 방향 계산이라 이 용도로 못 쓴다 — project()를 목표 기간보다 긴
+  // 구간(기본 50년)까지 돌려서 목표를 넘어서는 첫 달을 찾는다.
+  function monthsToGoal({ initial, monthly, goal, annualReturn, maxMonths = 600 }) {
+    if (initial >= goal) return 0;
+    const path = project({ initial, monthly, months: maxMonths, annualReturn });
+    const hit = path.find((p) => p.value >= goal);
+    return hit ? hit.month : null; // null = maxMonths 안에 못 닿음
+  }
+
   /* ---------- 4. 백테스트 (자산 타임머신) ---------- */
   // 실제 월말 종가 인덱스를 그대로 사용한다. 곡선을 만들어내지 않는다.
   function backtest(asset, startMonth, amount) {
@@ -180,6 +191,20 @@
     return { rate, total, contributions, month: categories[0].latest.month };
   }
 
+  // personalInflation()이 12개 실카테고리로 낸 기여도를 화면 표시용 5개
+  // 그룹으로 묶는다. 계산 자체(personalInflation)는 그대로 12개 실데이터
+  // 기준이고, 이건 그 결과를 다시 합산만 하는 표시 레이어다.
+  function aggregateByGroup(contributions, groups) {
+    return groups.map((g) => {
+      const members = contributions.filter((c) => g.members.includes(c.id));
+      const amount = members.reduce((s, c) => s + c.amount, 0);
+      const weight = members.reduce((s, c) => s + c.weight, 0);
+      const contribution = members.reduce((s, c) => s + c.contribution, 0);
+      const rate = weight > 0 ? contribution / weight : 0; // 가중평균 상승률
+      return { id: g.id, name: g.name, hint: g.hint, amount, weight, rate, contribution };
+    });
+  }
+
   // 지출 비중을 고정한 채 10년을 되돌려 누적 물가를 계산한다.
   // 품목별 지수를 가중평균하므로 고정가중 라스파이레스 방식이다.
   function personalIndexPath(spending, categories) {
@@ -286,9 +311,9 @@
   };
 
   global.Engine = {
-    diagnose, negotiate, project, requiredMonthly,
+    diagnose, negotiate, project, requiredMonthly, monthsToGoal,
     backtest, backtestWindow, inflationPath, planOf,
-    personalInflation, personalIndexPath, halfLife, salaryScore,
+    personalInflation, personalIndexPath, aggregateByGroup, halfLife, salaryScore,
     monthToNum, monthLabel, addMonths,
   };
 })(window);

@@ -465,7 +465,13 @@ p.block-q { margin: 0 0 .6rem; font-size: .8rem; color: var(--text-muted); }
 /* ---------- 폼 ---------- */
 .field-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .7rem; }
 .field-grid > * { min-width: 0; }
+.field-grid > .field-span2 { grid-column: 1 / -1; }
 @media (max-width: 480px) { .field-grid { grid-template-columns: minmax(0, 1fr); } }
+/* 목표 기간의 년·개월을 한 라벨 아래 두 입력칸으로 나란히 둔다(예:
+   "목표 기간(년)"/"목표 기간(개월)"을 별개 필드로 두면 같은 값을 두
+   군데로 쪼갠 것처럼 보인다는 피드백). */
+.duo-input { display: flex; gap: .5rem; }
+.duo-input > .input-wrap { flex: 1; min-width: 0; }
 /* label.field(입력칸을 감싸는 라벨)뿐 아니라 div.field(세그먼트·체크박스
    그룹을 감싸는 라벨, 예: "투자 성향", "비교할 자산")도 같이 잡아야
    한다 — label.field만 잡으면 div.field 쪽은 라벨 스타일을 못 받아서
@@ -484,6 +490,10 @@ p.block-q { margin: 0 0 .6rem; font-size: .8rem; color: var(--text-muted); }
 }
 .input-wrap input:focus { outline: none; }
 .input-wrap span { font-size: .78rem; color: var(--text-muted); flex: 0 0 auto; }
+/* Q5(목표 자산)는 아직 값이 없는 선택 입력이라, 다른 필드처럼 오른쪽
+   정렬하면 placeholder 숫자가 이미 채워진 실제 값처럼 보인다. 이
+   4칸만 왼쪽 정렬해 "아직 입력 전"이라는 게 한눈에 드러나게 한다. */
+#onbGoalAmount, #onbGoalCurrent, #onbGoalYears, #onbGoalMonths { text-align: left; }
 
 .range-label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: .9rem; }
 .range-label .val { color: var(--brand); font-variant-numeric: tabular-nums; }
@@ -588,10 +598,6 @@ input[readonly] {
 input[readonly]::-webkit-outer-spin-button,
 input[readonly]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input[readonly] { -moz-appearance: textfield; }
-/* 0을 그대로 보여주면 답한 것처럼 보이니(JS에서 값 없을 때 빈 문자열로
-   둔다) placeholder="입력된 값 없음"이 뜬다 — 굵은 숫자와 헷갈리지
-   않게 옅은 색·보통 굵기로 확실히 다르게 보이게 한다. */
-input[readonly]::placeholder { color: var(--text-muted); font-weight: 600; opacity: 1; }
 
 /* 잠긴 세그먼트(투자 성향)·생활 유형 그룹 — 선택된 값 하나만 텍스트처럼
    보여준다. tabindex="-1"(HTML에 정적으로 부여)로 키보드 포커스까지
@@ -788,33 +794,6 @@ input[readonly]::placeholder { color: var(--text-muted); font-weight: 600; opaci
 .spend-details summary::marker { color: var(--brand); }
 .spend-details[open] summary { margin-bottom: .65rem; }
 .spend-details > .field-note { margin: 0 0 .75rem; line-height: 1.5; }
-/* 12개 품목을 한 번에 다 펼치면 카드가 아주 길어져서, 그 옆(또는 위·
-   아래)의 카드들이 그리드 stretch 때문에 억지로 늘어나며 빈 공간이
-   생긴다. 목록 자체를 적당한 높이에서 스크롤되게 잘라 카드 높이가
-   무한정 커지는 걸 막는다. */
-/* 기본 스크롤바는(특히 맥OS "스크롤할 때만 보이기" 설정) 평소엔 안
-   보여서, 더 내용이 있다는 걸 못 알아채기 쉽다. 두 가지로 보강한다:
-   (1) 항상 보이는 얇은 스크롤바를 직접 그리고, (2) 맨 아래에 옅어지는
-   그라데이션을 겹쳐서 스크롤바 렌더링 여부와 무관하게 "더 있다"는
-   신호를 준다. 그라데이션은 실제 스크롤 콘텐츠(#spendFields) 밖의
-   정적 래퍼(.spend-scroll)에 얹어서, 매번 innerHTML로 다시 그려지는
-   목록 안에 넣지 않아도 되게 한다. */
-.spend-scroll { position: relative; }
-.spend-scroll::after {
-  content: ""; position: absolute; bottom: 0; left: 0; right: 1rem;
-  height: 28px; pointer-events: none; border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-  background: linear-gradient(to bottom, transparent, var(--surface-2));
-}
-#spendFields {
-  /* 스크롤바(7px)가 금액 입력칸 오른쪽 끝과 겹치지 않도록, 스크롤바보다
-     넉넉히 더 넓은 여백을 비워 둔다. */
-  max-height: 280px; overflow-y: auto; padding-right: 1rem;
-  scrollbar-width: thin; scrollbar-color: var(--text-muted) var(--surface-sunk);
-}
-#spendFields::-webkit-scrollbar { width: 8px; }
-#spendFields::-webkit-scrollbar-track { background: var(--surface-sunk); border-radius: 999px; }
-#spendFields::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 999px; }
-#spendFields::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 .spend-row {
   display: grid; grid-template-columns: minmax(0, 1fr) 130px;
   gap: .5rem; align-items: center; margin-bottom: .42rem;
@@ -852,11 +831,6 @@ input[readonly]::placeholder { color: var(--text-muted); font-weight: 600; opaci
   background: var(--surface-2); color: var(--text-secondary); font: inherit; font-size: .74rem; font-weight: 600;
 }
 .ai-retry-btn:hover { color: var(--brand); border-color: var(--brand); }
-.next-step-card {
-  border-color: color-mix(in srgb, var(--brand) 28%, var(--border));
-  background: linear-gradient(135deg, var(--surface-2), var(--brand-soft));
-}
-.next-step-card .kicker { margin-bottom: .45rem; color: var(--brand); font-weight: 700; }
 
 /* ---------- 마지막 결론 카드 ---------- */
 .final-card {
@@ -881,6 +855,12 @@ input[readonly]::placeholder { color: var(--text-muted); font-weight: 600; opaci
 .axis-text { fill: var(--text-muted); font-size: 11px; font-family: inherit; }
 .series-label { font-size: 11px; font-weight: 600; font-family: inherit; }
 .bar-value { fill: var(--text-primary); font-size: 11px; font-weight: 700; font-family: inherit; }
+/* 기여도 그래프(contributionChart) 전용 — 다른 차트(막대·꺾은선)와
+   .axis-text/.bar-value를 공유하면 거기도 같이 커져서 이 두 클래스를
+   따로 둔다. 12개 항목이 5개 그룹으로 줄면서 세로 여유가 생겨 글자를
+   더 키울 수 있게 됐다. */
+.contrib-label { font-size: 13px; }
+.contrib-value { font-size: 12.5px; font-weight: 800; }
 
 .legend { display: flex; flex-wrap: wrap; gap: .5rem .95rem; margin-top: .7rem; font-size: .78rem; color: var(--text-secondary); }
 .legend-item { display: inline-flex; align-items: center; gap: .35rem; }

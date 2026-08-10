@@ -219,7 +219,10 @@
      막대 길이 = 지출비중 × 그 품목의 물가상승률                        */
   function contributionChart(mount, rows, opts = {}) {
     const { officialRate = null, personalRate = null } = opts;
-    const W = 680, rowH = 22, padL = 128, padR = 92, padT = 22, padB = 6;
+    // 12개 실카테고리를 5개 그룹으로 묶은 뒤로 행이 최대 5개뿐이라 세로
+    // 여유가 많이 생겼다 — 막대 키·글자 크기를 키우고, 값 옆에 지출
+    // 비중(%)도 같이 적어서 툴팁을 안 열어도 바로 보이게 한다.
+    const W = 680, rowH = 34, padL = 128, padR = 112, padT = 22, padB = 6;
     const H = padT + rows.length * rowH + padB;
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
 
@@ -232,7 +235,7 @@
     svg.appendChild(el("line", {
       x1: zeroX, y1: padT - 6, x2: zeroX, y2: H - padB, class: "axis-line",
     }));
-    const zt = el("text", { x: zeroX, y: padT - 12, "text-anchor": "middle", class: "axis-text" });
+    const zt = el("text", { x: zeroX, y: padT - 12, "text-anchor": "middle", class: "axis-text contrib-label" });
     zt.textContent = "0%p";
     svg.appendChild(zt);
 
@@ -244,7 +247,7 @@
 
       // 오렌지(평균보다 빨리 오름)/그린(평균보다 천천히 오름) 색 대비만으로 구분하면
       // 색약 사용자는 못 읽는다. 라벨에 방향 기호를 같이 붙여 색 없이도 구분되게 한다.
-      const lab = el("text", { x: padL - 10, y: y + 15, "text-anchor": "end", class: "axis-text" });
+      const lab = el("text", { x: padL - 10, y: y + 23, "text-anchor": "end", class: "axis-text contrib-label" });
       if (r.hot != null) {
         const arrow = document.createElementNS(NS, "tspan");
         arrow.setAttribute("fill", r.color);
@@ -255,22 +258,22 @@
       svg.appendChild(lab);
 
       const bar = el("rect", {
-        x, y: y + 4, width: Math.max(w, 1.5), height: 17, rx: 4,
+        x, y: y + 6, width: Math.max(w, 1.5), height: 26, rx: 5,
         fill: positive ? r.color : "var(--series-1)",
         opacity: r.weight > 0 ? 1 : 0.25,
       });
       bindTip(bar,
         `<b>${r.name}</b><br>` +
         `지출 비중 ${(r.weight * 100).toFixed(1)}% (${fmtMan(r.amount)}만원)<br>` +
-        `이 품목 물가 ${r.rate >= 0 ? "+" : ""}${r.rate.toFixed(2)}%<br>` +
+        `이 항목 물가 ${r.rate >= 0 ? "+" : ""}${r.rate.toFixed(2)}%<br>` +
         `→ 내 물가에 <b>${r.contribution >= 0 ? "+" : ""}${r.contribution.toFixed(2)}%p</b> 기여`);
       svg.appendChild(bar);
 
       const val = el("text", {
-        x: positive ? x + w + 8 : x - 8, y: y + 17,
-        "text-anchor": positive ? "start" : "end", class: "bar-value",
+        x: positive ? x + w + 8 : x - 8, y: y + 25,
+        "text-anchor": positive ? "start" : "end", class: "bar-value contrib-value",
       });
-      val.textContent = `${r.contribution >= 0 ? "+" : ""}${r.contribution.toFixed(2)}%p`;
+      val.textContent = `${r.contribution >= 0 ? "+" : ""}${r.contribution.toFixed(2)}%p · ${(r.weight * 100).toFixed(0)}%`;
       svg.appendChild(val);
     });
 
