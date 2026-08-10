@@ -113,8 +113,6 @@
     spending: roundSpending(PERSONAS[DEFAULT_PERSONA].spending),
     persona: DEFAULT_PERSONA,
     personalRate: null,
-    aiContext: null,
-    aiCache: new Map(),
   };
 
   /* 지금 적용 중인 배분. 사용자가 슬라이더로 맞췄으면 그것을, 아니면
@@ -1008,13 +1006,6 @@
 
     syncSpendingFields();
     $("#personaLabel").textContent = (PERSONAS[state.persona] || PERSONAS[DEFAULT_PERSONA]).label;
-
-    $("#aiExplainBtn").addEventListener("click", openAIInsight);
-    $("#aiRetryBtn").addEventListener("click", openAIInsight);
-    $("#aiCloseBtn").addEventListener("click", () => $("#aiInsightDialog").close());
-    $("#aiInsightDialog").addEventListener("click", (event) => {
-      if (event.target === $("#aiInsightDialog")) $("#aiInsightDialog").close();
-    });
   }
 
   /* "비중 × 상승률을 다 더한다"는 말은 식으로만 보면 안 와닿는다.
@@ -1068,8 +1059,6 @@
 
     if (!result) {
       state.personalRate = null;
-      state.aiContext = null;
-      $("#aiExplainBtn").disabled = true;
       $("#mineVerdict").className = "verdict";
       $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
       $("#vsFigures").textContent = "—";
@@ -1091,20 +1080,6 @@
     state.personalRate = result.rate;
     $("#spendTotal").textContent = `${man(result.total)}만원`;
     const diff = result.rate - official;
-
-    // 결론 문장 — 조작하면 같이 바뀐다
-    const sorted = [...result.contributions].sort((a, b) => b.contribution - a.contribution);
-    const top = sorted[0];
-    state.aiContext = {
-      officialRate: official,
-      personalRate: result.rate,
-      gapPp: diff,
-      topCategoryId: top.id,
-      topCategory: top.name,
-      topSharePct: top.weight * 100,
-      topRatePct: top.rate,
-    };
-    $("#aiExplainBtn").disabled = false;
 
     // 기여도 분해 — 헤드라인이 "무엇 때문에" 비싼지 가리키는 항목도
     // 이 그룹 랭킹(아래 "내 물가를 밀어올린 범인"과 같은 5개 그룹) 1위를
@@ -1196,81 +1171,6 @@
 
     renderCumulative(result);
     renderMineAction(result, official);
-  }
-
-  function fallbackInsight(context) {
-    if (context.gapPp > 0.05) {
-      return `공식 평균보다 체감 물가가 높은 편이에요. ${context.topCategory} 지출을 조금 바꿔 보며 내 물가가 얼마나 달라지는지 확인해 보세요.`;
-    }
-    if (context.gapPp < -0.05) {
-      return `공식 평균보다 체감 물가가 낮은 편이에요. 지금의 지출 구성이 장기 누적에서도 같은 흐름인지 아래 그래프로 함께 확인해 보세요.`;
-    }
-    return `지금의 지출 구성은 전국 평균과 비슷해요. 세부 지출을 실제 금액에 맞게 바꾸면 나에게 더 가까운 결과를 볼 수 있습니다.`;
-  }
-
-  async function openAIInsight() {
-    const context = state.aiContext;
-    if (!context) return;
-
-    const dialog = $("#aiInsightDialog");
-    const body = $("#aiInsightBody");
-    const status = $("#aiInsightStatus");
-    $("#aiOfficialRate").textContent = `${context.officialRate.toFixed(1)}%`;
-    $("#aiPersonalRate").textContent = `${context.personalRate.toFixed(1)}%`;
-    $("#aiTopCategory").textContent = context.topCategory;
-    body.textContent = fallbackInsight(context);
-    body.classList.add("is-loading");
-    status.textContent = "Gemini가 계산 결과를 쉬운 말로 정리하고 있어요…";
-    $("#aiRetryBtn").hidden = true;
-    if (!dialog.open) dialog.showModal();
-
-    const payload = {
-      officialRate: context.officialRate,
-      personalRate: context.personalRate,
-      gapPp: context.gapPp,
-      topCategoryId: context.topCategoryId,
-      topSharePct: context.topSharePct,
-      topRatePct: context.topRatePct,
-    };
-    const cacheKey = JSON.stringify(payload);
-    if (state.aiCache.has(cacheKey)) {
-      body.textContent = state.aiCache.get(cacheKey);
-      body.classList.remove("is-loading");
-      status.textContent = "Gemini 해설 · 계산은 연봉 성적표 엔진이 수행했습니다.";
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-    try {
-      const response = await fetch("/api/insight", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: cacheKey,
-        signal: controller.signal,
-      });
-      const data = await response.json().catch(() => ({}));
-      if (response.ok && typeof data.text === "string") {
-        state.aiCache.set(cacheKey, data.text);
-        body.textContent = data.text;
-        status.textContent = "Gemini 해설 · 계산은 연봉 성적표 엔진이 수행했습니다.";
-      } else if (response.status === 503) {
-        // 서버에 AI 연결 자체가(API 키 등) 설정돼 있지 않은 상태 —
-        // 다시 눌러도 같은 이유로 또 실패하니 재시도 버튼을 안 보여준다.
-        status.textContent = "AI 해설 기능이 아직 준비되지 않았어요. 검증된 기본 해설을 보여드립니다.";
-      } else {
-        status.textContent = "AI 연결이 늦어 검증된 기본 해설을 보여드립니다.";
-        $("#aiRetryBtn").hidden = false;
-      }
-    } catch (error) {
-      status.textContent = error.name === "AbortError"
-        ? "응답이 오래 걸려 자동으로 취소했어요. 다시 시도해 주세요."
-        : "AI 연결이 늦어 검증된 기본 해설을 보여드립니다.";
-      $("#aiRetryBtn").hidden = false;
-    } finally {
-      clearTimeout(timeout);
-      body.classList.remove("is-loading");
-    }
   }
 
   function renderCumulative(result) {
