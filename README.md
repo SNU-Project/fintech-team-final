@@ -35,7 +35,6 @@
 | 공식 물가 vs 내 물가 대비 | `#vsRow` |
 | 어떤 품목이 내 물가를 밀어올렸는지 분해 | `#contribChart` (`Charts.contributionChart`) |
 | 지출 비중 고정 후 10년 누적 궤적 비교 | `engine.js` `personalIndexPath()` |
-| 구매력 반감기 · 방어 가능한 최소 포트폴리오 | `engine.js` `halfLife()`, `#mineActionStats` |
 | 내 물가를 연봉 진단에 그대로 적용 | `#applyToSalary` |
 | 계산 결과만 쉬운 말로 바꾸는 Gemini 해설 | `#aiExplainBtn`, `api/insight.mjs` |
 

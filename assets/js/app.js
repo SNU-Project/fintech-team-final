@@ -1237,7 +1237,6 @@
 
   function renderMineAction(result, official) {
     const rate = result.rate;
-    const hl = E.halfLife(rate / 100);
 
     // 최소 연봉 인상액 — 퍼센트가 아니라 현재 연봉 기준 실제 금액으로.
     const cur = Math.max(0, +$("#curSalary").value || 0);
@@ -1257,29 +1256,16 @@
       ? ` · ${man(goalCurrent)}만원을 넣어뒀다면 1년에 약 ${man(goalCurrent * rate / 100)}만원은 불어나야 해요`
       : "";
 
-    // 구매력 반감기 — 반감기 연수(hl) 계산은 그대로, 그 값을 사용자가
-    // 입력한 실제 보유 자산에 곱해서 "숫자"로 와닿게 한다. 입력이 없으면
-    // 100만원을 예시로 쓰되 "(예시)"라고 명시해 실제 값처럼 보이지 않게 한다.
-    const rawCurrent = Math.max(0, +$("#goalCurrent").value || 0);
-    const isReal = rawCurrent > 0;
-    const base = isReal ? rawCurrent : 100;
-    const half = base / 2;
-
     $("#mineActionStats").innerHTML = `
       <div class="stat"><span class="k">최소 연봉 인상액</span><span class="v">약 ${man(neededRaise)}만원</span>
         <span class="s">이만큼은 올라야 본전 (${rate.toFixed(1)}%)</span></div>
       <div class="stat"><span class="k">필요 투자 수익률</span><span class="v">${rate.toFixed(1)}%</span>
-        <span class="s">${compare}${goalCurrentNote}</span></div>
-      <div class="stat ${hl && hl < 20 ? "is-warn" : ""}"><span class="k">구매력 반감기</span>
-        <span class="v">${hl ? `약 ${man(half)}만원` : "—"}</span>
-        <span class="s">${hl ? `${hl.toFixed(0)}년 뒤, 지금 ${man(base)}만원${isReal ? "" : "(예시)"}의 가치` : "지금 돈의 가치가 절반 되는 시점"}</span></div>`;
+        <span class="s">${compare}${goalCurrentNote}</span></div>`;
 
     const a = $("#mineAction");
     a.className = "verdict";
     a.innerHTML = `내 물가 <b>${rate.toFixed(1)}%</b>를 넘기려면 연봉을 그만큼 올려받거나,
-      연 <b>${rate.toFixed(1)}%</b> 이상으로 굴려야 합니다. 아무것도 안 하면
-      지금 가진 ${man(base)}만원${isReal ? "" : "(예시)"}은 ${hl ? hl.toFixed(0) : "—"}년 뒤
-      약 ${man(half)}만원 가치가 됩니다.`;
+      연 <b>${rate.toFixed(1)}%</b> 이상으로 굴려야 합니다.`;
   }
 
   /* ══════════════ 탭 1 · 실질임금 진단 ══════════════ */
