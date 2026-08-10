@@ -685,7 +685,11 @@
 
     prevBtn.addEventListener("click", () => goTo(index - 1));
     nextBtn.addEventListener("click", () => goTo(index + 1));
-    $("#deckCoverNextBtn").addEventListener("click", () => goTo(index + 1));
+    // 카드 1에만 있던 "다음 카드 보기" 버튼을 모든 카드(1~6) 하단에
+    // 똑같이 둔다 — 점 인디케이터를 직접 눌러야만 다음 카드로 갈 수
+    // 있어 발견하기 어렵다는 버그 리포트에 대응. 클래스 하나로 위임해서
+    // 카드가 늘어나도 개별 배선이 필요 없게 한다.
+    $$(".deck-next-btn").forEach((b) => b.addEventListener("click", () => goTo(index + 1)));
 
     document.addEventListener("keydown", (e) => {
       if (deckEl.hidden) return;
@@ -746,6 +750,17 @@
       const half = rect.left + rect.width / 2;
       if (e.clientX < half) goTo(index - 1); else goTo(index + 1);
     });
+
+    // ---- 마우스 휠: 페이지가 아니라 활성 카드 안에서만 스크롤 ----
+    // .deck-viewport가 overflow:hidden이라 카드 콘텐츠가 남는 공간이
+    // 없어도, 휠 이벤트 자체는 스크롤할 게 없으면 곧장 문서로 새어나가
+    // 카드 밖(푸터 등)까지 스크롤되는 문제가 실제 배포본에서 확인됐다.
+    // 항상 활성 카드의 scrollTop으로 델타를 직접 적용하고 preventDefault해서
+    // "카드 한 장 = 화면 한 장" 밖으로 스크롤이 새지 않게 막는다.
+    viewport.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      cards[index].scrollTop += e.deltaY;
+    }, { passive: false });
 
     window.addEventListener("popstate", (e) => {
       if (deckEl.hidden) return;
@@ -987,13 +1002,15 @@
     });
 
     // ---- 요약 화면 ----
-    // "리포트 보기"(카드 1 → 카드 2)와 "처음부터 다시 입력하기"(카드 7)는
-    // 이제 카드뉴스 덱 안에 있다 — 전자는 setupCardDeck()의
-    // #deckCoverNextBtn 핸들러가 맡는다.
-    $("#homeRestartBtn").addEventListener("click", () => {
-      // 카드 7 안의 다른 버튼들과 가까이 있어 오클릭하기 쉬운데, 이
-      // 버튼은 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라
-      // 한 번 더 확인한다.
+    // "리포트 보기"(카드 1 → 카드 2)는 카드뉴스 덱 안(setupCardDeck의
+    // .deck-next-btn 델리게이션)에서 처리한다. "처음부터 다시
+    // 입력하기"는 카드 1·카드 7 양쪽, 그리고 헤더 로고 클릭에서도 같은
+    // 동작을 하도록 함수로 뽑아 여러 진입점이 공유한다(v9 — 카드뉴스로
+    // 바뀌면서 재입력 경로가 어느 카드에도 안 보인다는 버그 리포트에
+    // 대응해 진입점을 늘렸다).
+    function triggerRestart() {
+      // 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라 한 번
+      // 더 확인한다.
       if (!confirm("처음부터 다시 입력할까요? 지금까지 입력한 내용은 모두 사라져요.")) return;
       localStorage.removeItem(ONBOARD_KEY);
       setReportVisible(false);
@@ -1001,6 +1018,18 @@
       $$("#onbPersonaGrid button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.persona === DEFAULT_PERSONA)));
       wizardView.hidden = false;
       showStep(0);
+    }
+    $$(".deck-restart-link").forEach((b) => b.addEventListener("click", triggerRestart));
+
+    // 헤더 로고는 원래 "#top"으로 스크롤만 했는데, 리포트가 카드뉴스
+    // 덱이 되면서 로고를 눌러도 지금 보던 카드 맨 위로 스크롤될 뿐 설문
+    // 화면으로 돌아갈 방법이 없어졌다는 버그 리포트가 있었다. 덱이 보이는
+    // 동안에는 로고 클릭이 재입력 흐름으로 이어지게 한다 — 설문을 아직
+    // 안 끝냈을 때는(덱이 hidden) 기존처럼 그냥 맨 위로 스크롤한다.
+    $(".brand").addEventListener("click", (e) => {
+      if ($("#deck").hidden) return;
+      e.preventDefault();
+      triggerRestart();
     });
   }
 
