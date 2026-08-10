@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>샐러리갭 — 연봉은 올랐는데 왜 더 빠듯할까?</title>
+<title>연봉 성적표 — 연봉은 올랐는데 왜 더 빠듯할까?</title>
 <meta name="description" content="물가를 반영한 내 연봉의 실질 가치를 진단하고, 실제 10년 시장 데이터로 부족분을 메울 자산배분을 설계합니다.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%2324745a'/><text x='16' y='23' font-size='19' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'>₩</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%2324745a'/><rect x='9' y='7' width='14' height='18' rx='2' fill='white'/><rect x='13' y='4.5' width='6' height='4' rx='1.5' fill='white'/><rect x='12' y='13' width='8' height='1.8' rx='0.9' fill='%2324745a'/><rect x='12' y='17' width='8' height='1.8' rx='0.9' fill='%2324745a'/><rect x='12' y='21' width='5' height='1.8' rx='0.9' fill='%2324745a'/></svg>">
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -13,16 +13,17 @@
 <header class="topbar">
   <div class="wrap topbar-inner">
     <a class="brand" href="#top">
-      <span class="brand-mark">₩</span>
-      <span>SalaryGap<small>SNU 핀테크 13기 3조 · 웹 개발 및 시각화</small></span>
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="20" height="20">
+          <rect x="9" y="7" width="14" height="18" rx="2" fill="#fff"></rect>
+          <rect x="13" y="4.5" width="6" height="4" rx="1.5" fill="#fff"></rect>
+          <rect x="12" y="13" width="8" height="1.8" rx=".9" fill="var(--brand)"></rect>
+          <rect x="12" y="17" width="8" height="1.8" rx=".9" fill="var(--brand)"></rect>
+          <rect x="12" y="21" width="5" height="1.8" rx=".9" fill="var(--brand)"></rect>
+        </svg>
+      </span>
+      <span>연봉 성적표<small>SNU 핀테크 13기 3조 · 웹 개발 및 시각화</small></span>
     </a>
-    <nav class="tabs" id="mainTabs" aria-label="섹션 바로가기" hidden>
-      <a class="tab" id="tab-home" href="#panel-home">홈</a>
-      <a class="tab" id="tab-mine" href="#panel-mine">내 물가</a>
-      <a class="tab" id="tab-gap"  href="#panel-gap">실질임금 진단</a>
-      <a class="tab" id="tab-goal" href="#nextSteps">목표 자산 모으기</a>
-      <a class="tab" id="tab-time" href="#nextSteps">자산 타임머신</a>
-    </nav>
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="테마 전환" title="라이트/다크 테마 전환">
       <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="4"></circle>
@@ -137,8 +138,8 @@
             <span class="input-wrap"><input type="number" id="onbMonthlySpend" min="0" step="10" inputmode="numeric"><span>만원</span></span>
           </label>
           <p class="field-note">방금 고른 생활 유형의 평균값을 채워 뒀어요.</p>
-          <details class="spend-details">
-            <summary>세부 항목 입력하기</summary>
+          <div class="spend-details">
+            <p class="spend-details-label">세부 항목</p>
             <div class="donut-row">
               <div id="onbSpendFields" style="flex:1;min-width:230px"></div>
               <div class="donut-wrap">
@@ -147,7 +148,7 @@
               </div>
             </div>
             <div class="legend" id="onbSpendLegend"></div>
-          </details>
+          </div>
         </div>
         <div class="onboarding-nav">
           <button class="onboarding-back" data-back type="button">← 이전</button>
@@ -166,49 +167,6 @@
             </label>
             <label class="field">내년 예상 연봉
               <span class="input-wrap"><input type="number" id="onbNextSalary" min="0" step="100" value="3750" inputmode="numeric"><span>만원</span></span>
-            </label>
-          </div>
-        </div>
-        <div class="onboarding-nav">
-          <button class="onboarding-back" data-back type="button">← 이전</button>
-          <button class="home-start-btn" id="onbNext3" type="button">다음 →</button>
-        </div>
-      </div>
-
-      <!-- 4 · 투자 성향 (건너뛰기 가능) -->
-      <div class="onboarding-step" data-step="4" hidden>
-        <p class="kicker">Q4 · 실질임금 진단 · 목표 자산</p>
-        <h2>투자 성향은 어느 쪽에 가까우신가요?</h2>
-        <div class="card onboarding-card">
-          <div class="seg" id="onbRiskSeg" role="group">
-            <button type="button" data-risk="stable">안정형</button>
-            <button type="button" data-risk="balanced" aria-pressed="true">균형형</button>
-            <button type="button" data-risk="aggressive">적극형</button>
-          </div>
-        </div>
-        <div class="onboarding-nav">
-          <button class="onboarding-back" data-back type="button">← 이전</button>
-          <button class="home-start-btn" id="onbNext4" type="button">다음 →</button>
-        </div>
-      </div>
-
-      <!-- 5 · 목표 자산 (건너뛰기 가능) -->
-      <div class="onboarding-step" data-step="5" hidden>
-        <p class="kicker">Q5 · 목표 자산 · 선택</p>
-        <h2>목표가 있다면 알려주세요</h2>
-        <div class="card onboarding-card">
-          <div class="field-grid">
-            <label class="field">목표 금액
-              <span class="input-wrap"><input type="number" id="onbGoalAmount" min="0" step="500" placeholder="3000" inputmode="numeric"><span>만원</span></span>
-            </label>
-            <label class="field">현재 보유 자산
-              <span class="input-wrap"><input type="number" id="onbGoalCurrent" min="0" step="100" placeholder="800" inputmode="numeric"><span>만원</span></span>
-            </label>
-            <label class="field field-span2">목표 기간
-              <div class="duo-input">
-                <span class="input-wrap"><input type="number" id="onbGoalYears" min="0" max="40" step="1" placeholder="5"><span>년</span></span>
-                <span class="input-wrap"><input type="number" id="onbGoalMonths" min="0" max="11" step="1" placeholder="0"><span>개월</span></span>
-              </div>
             </label>
           </div>
         </div>
@@ -429,7 +387,7 @@
     <div class="bento">
       <div class="card bento-input">
           <div class="section-head">
-            <div><h2>목표 설정</h2><p>설문에서 답하신 목표예요.</p></div>
+            <div><h2>목표 설정</h2><p>목표를 직접 입력해보세요.</p></div>
           </div>
           <div class="field-grid">
             <label class="field">목표 금액
@@ -453,15 +411,7 @@
             <span class="range-scale"><span>0</span><span>200만원</span></span>
           </label>
 
-          <div class="field" style="margin-bottom:.4rem">투자 성향
-            <div class="seg is-locked" id="goalRiskSeg" role="group" style="margin-top:.35rem">
-              <button type="button" data-risk="stable" aria-pressed="false" tabindex="-1">안정형</button>
-              <button type="button" data-risk="balanced" aria-pressed="true" tabindex="-1">균형형</button>
-              <button type="button" data-risk="aggressive" aria-pressed="false" tabindex="-1">적극형</button>
-            </div>
-          </div>
           <p class="field-note" id="goalRiskNote">—</p>
-          <p class="field-note">설문에서 답하신 투자 성향이에요.</p>
 
           <p class="answer-bridge">이 내용으로 아래 결과를 계산했어요 ↓</p>
       </div>
@@ -601,7 +551,7 @@
   <!-- ══════════════ 다음 단계 ══════════════
        목표 자산 모으기/자산 타임머신은 기본 리포트 스크롤에서 뺐다 —
        원하는 사람만 버튼을 눌러 펼쳐 보게 한다. -->
-  <section class="panel" id="nextSteps">
+  <section class="panel" id="nextSteps" hidden>
     <div class="card">
       <p class="kicker">더 보고 싶다면</p>
       <h3 class="block-title">목표와 과거 성과도 확인해 보세요</h3>
@@ -638,10 +588,10 @@
   </details>
 
   <footer>
-    <p><strong>샐러리갭 (SalaryGap)</strong> — 서울대학교 빅데이터 핀테크 전문가과정 13기 3조 · 웹 개발 및 시각화 팀 프로젝트</p>
+    <p><strong>연봉 성적표</strong> — 서울대학교 빅데이터 핀테크 전문가과정 13기 3조 · 웹 개발 및 시각화 팀 프로젝트</p>
     <p class="credits">만든 사람 · 구범용 · 김상미 · 신기훈 · 안나량 · 안소민 · 왕예주 <span class="sep">(가나다순)</span></p>
     <p id="buildInfo" class="skeleton-bar">—</p>
-    <p class="copyright">&copy; 2026 샐러리갭 팀. 모든 권리 보유.</p>
+    <p class="copyright">&copy; 2026 연봉 성적표 팀. 모든 권리 보유.</p>
   </footer>
 </main>
 

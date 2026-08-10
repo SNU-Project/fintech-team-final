@@ -1,5 +1,5 @@
 /* ============================================================
-   샐러리갭 — 통합 디자인 시스템
+   연봉 성적표 — 통합 디자인 시스템
    SOMIN의 CSS 변수 체계를 계승하고, sangmi의 팔레트·히어로 감각을 얹었다.
    ============================================================ */
 
@@ -132,7 +132,7 @@ section { scroll-margin-top: 5rem; }
 .brand { display: flex; align-items: center; gap: .55rem; font-weight: 700; letter-spacing: -.01em; text-decoration: none; color: var(--text-primary); }
 .brand-mark {
   width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
-  background: var(--brand); color: #fff; font-size: .95rem; font-weight: 800;
+  background: var(--brand);
 }
 .brand small { display: block; font-weight: 500; font-size: .68rem; color: var(--text-muted); letter-spacing: 0; }
 @media (max-width: 860px) { .brand small { display: none; } }
@@ -199,44 +199,11 @@ section { scroll-margin-top: 5rem; }
 }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 
-/* ---------- 탭 (로고 옆, 상단바에 고정) ----------
-   더 이상 패널을 숨기고 보여주는 진짜 탭이 아니라, 아래로 쭉 이어지는
-   리포트 안의 한 지점으로 스크롤만 시켜주는 앵커 링크다. 그래서
-   role="tab" 대신 평범한 nav 링크로 만들고, 현재 보고 있는 섹션은
-   aria-current로 표시한다 (JS의 IntersectionObserver가 붙였다 뗀다). */
-.tabs {
-  display: flex; gap: .2rem; flex: 1; min-width: 0;
-  overflow-x: auto; scrollbar-width: none;
-}
-.tabs::-webkit-scrollbar { display: none; }
-/* 데스크톱에서 탭을 화면 정중앙에 모은다. flex 레이아웃에서 탭 칸에
-   justify-content:center만 주면 "탭 칸 안에서" 가운데일 뿐이다 — 로고
-   (넓다)와 테마 버튼(좁다)의 폭이 서로 달라서 탭 칸 자체가 오른쪽으로
-   치우쳐 있고, 그 안에서 가운데 정렬해봐야 여전히 오른쪽으로 쏠려
-   보인다. 좌우를 1fr 1fr로 동일하게 잡는 그리드로 바꿔야 로고·테마
-   버튼 폭과 무관하게 탭이 화면 중앙에 온다. 모바일은 탭이 넘칠 때
-   overflow-x:auto로 가로 스크롤해야 해서 기존 왼쪽 정렬을 유지한다. */
 @media (min-width: 861px) {
   .topbar-inner { display: grid; grid-template-columns: 1fr auto 1fr; }
-  /* 설문 중엔 .tabs가 display:none이 되어 그리드에서 통째로 빠지는데,
-     grid-column을 명시하지 않으면 자동 배치가 테마 버튼을 그 빈 칸으로
-     당겨 채워서 가운데처럼 보이게 만든다. 각 칸을 못박아 탭이 숨어도
-     로고는 항상 1번째, 테마 버튼은 항상 3번째(맨 오른쪽) 칸에 있게 한다. */
   .brand { grid-column: 1; justify-self: start; }
-  .tabs { grid-column: 2; justify-self: center; flex: 0 0 auto; }
   .theme-toggle { grid-column: 3; justify-self: end; }
 }
-/* display:flex는 [hidden]의 기본 display:none과 명시도가 같아 나중에
-   선언된 이 규칙이 이겨버린다. 온보딩 중엔 탭 자체를 숨겨야 하므로 명시한다. */
-.tabs[hidden] { display: none; }
-.tab {
-  display: inline-block; text-decoration: none; appearance: none; border: 0;
-  background: none; font-family: inherit; cursor: pointer;
-  padding: .5rem .85rem; font-size: .86rem; font-weight: 600; color: var(--text-muted);
-  border-bottom: 2px solid transparent; white-space: nowrap;
-}
-.tab:hover { color: var(--text-secondary); }
-.tab[aria-current="true"] { color: var(--brand); border-bottom-color: var(--brand); }
 
 .panel { padding: 1.1rem 0 0; }
 .panel[hidden] { display: none; }
@@ -493,11 +460,6 @@ p.block-q { margin: 0 0 .6rem; font-size: .8rem; color: var(--text-muted); }
 }
 .input-wrap input:focus { outline: none; }
 .input-wrap span { font-size: .78rem; color: var(--text-muted); flex: 0 0 auto; }
-/* Q5(목표 자산)는 아직 값이 없는 선택 입력이라, 다른 필드처럼 오른쪽
-   정렬하면 placeholder 숫자가 이미 채워진 실제 값처럼 보인다. 이
-   4칸만 왼쪽 정렬해 "아직 입력 전"이라는 게 한눈에 드러나게 한다. */
-#onbGoalAmount, #onbGoalCurrent, #onbGoalYears, #onbGoalMonths { text-align: left; }
-
 .range-label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: .9rem; }
 .range-label .val { color: var(--brand); font-variant-numeric: tabular-nums; }
 .range-label input[type="range"] { width: 100%; margin: .45rem 0 .1rem; }
@@ -810,6 +772,7 @@ input[readonly] { -moz-appearance: textfield; }
 .spend-details summary { cursor: pointer; color: var(--brand); font-size: .8rem; font-weight: 700; }
 .spend-details summary::marker { color: var(--brand); }
 .spend-details[open] summary { margin-bottom: .65rem; }
+.spend-details-label { color: var(--brand); font-size: .8rem; font-weight: 700; margin: 0 0 .65rem; }
 .spend-details > .field-note { margin: 0 0 .75rem; line-height: 1.5; }
 .spend-row {
   display: grid; grid-template-columns: minmax(0, 1fr) 130px;
