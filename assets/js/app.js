@@ -111,7 +111,10 @@
     renderAll();
 
     // 실시간은 화면이 다 그려진 뒤에 붙인다 (실패해도 화면은 이미 완성)
-    hydrateLive();
+    // 실시간 값이 들어오면서 위쪽 섹션 높이가 바뀔 수 있어(티커·물가
+    // 출처 문구 등), 해시로 스크롤한 위치가 살짝 밀릴 수 있다. 다
+    // 반영된 뒤 한 번 더 맞춰준다.
+    hydrateLive().then(scrollToHashSection);
   }
 
   /* ══════════════ 실시간 ══════════════ */
@@ -187,6 +190,21 @@
     const tabBySection = new Map(tabs.map((t) => [t.getAttribute("href").slice(1), t]));
     const sections = $$(".panel").filter((p) => tabBySection.has(p.id));
 
+    // 네이티브 앵커 점프(href="#panel-x")에만 기대지 않고 명시적으로
+    // scrollIntoView를 호출한다 — 상단 고정 헤더가 있는 페이지에서
+    // 브라우저의 기본 해시 스크롤이 안 먹는 경우가 있었다. 섹션에는
+    // scroll-margin-top이 이미 걸려 있어 고정 헤더에 제목이 안 가린다.
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", (e) => {
+        const id = tab.getAttribute("href").slice(1);
+        const target = document.getElementById(id);
+        if (!target || target.hidden) return;
+        e.preventDefault();
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        history.pushState(null, "", `#${id}`);
+      });
+    });
+
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
@@ -196,6 +214,18 @@
     }, { rootMargin: "-40% 0px -55% 0px", threshold: 0 });
 
     sections.forEach((s) => observer.observe(s));
+  }
+
+  // 리포트가 막 보이기 시작하는 시점(설문을 마쳤거나 재방문자라 바로
+  // 공개될 때)에 한 번 호출한다. 공유 링크 등으로 해시를 이미 들고
+  // 들어온 경우, 그 순간까지는 섹션이 hidden이라 스크롤해도 자리가
+  // 안 잡히므로 리포트가 드러난 직후에 시도해야 한다.
+  function scrollToHashSection() {
+    const id = location.hash.slice(1);
+    if (!id) return;
+    const target = document.getElementById(id);
+    if (!target || target.hidden) return;
+    requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   /* ══════════════ 홈 · 온보딩 → 로딩 → 요약 ══════════════
@@ -324,8 +354,6 @@
     $("#scoreRing").style.background = `conic-gradient(${color} ${total}%, var(--surface-sunk) 0)`;
     $("#scoreGradeLine").textContent = `${band.grade} · ${band.label}`;
     $("#scoreGradeLine").className = `score-grade-line ${band.cls}`;
-
-    $("#scoreSummaryLine").textContent = items.map((it) => `${it.label} ${it.score}점`).join(" · ");
 
     $("#scoreDetailItems").innerHTML = items.map((it) =>
       `<li><b>${it.label} ${it.score}점</b> · ${it.note}</li>`).join("");
@@ -565,6 +593,10 @@
       // 그때 한꺼번에 드러낸다.
       setReportVisible(true);
       scrollHomeToTop();
+      // 공유 링크 등으로 특정 섹션 해시를 들고 들어온 경우, 방금
+      // scrollHomeToTop이 맨 위로 올려놓은 걸 다시 그 섹션으로 옮긴다
+      // (이 호출이 나중이라 최종 스크롤 위치를 이긴다).
+      scrollToHashSection();
     }
 
     // 실제로는 즉시 계산되지만, 문항에 답한 뒤 결과가 "만들어지는" 느낌을
@@ -734,39 +766,61 @@
       return msg;
     }
 
-    // 캡처 단계(capture:true)에서 먼저 값을 다듬어 둔다. 그래야 각 필드에
-    // 이미 달려 있는 계산용 input 리스너(버블 단계, 등록 순서와 무관하게
-    // 이 다음에 실행됨)가 항상 범위 안으로 정리된 값을 보게 된다.
+    // input(글자 하나하나)마다 값을 즉시 clamp하면, 자리수가 큰 숫자를
+    // 지우고 다시 입력하는 도중(예: "10"만 친 시점)처럼 아직 다 안 친
+    // 값이 일시적으로 범위 안팎을 오갈 수 있는데, 그때마다 최댓값으로
+    // 스냅해버리면 입력 자체가 막힌다. 그래서 clamp는 필드를 벗어날 때
+    // (blur) 딱 한 번만 하고, 타이핑 중에는 경고 문구만 보여준다.
+    function rangeInfo(input, rule) {
+      if (input.value === "") return null;
+      const n = Number(input.value);
+      if (Number.isNaN(n)) return null;
+      const bounded = Math.min(rule.max, Math.max(rule.min, n));
+      return { n, bounded, outOfRange: bounded !== n };
+    }
+
+    function updateWarning(input, rule, wrap, msg) {
+      const info = rangeInfo(input, rule);
+      const outOfRange = !!(info && info.outOfRange);
+      msg.hidden = !outOfRange;
+      if (outOfRange) {
+        msg.textContent =
+          `${rule.label}${josa(rule.label, "은", "는")} ${rule.min.toLocaleString("ko-KR")}~${rule.max.toLocaleString("ko-KR")} 사이로 입력할 수 있어요.`;
+      }
+      if (wrap) wrap.classList.toggle("invalid", outOfRange);
+    }
+
+    // 타이핑 중에는 값을 절대 건드리지 않는다 — 범위를 벗어나 있어도
+    // 경고 문구만 갱신하고, 입력 자체는 사용자가 친 그대로 둔다.
     document.addEventListener("input", (e) => {
+      const input = e.target;
+      if (input.tagName !== "INPUT" || input.type !== "number" || input.readOnly) return;
+      const rule = RULES.find((r) => r.test(input.id));
+      if (!rule) return;
+      updateWarning(input, rule, input.closest(".input-wrap"), guardMsgFor(input));
+    });
+
+    // 필드를 벗어나는 순간에만 실제로 값을 다듬는다(정수 반올림 + 범위
+    // clamp). blur는 버블링하지 않으므로 document 위임은 capture 단계에서
+    // 받아야 한다. 값이 바뀌었으면 input 이벤트를 다시 쏴서, 이 필드를
+    // 구독 중인 계산 로직(월 투자 가능액↔월 저축 가능액 동기화 등)이
+    // 다듬어진 최종값을 반영하게 한다.
+    document.addEventListener("blur", (e) => {
       const input = e.target;
       if (input.tagName !== "INPUT" || input.type !== "number" || input.readOnly) return;
       const rule = RULES.find((r) => r.test(input.id));
       if (!rule) return;
       const wrap = input.closest(".input-wrap");
       const msg = guardMsgFor(input);
-      if (input.value === "") {
-        msg.hidden = true;
-        if (wrap) wrap.classList.remove("invalid");
-        return;
+      const info = rangeInfo(input, rule);
+      if (!info) { msg.hidden = true; if (wrap) wrap.classList.remove("invalid"); return; }
+      const clamped = rule.money ? Math.round(info.bounded) : info.bounded;
+      if (clamped !== info.n) {
+        input.value = clamped;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
       }
-      const n = Number(input.value);
-      if (Number.isNaN(n)) return;
-      // min/max를 벗어났는지는 반올림 전 값으로 판단한다 — 소수점을 정수로
-      // 다듬는 것과 범위를 벗어난 것은 서로 다른 문제라, 소수점만 입력했을
-      // 때는 경고 없이 조용히 정리하고, 범위를 벗어났을 때만 알려준다.
-      const bounded = Math.min(rule.max, Math.max(rule.min, n));
-      const outOfRange = bounded !== n;
-      const next = rule.money ? Math.round(bounded) : bounded;
-      if (next !== n) input.value = next;
-      if (outOfRange) {
-        msg.textContent =
-          `${rule.label}${josa(rule.label, "은", "는")} ${rule.min.toLocaleString("ko-KR")}~${rule.max.toLocaleString("ko-KR")} 사이로 입력할 수 있어요.`;
-        msg.hidden = false;
-        if (wrap) wrap.classList.add("invalid");
-      } else {
-        msg.hidden = true;
-        if (wrap) wrap.classList.remove("invalid");
-      }
+      msg.hidden = true;
+      if (wrap) wrap.classList.remove("invalid");
     }, true);
   }
 
