@@ -30,29 +30,37 @@ jobs:
           def get(url):
               req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
               with urllib.request.urlopen(req, timeout=40) as resp:
-                  return resp.read().decode("utf-8", "replace")
+                  return json.loads(resp.read().decode("utf-8", "replace"))
 
-          # 1) '가계동향' 이 들어간 통계표를 찾는다
-          q = urllib.parse.quote("가계동향")
-          search = ("https://kosis.kr/openapi/statisticsList.do"
-                    f"?method=getList&apiKey={key}&vwCd=MT_ZTITLE&parentListId=&format=json&jsonVD=Y"
-                    f"&searchNm={q}")
-          raw = get(search)
-          print("── 통계표 검색 응답 (앞 600자) ──")
-          print(raw[:600])
-          print()
+          def drill(parent, depth=0, path=""):
+              """주제별 트리를 타고 내려가며 '가계동향'이 든 통계표를 찾는다."""
+              url = ("https://kosis.kr/openapi/statisticsList.do"
+                     f"?method=getList&apiKey={key}&vwCd=MT_ZTITLE"
+                     f"&parentListId={parent}&format=json&jsonVD=Y")
+              try:
+                  rows = get(url)
+              except Exception as exc:
+                  print(f"{'  '*depth}! {parent} 조회 실패: {exc}")
+                  return
+              if not isinstance(rows, list):
+                  return
+              for r in rows:
+                  name = r.get("LIST_NM") or r.get("TBL_NM") or ""
+                  tbl = r.get("TBL_ID")
+                  if tbl:
+                      if "가계동향" in path or "가계동향" in name or "가계수지" in name:
+                          print(f"  ✔ orgId={r.get('ORG_ID')} tblId={tbl}  {name}")
+                      continue
+                  lid = r.get("LIST_ID")
+                  if not lid:
+                      continue
+                  sub = f"{path} > {name}" if path else name
+                  # 소득·소비·자산(E) 아래만 훑는다
+                  if depth == 0 and lid != "E":
+                      continue
+                  if depth < 3:
+                      drill(lid, depth + 1, sub)
 
-          try:
-              rows = json.loads(raw)
-          except Exception as exc:
-              print("JSON 파싱 실패:", exc)
-              raise SystemExit(0)
-
-          if isinstance(rows, dict):
-              print("응답이 객체입니다:", json.dumps(rows, ensure_ascii=False)[:400])
-              raise SystemExit(0)
-
-          print(f"── 검색 결과 {len(rows)}건 ──")
-          for r in rows[:25]:
-              print(f"  orgId={r.get('ORG_ID')}  tblId={r.get('TBL_ID')}  {r.get('TBL_NM')}")
+          print("── 소득·소비·자산 아래 가계동향 통계표 ──")
+          drill("")
           PY
