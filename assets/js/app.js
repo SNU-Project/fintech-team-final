@@ -399,6 +399,11 @@
     const data = E.salaryScore(computeScoreInputs());
     const heroEl = $("#scoreHero");
     const headline = $("#homeSummaryHeadline");
+    const previewEl = $("#scorePreviewConclusion");
+
+    const conclusionHeadline = buildConclusionHeadline();
+    previewEl.hidden = conclusionHeadline == null;
+    if (conclusionHeadline != null) previewEl.textContent = conclusionHeadline;
 
     if (!data) {
       heroEl.hidden = true;
@@ -527,18 +532,24 @@
     typewriterTimers.set(el, { interval, watchdog, skip: finish });
   }
 
+  // 결론의 핵심 한 문장 — 점수 카드 아래 미리보기와 맨 끝 결론 카드
+  // 첫 줄이 같은 문장을 반복해서 계산하다 어긋나지 않도록 한 곳으로 모았다.
+  function buildConclusionHeadline() {
+    const rate = state.personalRate;
+    if (rate == null) return null;
+    return `체감 물가 ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`;
+  }
+
   // 리포트 맨 끝의 결론 — 4개 섹션 결과를 한데 모아 정리한다.
   // 투자 권유로 읽히면 안 되므로 단정 대신 "~해볼 만해요" 같은 선택지
   // 톤을 쓰고, 마지막 줄에서 참고자료라는 점을 다시 한 번 짚는다.
   function buildFinalConclusion() {
-    const rate = state.personalRate;
-    if (rate == null) {
+    const headline = buildConclusionHeadline();
+    if (headline == null) {
       return "아직 결과를 계산할 수 없어요.\n리포트에서 값을 입력하면 여기서 정리해 드릴게요.";
     }
 
-    const lines = [];
-
-    lines.push(`체감 물가 ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`);
+    const lines = [headline];
 
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
