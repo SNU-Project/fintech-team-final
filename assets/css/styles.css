@@ -130,10 +130,7 @@ section { scroll-margin-top: 5rem; }
 }
 .topbar-inner { display: flex; align-items: center; gap: 1rem; padding: .7rem 0; }
 .brand { display: flex; align-items: center; gap: .55rem; font-weight: 700; letter-spacing: -.01em; text-decoration: none; color: var(--text-primary); }
-.brand-mark {
-  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
-  background: var(--brand);
-}
+.brand-mark { width: 30px; height: 30px; border-radius: 9px; display: block; object-fit: contain; }
 .brand small { display: block; font-weight: 500; font-size: .68rem; color: var(--text-muted); letter-spacing: 0; }
 @media (max-width: 860px) { .brand small { display: none; } }
 
