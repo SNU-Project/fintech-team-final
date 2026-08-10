@@ -52,19 +52,26 @@ function validate(body) {
   };
 }
 
+// 반환: { text } 통과 / { reason, raw } 거부
+// 왜 버렸는지 남기지 않으면 model-output-rejected만 보고 원인을 알 수 없다.
 function safeText(value, input) {
-  if (typeof value !== "string") return null;
+  if (typeof value !== "string") return { reason: "빈 응답", raw: String(value).slice(0, 120) };
   const text = value.trim().replace(/[*#`]/g, "").slice(0, 500);
-  if (!text || /[₩$€]/.test(text)) return null;
+  if (!text) return { reason: "빈 문자열", raw: value.slice(0, 120) };
+  if (/[₩$€]/.test(text)) return { reason: "통화 기호 포함", raw: text.slice(0, 120) };
+
   // 모델이 전달받은 값을 반복하는 것은 허용하되, 없던 숫자를 만들면 응답을 버린다.
   const allowed = [
     input.officialRate, input.personalRate, input.gapPp,
     input.topSharePct, input.topRatePct,
   ].map(Number);
   const mentioned = text.match(/-?\d+(?:\.\d+)?/g) || [];
-  if (mentioned.some((token) =>
-    !allowed.some((number) => Math.abs(Number(token) - number) < 0.051))) return null;
-  return text;
+  const invented = mentioned.filter((token) =>
+    !allowed.some((number) => Math.abs(Number(token) - number) < 0.051));
+  if (invented.length) {
+    return { reason: `없는 숫자 사용: ${invented.join(", ")}`, raw: text.slice(0, 160) };
+  }
+  return { text };
 }
 
 export async function POST(request) {
@@ -156,17 +163,21 @@ export async function POST(request) {
     }
 
     const output = await response.json();
-    const text = safeText(
+    const checked = safeText(
       output?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(" "),
       input
     );
-    if (!text) {
+    if (!checked.text) {
+      console.error(`[insight] ${model} 출력 거부: ${checked.reason} | ${checked.raw}`);
       return Response.json({
         error: "AI 해설을 불러오지 못했습니다.",
         code: "model-output-rejected",
+        model,
+        reason: checked.reason,
+        raw: checked.raw,
       }, { status: 502 });
     }
-    return Response.json({ text, model }, {
+    return Response.json({ text: checked.text, model }, {
       headers: { "Cache-Control": "no-store" },
     });
   }
