@@ -718,28 +718,10 @@ input[readonly] { -moz-appearance: textfield; }
 .kicker { margin: 0 0 .7rem; font-size: .8rem; color: var(--text-muted); }
 .bento-hero .verdict { margin-top: .8rem; }
 
-.vs-row { display: flex; align-items: center; justify-content: center; gap: clamp(.8rem, 4vw, 2.4rem); flex-wrap: wrap; }
-.vs-side { display: flex; flex-direction: column; gap: .1rem; min-width: 120px; }
-.vs-k { font-size: .76rem; color: var(--text-muted); }
-.vs-v { font-size: clamp(1.9rem, 6vw, 2.9rem); font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.vs-s { font-size: .7rem; color: var(--text-muted); }
-.vs-side.accent .vs-v { color: var(--accent, #b76442); }
-.vs-side.accent.under .vs-v { color: var(--good-text); }
-
-.vs-mid {
-  font-size: .82rem; font-weight: 700; padding: .3rem .7rem; border-radius: 999px;
-  background: var(--surface-sunk); color: var(--text-secondary); white-space: nowrap;
-}
-.vs-mid.over { background: color-mix(in srgb, var(--critical) 12%, transparent); color: var(--critical-text); }
-.vs-mid.under { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good-text); }
-
-/* 좁은 화면에서도 두 숫자는 반드시 나란히 둔다. 세로로 쪼개지면
-   "공식 vs 내 물가"라는 대비가 그림에서 사라진다. */
-@media (max-width: 560px) {
-  .vs-row { gap: .5rem; flex-wrap: nowrap; }
-  .vs-side { min-width: 0; flex: 1; }
-  .vs-v { font-size: clamp(1.5rem, 8.5vw, 2.1rem); }
-  .vs-mid { flex: 0 0 auto; font-size: .7rem; padding: .25rem .45rem; }
+/* 체감 헤드라인(#mineVerdict) 아래 정확한 수치는 작은 보조 정보로만 남긴다. */
+.vs-figures {
+  margin: .6rem 0 0; font-size: .78rem; color: var(--text-muted);
+  font-variant-numeric: tabular-nums; text-align: center;
 }
 
 /* 지출 입력 */
@@ -922,7 +904,6 @@ footer a { color: var(--text-secondary); }
   animation: skeletonShimmer 1.5s ease-in-out infinite;
   border-radius: 6px;
 }
-span.vs-v.skeleton-bar { width: 4.4em; height: .8em; }
 /* 문단형 자리표시자(푸터의 데이터 갱신 안내, 실시간 물가 출처 표기 등) —
    실제 텍스트 폭과 비슷하게 잡아야 값이 채워질 때 레이아웃이 덜 튄다. */
 p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }

@@ -1070,15 +1070,9 @@
       state.personalRate = null;
       state.aiContext = null;
       $("#aiExplainBtn").disabled = true;
-      $("#officialRate").textContent = `${official.toFixed(1)}%`;
-      $("#officialRate").classList.remove("skeleton-bar");
-      $("#officialMonth").textContent = `${state.cpi.latest.month} 기준`;
-      $("#personalRate").textContent = "—";
-      $("#personalRate").classList.remove("skeleton-bar");
-      $("#vsGap").className = "vs-mid";
-      $("#vsGap").textContent = "입력 필요";
       $("#mineVerdict").className = "verdict";
       $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
+      $("#vsFigures").textContent = "—";
       $("#americanoCallout").innerHTML = "";
       $("#spendTotal").textContent = "0만원";
       $("#contribSummary").hidden = true;
@@ -1098,25 +1092,6 @@
     $("#spendTotal").textContent = `${man(result.total)}만원`;
     const diff = result.rate - official;
 
-    $("#officialRate").textContent = `${official.toFixed(1)}%`;
-    $("#officialRate").classList.remove("skeleton-bar");
-    $("#officialMonth").textContent = `${state.cpi.latest.month} 기준`;
-    $("#personalRate").textContent = `${result.rate.toFixed(1)}%`;
-    $("#personalRate").classList.remove("skeleton-bar");
-
-    const mid = $("#vsGap");
-    const side = $("#vsRow").querySelector(".vs-side.accent");
-    if (Math.abs(diff) < 0.05) {
-      mid.className = "vs-mid"; mid.textContent = "거의 같음";
-      side.classList.remove("under");
-    } else if (diff > 0) {
-      mid.className = "vs-mid over"; mid.textContent = `+${diff.toFixed(1)}포인트 높음`;
-      side.classList.remove("under");
-    } else {
-      mid.className = "vs-mid under"; mid.textContent = `${diff.toFixed(1)}포인트 낮음`;
-      side.classList.add("under");
-    }
-
     // 결론 문장 — 조작하면 같이 바뀐다
     const sorted = [...result.contributions].sort((a, b) => b.contribution - a.contribution);
     const top = sorted[0];
@@ -1130,20 +1105,31 @@
       topRatePct: top.rate,
     };
     $("#aiExplainBtn").disabled = false;
+
+    // 기여도 분해 — 헤드라인이 "무엇 때문에" 비싼지 가리키는 항목도
+    // 이 그룹 랭킹(아래 "내 물가를 밀어올린 범인"과 같은 5개 그룹) 1위를
+    // 그대로 쓴다 — 카드 두 개가 서로 다른 항목을 "1위"라고 하면 안 되니까.
+    const grouped = E.aggregateByGroup(result.contributions, SPEND_GROUPS)
+      .sort((a, b) => b.contribution - a.contribution);
+    const ranked = grouped.filter((g) => g.amount > 0);
+
+    // %p 숫자보다 "나는 비싸게/저렴하게 살고 있다"는 체감 결론을 먼저
+    // 보여주고, 정확한 수치는 그 아래 작은 보조 정보로만 남긴다.
     const v = $("#mineVerdict");
-    if (diff > 0.05) {
-      v.className = "verdict warn";
-      v.innerHTML = `당신의 물가는 공식 통계보다 <b>${diff.toFixed(1)}포인트 높습니다.</b>
-        가장 크게 밀어올린 건 <b>${top.name}</b>(지출의 ${(top.weight * 100).toFixed(0)}%,
-        이 품목만 ${top.rate >= 0 ? "+" : ""}${top.rate.toFixed(1)}%)입니다.`;
-    } else if (diff < -0.05) {
+    if (Math.abs(diff) < 0.05) {
       v.className = "verdict";
-      v.innerHTML = `당신의 물가는 공식 통계보다 <b>${Math.abs(diff).toFixed(1)}포인트 낮습니다.</b>
-        물가가 덜 오른 품목에 지출이 몰려 있습니다.`;
+      v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 거의 같아요.`;
+    } else if (diff > 0) {
+      const causeName = ranked[0] ? ranked[0].name : null;
+      v.className = "verdict warn";
+      v.innerHTML = `당신은 다른 사람들보다${causeName ? ` <b>${causeName}</b> 기준으로` : ""}
+        <b>더 비싸게 살고 있어요!</b>`;
     } else {
       v.className = "verdict";
-      v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 공식 통계와 거의 같습니다.`;
+      v.innerHTML = `당신은 다른 사람들보다 <b>더 저렴하게 살고 있어요!</b>`;
     }
+    $("#vsFigures").textContent =
+      `공식 물가 ${official.toFixed(1)}% · 내 물가 ${result.rate.toFixed(1)}% (${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%p)`;
 
     // 만원 단위 %p 격차보다 실물로 와닿는 지표 — 이번 달 체감 격차를
     // 아이스 아메리카노 잔수로 환산한다.
@@ -1163,24 +1149,17 @@
          "물가 ${official.toFixed(1)}%"는 아무의 물가도 아닙니다.`;
     }
 
-    // 기여도 분해 — 계산(top)은 12개 실카테고리 그대로 쓰고, 그래프만
-    // 5개 그룹으로 묶어서 보여준다(품목이 너무 많아 읽기 힘들다는
+    // 그래프는 12개 실카테고리(top)를 5개 그룹(grouped/ranked, 위에서
+    // 이미 계산)으로 묶어서 보여준다(품목이 너무 많아 읽기 힘들다는
     // 피드백). 품목이 전체 평균보다 빨리 오르는지는 막대 색(오렌지/
     // 그린)만으로 표시했었다. 색약 사용자를 위해 방향 기호(▲/▼)도
     // 라벨에 같이 붙인다.
-    const grouped = E.aggregateByGroup(result.contributions, SPEND_GROUPS)
-      .sort((a, b) => b.contribution - a.contribution);
-
-    // 기본 노출은 1~2위 요약 문장 + 랭킹 2개까지만. 나머지 순위와 계산
-    // 과정(①②③)·막대그래프는 토글을 펼쳐야 보인다. grouped는 이미
-    // contribution 내림차순.
     const rankRow = (g, i) => `
       <li class="rank-row ${g.rate >= official ? "is-hot" : "is-cool"}">
         <span class="rank-no">${i + 1}위</span>
         <span class="rank-name">${g.name}</span>
         <span class="rank-val">${g.contribution >= 0 ? "+" : ""}${g.contribution.toFixed(2)}포인트</span>
       </li>`;
-    const ranked = grouped.filter((g) => g.amount > 0);
     const top2 = ranked.slice(0, 2);
     const rest = ranked.slice(2);
     $("#contribRank").innerHTML = top2.map((g, i) => rankRow(g, i)).join("");
