@@ -1043,3 +1043,8 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
+
+/* ---------- 푸터 크레딧 ---------- */
+.credits { font-weight: 600; color: var(--text-secondary); }
+.credits .sep { font-weight: 400; color: var(--text-muted); font-size: .92em; }
+.copyright { color: var(--text-muted); font-size: .92em; }
