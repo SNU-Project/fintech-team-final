@@ -1028,3 +1028,9 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 .credits { font-weight: 600; color: var(--text-secondary); }
 .credits .sep { font-weight: 400; color: var(--text-muted); font-size: .92em; }
 .copyright { color: var(--text-muted); font-size: .92em; }
+
+/* 통계 기준 시점 — 수동 갱신 값이라 언제 것인지 밝힌다 */
+.vintage {
+  display: inline-block; font-size: .72rem; color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 999px; padding: .04rem .42rem;
+}
