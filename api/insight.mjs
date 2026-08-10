@@ -100,9 +100,23 @@ export async function POST(request) {
       }),
     });
     if (!gatewayResponse.ok) {
+      // 게이트웨이가 왜 거부했는지 남긴다. 상태 코드만으로는 키가 틀린 건지,
+      // 크레딧이 없는 건지, 모델 권한이 없는 건지 구분할 수 없어서
+      // 2026-08-07~10 사이 403 원인을 못 찾고 시간을 썼다.
+      // 응답 본문에는 우리 토큰이 들어가지 않으므로 노출해도 안전하다.
+      let detail = "";
+      try {
+        detail = (await gatewayResponse.text()).replace(/\s+/g, " ").slice(0, 200);
+      } catch (_ignored) {
+        detail = "(본문 없음)";
+      }
+      console.error(`[insight] gateway ${gatewayResponse.status}: ${detail}`);
       return Response.json({
         error: "AI 해설을 불러오지 못했습니다.",
         code: `gateway-${gatewayResponse.status}`,
+        detail,
+        authSource: process.env.AI_GATEWAY_API_KEY ? "api-key"
+          : process.env.VERCEL_OIDC_TOKEN ? "oidc-env" : "oidc-header",
       }, { status: 502 });
     }
     const output = await gatewayResponse.json();

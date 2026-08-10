@@ -261,14 +261,14 @@ def main() -> None:
         "generated_at": market["generated_at"],
         "sources": [
             {"name": "Yahoo Finance chart API", "use": "자산별 월말 종가 10년",
-             "url": "https://query1.finance.yahoo.com", "live_in_browser": False,
+             "url": "https://finance.yahoo.com", "live_in_browser": False,
              "reason": "CORS 미허용 — GitHub Actions가 매일 수집해 스냅샷으로 커밋"},
             {"name": "OECD SDMX", "use": "한국 소비자물가지수(월)",
-             "url": "https://sdmx.oecd.org", "live_in_browser": True},
+             "url": "https://www.oecd.org/en/data.html", "live_in_browser": True},
             {"name": "Frankfurter", "use": "원/달러 환율(실시간)",
-             "url": "https://api.frankfurter.dev", "live_in_browser": True},
+             "url": "https://frankfurter.dev", "live_in_browser": True},
             {"name": "CoinGecko", "use": "비트코인 시세(실시간)",
-             "url": "https://api.coingecko.com", "live_in_browser": True},
+             "url": "https://www.coingecko.com", "live_in_browser": True},
         ],
         "assumptions": [
             f"예금 수익률 {CASH_ANNUAL_RETURN:.1%}는 시세가 아닌 고정 가정값입니다.",
