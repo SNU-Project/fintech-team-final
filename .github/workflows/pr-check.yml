@@ -80,6 +80,40 @@ jobs:
           fi
           echo "통과 — 외부 스크립트 없음."
 
+      # ── 3.5 워크플로 YAML 문법 ────────────────────────────────
+      # GitHub는 워크플로 YAML이 깨져도 조용히 "파일 경로"를 이름으로 쓰고
+      # 실행만 실패시킨다. 2026-08-10에 run 블록 안 heredoc이 들여쓰기 0으로
+      # 들어가 파싱이 깨졌는데, 로그를 열기 전까지 원인을 알 수 없었다.
+      - name: 워크플로 문법 검사
+        run: |
+          python - <<'PY'
+          import glob, sys, yaml
+
+          bad = []
+          for path in sorted(glob.glob(".github/workflows/*.yml")):
+              try:
+                  spec = yaml.safe_load(open(path, encoding="utf-8"))
+              except Exception as exc:
+                  bad.append(f"{path}: 파싱 실패 — {exc}")
+                  continue
+              if not isinstance(spec, dict):
+                  bad.append(f"{path}: 최상위가 매핑이 아님")
+                  continue
+              # PyYAML은 YAML 1.1이라 `on:` 을 boolean True로 읽는다
+              triggers = spec.get("on", spec.get(True))
+              if not triggers:
+                  bad.append(f"{path}: 트리거(on:)가 없음")
+              if not spec.get("jobs"):
+                  bad.append(f"{path}: jobs가 없음")
+
+          if bad:
+              print("::error::워크플로 YAML 문제")
+              for b in bad:
+                  print(f"  - {b}")
+              sys.exit(1)
+          print("통과 — 워크플로 YAML 정상")
+          PY
+
       # ── 4. JS 문법 ────────────────────────────────────────────
       - name: JavaScript 문법 검사
         run: |
