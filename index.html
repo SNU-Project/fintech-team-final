@@ -306,10 +306,15 @@
       <!-- 기여도 분해 -->
       <div class="card bento-contrib">
         <h3 class="block-title">내 물가를 밀어올린 범인</h3>
-        <p class="block-q">막대 = 지출 비중 × 그 품목의 물가상승률. 다 더하면 내 물가입니다.</p>
+        <p class="verdict" id="contribSummary" hidden>—</p>
         <ol class="contrib-rank" id="contribRank"></ol>
+        <details class="calc-detail" id="contribRankMore" hidden>
+          <summary>나머지 항목 더 보기</summary>
+          <ol class="contrib-rank" id="contribRankMoreList"></ol>
+        </details>
         <details class="calc-detail">
           <summary>상세 계산 보기</summary>
+          <p class="block-q">막대 = 지출 비중 × 그 품목의 물가상승률. 다 더하면 내 물가입니다.</p>
           <div class="calc-walk" id="contribMath"></div>
           <div class="chart-box" id="contribChart"></div>
         </details>
@@ -330,12 +335,15 @@
       <!-- 10년 누적 -->
       <div class="card bento-cum">
         <h3 class="block-title">10년을 이렇게 살았다면</h3>
-        <p class="block-q">지출 비중을 고정하고 과거 10년을 되돌렸습니다. 두 선이 벌어질수록 공식 통계와 체감의 차이가 큽니다.</p>
-        <div class="chart-box" id="cumChart"></div>
-        <div class="legend" id="cumLegend"></div>
-        <div class="stat-grid" id="cumStats"></div>
-        <p class="verdict" id="cumNote" hidden></p>
-        <p class="field-note" id="spreadNote">—</p>
+        <details class="calc-detail">
+          <summary>10년 추이 더 보기</summary>
+          <p class="block-q">지출 비중을 고정하고 과거 10년을 되돌렸습니다. 두 선이 벌어질수록 공식 통계와 체감의 차이가 큽니다.</p>
+          <div class="chart-box" id="cumChart"></div>
+          <div class="legend" id="cumLegend"></div>
+          <div class="stat-grid" id="cumStats"></div>
+          <p class="verdict" id="cumNote" hidden></p>
+          <p class="field-note" id="spreadNote">—</p>
+        </details>
       </div>
 
     </div>
@@ -377,18 +385,24 @@
 
       <div class="card bento-main">
         <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
-        <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
-        <div class="chart-box" id="salaryChart"></div>
-        <div class="stat-grid" id="gapStats"></div>
         <p class="verdict" id="gapVerdict">—</p>
+        <details class="calc-detail">
+          <summary>막대그래프·자세한 수치 보기</summary>
+          <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
+          <div class="chart-box" id="salaryChart"></div>
+          <div class="stat-grid" id="gapStats"></div>
+        </details>
       </div>
 
       <div class="card bento-half-a">
         <h3 class="block-title">격차는 해마다 벌어집니다</h3>
-        <p class="block-q">지금 조건이 유지되면 간격이 매년 얼마나 커지는지.</p>
-        <div class="chart-box" id="trendChart"></div>
-        <div class="legend" id="trendLegend"></div>
         <p class="verdict" id="trendVerdict">—</p>
+        <details class="calc-detail">
+          <summary>연도별 추이 보기</summary>
+          <p class="block-q">지금 조건이 유지되면 간격이 매년 얼마나 커지는지.</p>
+          <div class="chart-box" id="trendChart"></div>
+          <div class="legend" id="trendLegend"></div>
+        </details>
       </div>
 
       <div class="card bento-half-b">
@@ -573,6 +587,17 @@
     </div>
   </section>
 
+  <!-- ══════════════ 마지막 · 결론 ══════════════
+       내 물가·실질임금 진단·목표 자산·자산 타임머신 네 결과를 한데
+       묶어 정리한다. 요약 화면의 풀이가 "예고"였다면 여기는 "결론"이다. -->
+  <section class="panel" id="panel-final" hidden>
+    <div class="card final-card">
+      <p class="kicker">마지막으로 정리하면</p>
+      <h2 class="report-heading" id="finalHeadline">당신을 위한 결론</h2>
+      <p class="final-body" id="finalBody"></p>
+    </div>
+  </section>
+
   <!-- ══════════════ 다음 단계 ══════════════
        목표 자산 모으기/자산 타임머신은 기본 리포트 스크롤에서 뺐다 —
        원하는 사람만 버튼을 눌러 펼쳐 보게 한다. -->
@@ -585,17 +610,6 @@
         <button class="home-start-btn" id="revealGoalBtn" type="button">목표 자산 계획 보기 →</button>
         <button class="home-start-btn" id="revealTimeBtn" type="button">자산 타임머신으로 확인하기 →</button>
       </div>
-    </div>
-  </section>
-
-  <!-- ══════════════ 마지막 · 결론 ══════════════
-       내 물가·실질임금 진단·목표 자산·자산 타임머신 네 결과를 한데
-       묶어 정리한다. 요약 화면의 풀이가 "예고"였다면 여기는 "결론"이다. -->
-  <section class="panel" id="panel-final" hidden>
-    <div class="card final-card">
-      <p class="kicker">마지막으로 정리하면</p>
-      <h2 class="report-heading" id="finalHeadline">당신을 위한 결론</h2>
-      <p class="final-body" id="finalBody"></p>
     </div>
   </section>
 

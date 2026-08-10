@@ -520,21 +520,6 @@
         : `하지만 내년 연봉은 물가를 다 따라가지 못해서, 실질적으로는 연 ${man(d.gap)}만원만큼 뒷걸음질 치고 있어요.`);
     }
 
-    const goalAmount = Math.max(0, +$("#goalAmount").value || 0);
-    const { months: goalMonths } = readGoalDuration();
-    const goalCurrent = Math.max(0, +$("#goalCurrent").value || 0);
-    const goalMonthly = Math.max(0, +$("#goalMonthly").value || 0);
-    if (goalAmount > goalCurrent) {
-      const plan = activePlan();
-      if (plan) {
-        const path = E.project({ initial: goalCurrent, monthly: goalMonthly, months: goalMonths, annualReturn: plan.expected_return });
-        const gdiff = path[path.length - 1].value - goalAmount;
-        lines.push(gdiff >= 0
-          ? `지금 페이스를 유지하면 목표 자산에도 ${formatDuration(goalMonths)} 뒤 ${man(gdiff)}만원 여유 있게 도착할 것 같아요.`
-          : `다만 지금 페이스로는 목표 자산에 ${man(-gdiff)}만원 정도 못 미칠 것으로 보여요.`);
-      }
-    }
-
     lines.push("아래에서 하나씩 풀어드릴게요.");
     return lines.join("\n");
   }
@@ -601,12 +586,7 @@
 
     const lines = [];
 
-    const plans = Object.keys(state.market.portfolios).map((k) => E.planOf(state.market, k));
-    const enough = plans.filter((p) => p.expected_return * 100 >= rate);
-    const minPlan = enough.length ? enough[0] : null;
-    lines.push(minPlan
-      ? `체감 물가 ${rate.toFixed(1)}%를 방어하려면 최소 ${minPlan.label} 이상의 포트폴리오가 필요해요.`
-      : `체감 물가 ${rate.toFixed(1)}%는 적극형 포트폴리오로도 방어가 쉽지 않은 수준이에요.`);
+    lines.push(`체감 물가 ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`);
 
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
@@ -615,24 +595,6 @@
       lines.push(d.beatsInflation
         ? "내년 연봉은 물가를 이기고 있어서, 지금 페이스라면 실질 소득은 지켜지고 있어요."
         : "내년 연봉은 물가를 다 따라가지 못하고 있어서, 그 차이를 투자나 협상으로 메워야 해요.");
-    }
-
-    const goalAmount = Math.max(0, +$("#goalAmount").value || 0);
-    const { months } = readGoalDuration();
-    const goalCurrent = Math.max(0, +$("#goalCurrent").value || 0);
-    const goalMonthly = Math.max(0, +$("#goalMonthly").value || 0);
-    if (goalAmount > goalCurrent) {
-      const plan = activePlan();
-      if (plan) {
-        const path = E.project({ initial: goalCurrent, monthly: goalMonthly, months, annualReturn: plan.expected_return });
-        const gdiff = path[path.length - 1].value - goalAmount;
-        if (gdiff >= 0) {
-          lines.push(`목표 자산도 지금 페이스로 ${formatDuration(months)} 안에 닿을 것으로 보여요.`);
-        } else {
-          const need = Math.ceil(E.requiredMonthly({ goal: goalAmount, current: goalCurrent, months, annualReturn: plan.expected_return }));
-          lines.push(`목표 자산에 닿으려면 월 저축액을 ${man(need)}만원 정도로 올리거나, 기간을 늘리는 방법을 함께 고려해볼 만해요.`);
-        }
-      }
     }
 
     lines.push("과거 데이터는 참고 자료일 뿐, 결정은 늘 본인의 몫입니다.");
@@ -1247,7 +1209,9 @@
       $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
       $("#americanoCallout").innerHTML = "";
       $("#spendTotal").textContent = "0만원";
+      $("#contribSummary").hidden = true;
       $("#contribRank").innerHTML = "";
+      $("#contribRankMore").hidden = true;
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
       $("#cumChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 10년 누적 물가를 계산합니다.</p>`;
       $("#cumLegend").innerHTML = "";
@@ -1274,10 +1238,10 @@
       mid.className = "vs-mid"; mid.textContent = "거의 같음";
       side.classList.remove("under");
     } else if (diff > 0) {
-      mid.className = "vs-mid over"; mid.textContent = `+${diff.toFixed(1)}%p 높음`;
+      mid.className = "vs-mid over"; mid.textContent = `+${diff.toFixed(1)}포인트 높음`;
       side.classList.remove("under");
     } else {
-      mid.className = "vs-mid under"; mid.textContent = `${diff.toFixed(1)}%p 낮음`;
+      mid.className = "vs-mid under"; mid.textContent = `${diff.toFixed(1)}포인트 낮음`;
       side.classList.add("under");
     }
 
@@ -1297,12 +1261,12 @@
     const v = $("#mineVerdict");
     if (diff > 0.05) {
       v.className = "verdict warn";
-      v.innerHTML = `당신의 물가는 공식 통계보다 <b>${diff.toFixed(1)}%p 높습니다.</b>
+      v.innerHTML = `당신의 물가는 공식 통계보다 <b>${diff.toFixed(1)}포인트 높습니다.</b>
         가장 크게 밀어올린 건 <b>${top.name}</b>(지출의 ${(top.weight * 100).toFixed(0)}%,
         이 품목만 ${top.rate >= 0 ? "+" : ""}${top.rate.toFixed(1)}%)입니다.`;
     } else if (diff < -0.05) {
       v.className = "verdict";
-      v.innerHTML = `당신의 물가는 공식 통계보다 <b>${Math.abs(diff).toFixed(1)}%p 낮습니다.</b>
+      v.innerHTML = `당신의 물가는 공식 통계보다 <b>${Math.abs(diff).toFixed(1)}포인트 낮습니다.</b>
         물가가 덜 오른 품목에 지출이 몰려 있습니다.`;
     } else {
       v.className = "verdict";
@@ -1335,14 +1299,39 @@
     const grouped = E.aggregateByGroup(result.contributions, SPEND_GROUPS)
       .sort((a, b) => b.contribution - a.contribution);
 
-    // 기본 노출은 순위 요약만 — 계산 과정(①②③)과 막대그래프는 "상세
-    // 계산 보기"를 펼쳐야 보인다. grouped는 이미 contribution 내림차순.
-    $("#contribRank").innerHTML = grouped.filter((g) => g.amount > 0).map((g, i) => `
+    // 기본 노출은 1~2위 요약 문장 + 랭킹 2개까지만. 나머지 순위와 계산
+    // 과정(①②③)·막대그래프는 토글을 펼쳐야 보인다. grouped는 이미
+    // contribution 내림차순.
+    const rankRow = (g, i) => `
       <li class="rank-row ${g.rate >= official ? "is-hot" : "is-cool"}">
         <span class="rank-no">${i + 1}위</span>
         <span class="rank-name">${g.name}</span>
-        <span class="rank-val">${g.contribution >= 0 ? "+" : ""}${g.contribution.toFixed(2)}%p</span>
-      </li>`).join("");
+        <span class="rank-val">${g.contribution >= 0 ? "+" : ""}${g.contribution.toFixed(2)}포인트</span>
+      </li>`;
+    const ranked = grouped.filter((g) => g.amount > 0);
+    const top2 = ranked.slice(0, 2);
+    const rest = ranked.slice(2);
+    $("#contribRank").innerHTML = top2.map((g, i) => rankRow(g, i)).join("");
+    const moreToggle = $("#contribRankMore");
+    if (rest.length) {
+      moreToggle.hidden = false;
+      $("#contribRankMoreList").innerHTML = rest.map((g, i) => rankRow(g, i + 2)).join("");
+    } else {
+      moreToggle.hidden = true;
+    }
+
+    const summary = $("#contribSummary");
+    if (top2.length) {
+      const first = top2[0];
+      const monthlyExtra = first.amount * (first.rate / 100);
+      summary.hidden = false;
+      summary.innerHTML = `<b>${first.name}</b>${first.rate >= official
+        ? `${josa(first.name, "이", "가")} 가장 많이 올랐어요`
+        : `${josa(first.name, "은", "는")} 비중이 가장 커요`}
+        (한 달에 약 ${man(Math.abs(monthlyExtra))}만원 ${monthlyExtra >= 0 ? "더" : "덜"} 나가요)`;
+    } else {
+      summary.hidden = true;
+    }
 
     Charts.contributionChart($("#contribChart"),
       grouped.filter((g) => g.amount > 0).map((g) => ({
@@ -1519,33 +1508,48 @@
   function renderMineAction(result, official) {
     const rate = result.rate;
     const hl = E.halfLife(rate / 100);
-    const plans = Object.keys(state.market.portfolios).map((k) => E.planOf(state.market, k));
-    const enough = plans.filter((p) => p.expected_return * 100 >= rate);
-    const minPlan = enough.length ? enough[0] : null;
+
+    // 최소 연봉 인상액 — 퍼센트가 아니라 현재 연봉 기준 실제 금액으로.
+    const cur = Math.max(0, +$("#curSalary").value || 0);
+    const neededRaise = cur * (rate / 100);
+
+    // 필요 투자 수익률 — 퍼센트는 유지하되, 이미 실데이터인 예금 자산의
+    // CAGR과 비교해서 감이 오게 한다(하드코딩 금지 — state.market.assets에서
+    // 그대로 읽는다). 목표 자산 탭에 입력된 보유 자산이 있으면 금액도 병기.
+    const cashAsset = state.market.assets.find((a) => a.id === "cash");
+    const cashRate = cashAsset ? cashAsset.cagr * 100 : null;
+    const goalCurrent = Math.max(0, +$("#goalCurrent").value || 0);
+    const compare = cashRate == null ? "굴려서 방어하려면"
+      : rate > cashRate + 0.3 ? `일반 예금 금리(연 ${cashRate.toFixed(1)}%)보다 높은 수준`
+      : rate < cashRate - 0.3 ? `일반 예금 금리(연 ${cashRate.toFixed(1)}%)보다 낮은 수준`
+      : `일반 예금 금리(연 ${cashRate.toFixed(1)}%)와 비슷한 수준`;
+    const goalCurrentNote = goalCurrent > 0
+      ? ` · ${man(goalCurrent)}만원을 넣어뒀다면 1년에 약 ${man(goalCurrent * rate / 100)}만원은 불어나야 해요`
+      : "";
+
+    // 구매력 반감기 — 반감기 연수(hl) 계산은 그대로, 그 값을 사용자가
+    // 입력한 실제 보유 자산에 곱해서 "숫자"로 와닿게 한다. 입력이 없으면
+    // 100만원을 예시로 쓰되 "(예시)"라고 명시해 실제 값처럼 보이지 않게 한다.
+    const rawCurrent = Math.max(0, +$("#goalCurrent").value || 0);
+    const isReal = rawCurrent > 0;
+    const base = isReal ? rawCurrent : 100;
+    const half = base / 2;
 
     $("#mineActionStats").innerHTML = `
-      <div class="stat"><span class="k">최소 연봉 인상률</span><span class="v">${rate.toFixed(1)}%</span>
-        <span class="s">이만큼 올려야 본전</span></div>
+      <div class="stat"><span class="k">최소 연봉 인상액</span><span class="v">약 ${man(neededRaise)}만원</span>
+        <span class="s">이만큼은 올라야 본전 (${rate.toFixed(1)}%)</span></div>
       <div class="stat"><span class="k">필요 투자 수익률</span><span class="v">${rate.toFixed(1)}%</span>
-        <span class="s">굴려서 방어하려면</span></div>
+        <span class="s">${compare}${goalCurrentNote}</span></div>
       <div class="stat ${hl && hl < 20 ? "is-warn" : ""}"><span class="k">구매력 반감기</span>
-        <span class="v">${hl ? `${hl.toFixed(1)}년` : "—"}</span>
-        <span class="s">지금 돈의 가치가 절반 되는 시점</span></div>
-      <div class="stat ${minPlan ? "is-good" : "is-bad"}"><span class="k">방어 가능한 최소 포트폴리오</span>
-        <span class="v">${minPlan ? minPlan.label : "없음"}</span>
-        <span class="s">${minPlan ? `기대 ${pct(minPlan.expected_return)}` : "적극형으로도 부족"}</span></div>`;
+        <span class="v">${hl ? `약 ${man(half)}만원` : "—"}</span>
+        <span class="s">${hl ? `${hl.toFixed(0)}년 뒤, 지금 ${man(base)}만원${isReal ? "" : "(예시)"}의 가치` : "지금 돈의 가치가 절반 되는 시점"}</span></div>`;
 
     const a = $("#mineAction");
-    if (minPlan) {
-      a.className = "verdict";
-      a.innerHTML = `내 물가 <b>${rate.toFixed(1)}%</b>를 넘기려면 연봉을 그만큼 올려받거나,
-        <b>${minPlan.label}</b> 이상으로 굴려야 합니다(실제 10년 실현 기준 ${pct(minPlan.expected_return)}).
-        아무것도 안 하면 지금 돈의 가치는 <b>${hl.toFixed(1)}년 뒤 절반</b>이 됩니다.`;
-    } else {
-      a.className = "verdict bad";
-      a.innerHTML = `내 물가 <b>${rate.toFixed(1)}%</b>는 적극형 포트폴리오의 기대수익률로도 방어가 어렵습니다.
-        지출 구조를 바꾸거나 소득을 늘리는 쪽을 함께 봐야 합니다.`;
-    }
+    a.className = "verdict";
+    a.innerHTML = `내 물가 <b>${rate.toFixed(1)}%</b>를 넘기려면 연봉을 그만큼 올려받거나,
+      연 <b>${rate.toFixed(1)}%</b> 이상으로 굴려야 합니다. 아무것도 안 하면
+      지금 가진 ${man(base)}만원${isReal ? "" : "(예시)"}은 ${hl ? hl.toFixed(0) : "—"}년 뒤
+      약 ${man(half)}만원 가치가 됩니다.`;
   }
 
   /* ══════════════ 탭 1 · 실질임금 진단 ══════════════ */
@@ -1634,7 +1638,7 @@
       <div class="stat ${gapCls}"><span class="k">${d.beatsInflation ? "연간 여유" : "연간 부족분"}</span>
         <span class="v">${man(Math.abs(d.gap))}만원</span>
         <span class="s">월 ${man(Math.abs(d.monthlyGap))}만원</span></div>
-      <div class="stat"><span class="k">내년 연봉의 체감 가치</span>
+      <div class="stat"><span class="k">내년 연봉으로 실제 살 수 있는 만큼</span>
         <span class="v">${man(d.realValue)}만원</span>
         <span class="s">올해 물가 기준</span></div>
       ${workdayStat(next, d)}`;
@@ -1694,7 +1698,7 @@
     } else {
       v.className = "verdict bad";
       v.innerHTML = `지금 조건이 유지되면 10년 뒤 격차는 <b>연 ${man(endGap)}만원</b>까지 벌어집니다.
-        매년 <b>${(state.inflation - d.nominalRatePct).toFixed(1)}%p</b>씩 밀리는 게 복리로 쌓인 결과입니다.`;
+        매년 <b>${(state.inflation - d.nominalRatePct).toFixed(1)}포인트</b>씩 밀리는 게 복리로 쌓인 결과입니다.`;
     }
   }
 
@@ -1858,7 +1862,7 @@
         <span class="s">현재 입력값 (${d.nominalRatePct.toFixed(1)}%)</span></div>
       <div class="stat ${n.shortfallPp <= 0 ? "is-good" : "is-warn"}"><span class="k">차이</span>
         <span class="v">${n.shortfallPp <= 0 ? "달성" : `${man(n.shortfallAmount)}만원 부족`}</span>
-        <span class="s">${n.shortfallPp <= 0 ? "목표 이상" : `${n.shortfallPp.toFixed(1)}%p 차이`}</span></div>`;
+        <span class="s">${n.shortfallPp <= 0 ? "목표 이상" : `${n.shortfallPp.toFixed(1)}포인트 차이`}</span></div>`;
 
     const v = $("#negoVerdict");
     if (n.shortfallPp <= 0) {
