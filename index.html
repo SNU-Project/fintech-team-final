@@ -210,13 +210,12 @@
         <p class="field-note persona-basis" id="personaBasis"></p>
 
         <label class="field total-field">내 월 생활비
-          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0"><span>만원</span></span>
+          <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0" readonly><span>만원</span></span>
         </label>
-        <p class="field-note">설문에서 답하신 월 생활비예요. 세부 항목은 아래에서 조정할 수 있어요.</p>
+        <p class="field-note">설문에서 답하신 월 생활비예요.</p>
 
         <details class="spend-details">
-          <summary>내 지출에 맞게 세부 금액 수정</summary>
-          <p class="field-note">정확히 몰라도 괜찮습니다. 자주 쓰는 항목만 고치면 결과가 바로 바뀝니다.</p>
+          <summary>세부 품목별 금액 보기</summary>
           <div id="spendFields"></div>
         </details>
 
@@ -318,10 +317,10 @@
 
           <div class="field-grid">
             <label class="field">현재 연봉
-              <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600" readonly><span>만원</span></span>
             </label>
             <label class="field">내년 예상 연봉
-              <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750"><span>만원</span></span>
+              <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750" readonly><span>만원</span></span>
             </label>
           </div>
           <p class="err-text" id="salaryErr" hidden></p>

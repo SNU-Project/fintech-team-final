@@ -289,14 +289,11 @@
   const personaDefaultTotal = (persona) =>
     Math.round(spendingTotal((PERSONAS[persona] || PERSONAS[DEFAULT_PERSONA]).spending));
 
-  /* 리포트 탭의 입력칸은 원래 readonly였다. 설문이 원본이고 탭은 보여주기만
-     한다는 설계였는데, 입력칸처럼 생겨서 사람들이 눌러 보고 "안 된다"고 느꼈다.
-     이제 탭에서 바로 고칠 수 있게 열고, 고친 값은 저장까지 반영한다.
-     안 그러면 새로고침 때 설문값으로 되돌아가 또 고장처럼 보인다. */
+  /* 설문값(월 생활비·세부 지출·연봉)은 리포트에서 읽기 전용이라 여기 없다
+     — 바꾸려면 "처음부터 다시 입력하기"로 설문을 다시 풀어야 한다. 목표
+     자산은 설문 문항이 아니라 리포트 안의 "직접 넣어보는" 계산기라 계속
+     편집 가능하고, 고친 값은 새로고침 후에도 남도록 저장까지 반영한다. */
   const REPORT_FIELDS = {
-    monthlySpend: "monthlySpend",
-    curSalary: "curSalary",
-    nextSalary: "nextSalary",
     goalAmount: "goalAmount",
     goalCurrent: "goalCurrent",
     goalYears: "goalYears",
@@ -1003,7 +1000,7 @@
           <small>${g.hint}</small>
         </label>
         <span class="input-wrap">
-          <input type="number" id="sp-${g.id}" min="0" step="1" inputmode="numeric" value="${Math.round(groupTotal(g))}">
+          <input type="number" id="sp-${g.id}" min="0" step="1" inputmode="numeric" value="${Math.round(groupTotal(g))}" readonly>
           <span>만원</span>
         </span>
       </div>`;
