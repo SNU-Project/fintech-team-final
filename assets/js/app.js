@@ -342,8 +342,7 @@
   // 그대로 반영한다. persona부터 눌러야 월 생활비 스케일링이 그 지출
   // 비중을 기준으로 계산된다.
   function applyOnboardProfile(profile) {
-    const personaBtn = $(`#personaSeg button[data-persona="${profile.persona || DEFAULT_PERSONA}"]`);
-    if (personaBtn) personaBtn.click();
+    applyPersona(profile.persona || DEFAULT_PERSONA);
 
     // 설문에서 항목별로 실제 입력한 지출이 있으면 그대로 이어받는다 —
     // persona 클릭이 방금 비례 재분배로 덮어썼을 수 있으니 그 다음에
@@ -959,29 +958,13 @@
     }
   }
 
-  // 출처 링크는 맨 아래 "계산에 들어간 근거와 데이터 출처"에 이미 모아
-  // 두므로(renderBasis) 여기서는 중복해서 안 보여준다.
-  function renderPersonaBasis() {
-    const p = state.persona ? PERSONAS[state.persona] : null;
-    // 기준 시점을 함께 밝힌다. 이 값은 분기별 통계라 수동 갱신인데,
-    // 언제 기준인지 안 보이면 시간이 지났을 때 오래된 값을 최신인 척
-    // 보여주는 꼴이 된다.
-    const vintage = PERSONA_DATA && PERSONA_DATA.updated
-      ? ` <span class="vintage">${PERSONA_DATA.updated} 기준</span>` : "";
-    $("#personaBasis").innerHTML = p
-      ? `<b>${p.basis}</b>으로 채웠습니다.${vintage} 개인 상황에 맞게 바꿀 수 있습니다.`
-      : `세부 금액을 직접 수정한 상태입니다.`;
-  }
-
   function applyPersona(key) {
     const p = PERSONAS[key];
     if (!p) return;
     state.persona = key;
     state.spending = roundSpending(p.spending);
-    $$("#personaSeg button").forEach((button) =>
-      button.setAttribute("aria-pressed", String(button.dataset.persona === key)));
+    $("#personaLabel").textContent = p.label;
     syncSpendingFields();
-    renderPersonaBasis();
     renderMine();
   }
 
@@ -1008,27 +991,11 @@
 
     $("#spendFields").innerHTML = SPEND_GROUPS.map(row).join("");
 
-    SPEND_GROUPS.forEach((g) => {
-      $(`#sp-${g.id}`).addEventListener("input", (e) => {
-        const nextGroupTotal = Math.max(0, +e.target.value || 0);
-        const base = groupTotal(g) > 0
-          ? state.spending
-          : (state.persona ? PERSONAS[state.persona].spending : PERSONAS[DEFAULT_PERSONA].spending);
-        state.spending = scaleSpending(base, nextGroupTotal, g.members);
-        $$("#personaSeg button").forEach((b) => b.setAttribute("aria-pressed", "false"));
-        state.persona = null;
-        $("#monthlySpend").value = Math.round(spendingTotal(state.spending));
-        renderPersonaBasis();
-        renderMine();
-      });
-    });
-
-    $$("#personaSeg button").forEach((b) => {
-      b.addEventListener("click", () => {
-        applyPersona(b.dataset.persona);
-      });
-    });
-
+    // 이 탭의 지출 입력은 이제 전부 readonly라 사용자가 직접 타이핑해서
+    // "input" 이벤트를 쏠 일이 없다. 그래도 이 리스너는 남겨 둔다 —
+    // applyOnboardProfile이 setInputAndFire("#monthlySpend", ...)로
+    // 설문에서 입력한 총액을 프로그램적으로 밀어넣을 때, 그 총액에 맞게
+    // 지출 비중을 재조정(scaleSpending)하는 유일한 통로이기 때문이다.
     $("#monthlySpend").addEventListener("input", (e) => {
       const nextTotal = Math.max(0, +e.target.value || 0);
       const base = spendingTotal(state.spending) > 0
@@ -1040,7 +1007,7 @@
     });
 
     syncSpendingFields();
-    renderPersonaBasis();
+    $("#personaLabel").textContent = (PERSONAS[state.persona] || PERSONAS[DEFAULT_PERSONA]).label;
 
     $("#aiExplainBtn").addEventListener("click", openAIInsight);
     $("#aiRetryBtn").addEventListener("click", openAIInsight);

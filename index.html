@@ -192,27 +192,16 @@
            이어져야 "이렇게 답해서 → 이런 결과" 흐름이 보인다. -->
       <div class="card bento-input">
         <div class="section-head">
-          <div><h2>나와 가까운 생활 유형</h2><p>설문에서 답하신 내용이에요.</p></div>
+          <div><h2>나와 가까운 생활 유형</h2><p>설문에서 입력하신 내용이에요.</p></div>
         </div>
 
-        <div class="persona-grid is-locked" id="personaSeg" role="group" aria-label="생활 유형 선택">
-          <button type="button" data-persona="solo" aria-pressed="true" tabindex="-1">
-            <b>혼자 생활비를 관리해요</b><span>1인 가구 통계</span>
-          </button>
-          <button type="button" data-persona="couple" aria-pressed="false" tabindex="-1">
-            <b>둘이 생활비를 함께 써요</b><span>2인 가구 통계</span>
-          </button>
-          <button type="button" data-persona="family" aria-pressed="false" tabindex="-1">
-            <b>가족과 목표를 준비해요</b><span>4인 가구 통계</span>
-          </button>
-        </div>
-
-        <p class="field-note persona-basis" id="personaBasis"></p>
+        <label class="field total-field">가구 유형
+          <p class="field-value" id="personaLabel">—</p>
+        </label>
 
         <label class="field total-field">내 월 생활비
           <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0" readonly><span>만원</span></span>
         </label>
-        <p class="field-note">설문에서 답하신 월 생활비예요.</p>
 
         <details class="spend-details">
           <summary>세부 품목별 금액 보기</summary>

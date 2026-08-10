@@ -512,9 +512,13 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
   border-color: var(--brand); background: var(--brand-soft); box-shadow: 0 0 0 2px var(--brand-soft);
 }
 .persona-grid button[aria-pressed="true"] b { color: var(--brand); }
-.persona-basis { line-height: 1.55; margin: .65rem 0 .9rem; }
-.persona-basis a { color: var(--text-secondary); text-underline-offset: 2px; }
 .total-field { margin-top: .1rem; }
+/* 가구 유형(#personaLabel)은 인풋이 아닌 텍스트라 input[readonly]의
+   "설문에서 이미 답한 값" 스타일을 못 물려받는다 — 같은 무게로 맞춘다. */
+.field-value {
+  margin: .32rem 0 0; font-size: clamp(1.4rem, 2.6vw, 1.7rem); font-weight: 800;
+  letter-spacing: -.02em; color: var(--text-primary);
+}
 
 .field-note { font-size: .73rem; color: var(--text-muted); margin: .35rem 0 0; }
 /* 실시간 물가 출처 문구(#inflSource)는 스켈레톤일 때 한 줄 높이만
@@ -560,29 +564,6 @@ input[readonly] {
 input[readonly]::-webkit-outer-spin-button,
 input[readonly]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input[readonly] { -moz-appearance: textfield; }
-
-/* 잠긴 세그먼트(투자 성향)·생활 유형 그룹 — 선택된 값 하나만 텍스트처럼
-   보여준다. tabindex="-1"(HTML에 정적으로 부여)로 키보드 포커스까지
-   막아야 pointer-events:none만으로는 못 막는 Enter/Space 활성화를
-   확실히 차단한다. */
-.seg.is-locked button:not([aria-pressed="true"]),
-.persona-grid.is-locked button:not([aria-pressed="true"]) { display: none; }
-/* 지출 세부 항목을 손으로 고치면 persona가 풀려(app.js state.persona=null)
-   세 버튼 다 aria-pressed="false"가 된다 — 이때는 다시 고를 수 있어야
-   하므로 전부 보여준다. */
-.persona-grid.is-locked:not(:has(button[aria-pressed="true"])) button { display: block; }
-.seg.is-locked {
-  background: none; padding: 0;
-}
-.seg.is-locked button[aria-pressed="true"] {
-  flex: none; width: auto; background: none; box-shadow: none;
-  pointer-events: none; cursor: default; padding: 0;
-  font-size: 1.1rem; font-weight: 800; color: var(--text-primary);
-}
-.persona-grid.is-locked button[aria-pressed="true"] {
-  border-color: transparent; background: none; box-shadow: none;
-  pointer-events: none; cursor: default; padding-left: 0;
-}
 
 /* ---------- KPI ----------
    같은 줄의 카드끼리 캡션(.s) 줄 수가 다르면(1줄 vs 2줄), 그리드가
