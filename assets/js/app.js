@@ -1470,7 +1470,6 @@
     // 사용자는 고장난 걸로 읽는다.
     if (!valid) {
       const guide = "현재 연봉을 입력하면 물가와 비교해 보여드립니다.";
-      $("#salaryChart").innerHTML = `<p class="skeleton">${guide}</p>`;
       $("#trendChart").innerHTML = `<p class="skeleton">현재 연봉을 입력하면 격차가 어떻게 벌어지는지 계산합니다.</p>`;
       $("#trendLegend").innerHTML = "";
       $("#gapStats").innerHTML = "";
@@ -1485,16 +1484,6 @@
     }
 
     const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
-
-    // 막대 3개
-    barChart($("#salaryChart"), [
-      { label: "현재 연봉", value: cur, color: "var(--baseline)" },
-      { label: "내년 연봉", value: next, color: "var(--series-1)",
-        sub: `명목 ${d.nominalRatePct >= 0 ? "+" : ""}${d.nominalRatePct.toFixed(1)}%` },
-      { label: "물가 유지선", value: d.requiredSalary, color: d.beatsInflation ? "var(--good)" : "var(--critical)",
-        sub: `물가 +${state.inflation.toFixed(1)}%`,
-        subColor: d.beatsInflation ? "var(--good-text)" : "var(--critical-text)" },
-    ]);
 
     // KPI
     const gapCls = d.beatsInflation ? "is-good" : (d.gap > cur * 0.03 ? "is-bad" : "is-warn");
