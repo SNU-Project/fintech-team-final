@@ -29,17 +29,6 @@
   </div>
 </header>
 
-<div class="wrap">
-  <!-- 설문 중에는 숨긴다 — 리포트가 준비되기 전에는 시세 지표도 아직
-       "결과"의 일부라 먼저 보이면 안 된다. setReportVisible이 같이 켠다. -->
-  <div class="ticker" id="ticker" aria-label="실시간 시장 지표" hidden>
-    <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:5.6em"></span></span>
-    <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:6.4em"></span></span>
-    <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:5em"></span></span>
-    <span class="visually-hidden">지표 불러오는 중…</span>
-  </div>
-</div>
-
 <main class="wrap" id="top">
 
   <!-- ══════════════ 홈 · 온보딩 → 로딩 → 요약 ══════════════
@@ -368,6 +357,16 @@
       </div>
 
       <button class="deck-arrow deck-arrow-next" id="deckNextBtn" type="button" aria-label="다음 카드">›</button>
+    </div>
+
+    <!-- 카드 덱 전체 아래로 옮겼다(v20) — 점수·결론이 먼저 보이고,
+         시세는 다 보고 난 뒤 참고하는 보조 정보로. setReportVisible이
+         hidden을 같이 켠다. -->
+    <div class="ticker" id="ticker" aria-label="실시간 시장 지표" hidden>
+      <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:5.6em"></span></span>
+      <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:6.4em"></span></span>
+      <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:5em"></span></span>
+      <span class="visually-hidden">지표 불러오는 중…</span>
     </div>
   </section>
 

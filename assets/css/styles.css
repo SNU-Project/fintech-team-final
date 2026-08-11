@@ -161,12 +161,14 @@ section { scroll-margin-top: 5rem; }
 .ticker {
   display: flex; gap: .5rem; overflow-x: auto; padding: .55rem 0; scrollbar-width: none;
   min-height: 3.2rem; box-sizing: border-box;
+  margin-top: 1rem; border-top: 1px solid var(--border);
 }
 .ticker::-webkit-scrollbar { display: none; }
-/* 리포트 맨 처음에 오는 줄이라 가운데로 모은다. 모바일은 항목이 넘칠 때
-   overflow-x:auto로 가로 스크롤해야 하는데, 가운데 정렬 상태에서 넘치면
-   시작 지점을 스크롤로 못 찾아가는 경우가 있어 좁은 화면은 기존 왼쪽
-   정렬을 유지한다 (탭 중앙 정렬과 같은 이유). */
+/* v20: 카드 덱 전체 아래(마지막 카드 뒤)로 옮겼다 — 점수·결론을 먼저
+   보여주고, 시세는 다 본 뒤 참고하는 보조 정보로 내렸다. 모바일은
+   항목이 넘칠 때 overflow-x:auto로 가로 스크롤해야 하는데, 가운데
+   정렬 상태에서 넘치면 시작 지점을 스크롤로 못 찾아가는 경우가 있어
+   좁은 화면은 기존 왼쪽 정렬을 유지한다 (탭 중앙 정렬과 같은 이유). */
 @media (min-width: 861px) { .ticker { justify-content: center; } }
 /* display:flex는 [hidden]의 기본 display:none과 명시도가 같아 나중에
    선언된 이 규칙이 이겨버린다. 설문 중엔 티커 자체를 숨겨야 하므로 명시한다. */
