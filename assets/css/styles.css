@@ -488,6 +488,16 @@ section { scroll-margin-top: 5rem; }
     gap: 1.4rem; align-items: start;
   }
   .deck-split > * + * { margin-top: 0; }
+  /* .stat-grid는 보통 flex-wrap이라 카드 폭이 넓을 때 자연스럽게
+     여러 개가 한 줄에 들어가는데, .deck-split 한 칸(카드 5 기준 약
+     447px)처럼 좁은 폭에서는 .stat의 max-width(220px) 두 개 합이
+     칸 폭에 아슬아슬하게 걸쳐서 2개씩도 못 들어가고 하나씩만 세로로
+     쌓이는 경우가 있었다(카드 5 — 스탯이 최대 5개까지 나온다). 이런
+     좁은 칸에서는 flex 대신 고정 2열 grid로 확실히 2개씩 들어가게
+     한다. */
+  .deck-split .stat-grid.is-2col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: .7rem;
+  }
 }
 .deck-track {
   display: flex; height: 100%;

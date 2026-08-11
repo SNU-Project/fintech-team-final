@@ -284,12 +284,19 @@
               <div class="card bento-main">
                 <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
                 <p class="verdict" id="gapVerdict">—</p>
-                <details class="calc-detail">
-                  <summary>막대그래프·자세한 수치 보기</summary>
-                  <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
-                  <div class="chart-box" id="salaryChart"></div>
-                  <div class="stat-grid" id="gapStats"></div>
-                </details>
+              </div>
+            </div>
+
+            <!-- v12: "막대그래프·자세한 수치 보기" 토글을 없애고 기본
+                 펼침으로 바꾸면서 세로 길이가 크게 늘었다 — 차트와
+                 스탯을 데스크톱에서 좌우로 배치(.deck-split)해 최대한
+                 스크롤 없이 들어오게 했다. 모바일은 기존처럼 세로로
+                 쌓인다. -->
+            <div class="card">
+              <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
+              <div class="deck-split">
+                <div class="chart-box" id="salaryChart"></div>
+                <div class="stat-grid is-2col" id="gapStats"></div>
               </div>
             </div>
 
