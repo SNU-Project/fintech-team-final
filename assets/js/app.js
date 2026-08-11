@@ -1502,8 +1502,7 @@
         <span class="v">${d.realRatePct >= 0 ? "+" : ""}${d.realRatePct.toFixed(1)}%</span>
         <span class="s">명목 − 물가</span></div>
       <div class="stat ${gapCls}"><span class="k">${d.beatsInflation ? "연간 여유" : "연간 부족분"}</span>
-        <span class="v">${man(Math.abs(d.gap))}만원</span>
-        <span class="s">월 ${man(Math.abs(d.monthlyGap))}만원</span></div>
+        <span class="v">${man(Math.abs(d.gap))}만원</span></div>
       <div class="stat"><span class="k">내년 연봉으로 실제 살 수 있는 만큼</span>
         <span class="v">${man(d.realValue)}만원</span>
         <span class="s">올해 물가 기준</span></div>
@@ -1518,7 +1517,7 @@
       const days = next > 0 ? d.gap / (next / WORKDAYS_PER_YEAR) : 0;
       v.className = d.gap > cur * 0.03 ? "verdict bad" : "verdict warn";
       v.innerHTML = `물가를 따라가려면 <b>${man(d.requiredSalary)}만원</b>이 필요한데
-        내년 연봉은 ${man(next)}만원입니다. 연 <b>${man(d.gap)}만원</b>(월 ${man(d.monthlyGap)}만원)이 부족합니다.
+        내년 연봉은 ${man(next)}만원입니다. 연 <b>${man(d.gap)}만원</b>이 부족합니다.
         <b>작년과 같은 생활을 하려면 ${days.toFixed(1)}일을 더 일해야 하는 셈입니다.</b>`;
     }
 
