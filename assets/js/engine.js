@@ -72,16 +72,67 @@
     return hit ? hit.month : null; // null = maxMonths 안에 못 닿음
   }
 
+  // 결측 전후의 여러 달짜리 변화를 한 달 수익률로 취급하지 않는다.
+  // 달력상 정확히 한 달 차이인 실제 관측쌍만 쓰고, 값을 보간하지 않는다.
+  function consecutiveMonthlyReturns(index, selectedMonths = null) {
+    const months = selectedMonths || Object.keys(index || {}).sort();
+    const returns = new Map();
+    for (let i = 1; i < months.length; i++) {
+      const prev = months[i - 1], cur = months[i];
+      if (monthToNum(cur) - monthToNum(prev) !== 1) continue;
+      const before = index[prev], after = index[cur];
+      if (!Number.isFinite(before) || !Number.isFinite(after) || before <= 0 || after <= 0) continue;
+      returns.set(cur, after / before - 1);
+    }
+    return returns;
+  }
+
+  function annualizedVolatility(returns) {
+    if (!returns || returns.length < 12) return null;
+    const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
+    const variance = returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
+      (returns.length - 1);
+    return Math.sqrt(variance) * Math.sqrt(12);
+  }
+
+  // 모든 구성자산에 공통으로 존재하는 연속 월만 골라, 매월 같은 비중으로
+  // 재조정한 포트폴리오 수익률 Σ(비중×월수익률)의 실제 변동성을 구한다.
+  function portfolioVolatility(market, weights) {
+    if (!market || !Array.isArray(market.assets)) return null;
+    const byId = Object.fromEntries(market.assets.map((asset) => [asset.id, asset]));
+    const entries = Object.entries(weights || {}).filter(([, weight]) => weight > 0);
+    const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+    if (total <= 0 || entries.some(([id]) => !byId[id] || !byId[id].index)) return null;
+
+    const normalized = Object.fromEntries(entries.map(([id, weight]) => [id, weight / total]));
+    const returnsById = Object.fromEntries(entries.map(([id]) =>
+      [id, consecutiveMonthlyReturns(byId[id].index)]));
+    if (Object.values(returnsById).some((returns) => returns.size === 0)) return null;
+
+    let common = null;
+    for (const returns of Object.values(returnsById)) {
+      const months = new Set(returns.keys());
+      common = common == null ? months : new Set([...common].filter((month) => months.has(month)));
+    }
+    const portfolioReturns = [...(common || [])].sort().map((month) =>
+      entries.reduce((sum, [id]) => sum + normalized[id] * returnsById[id].get(month), 0));
+    return annualizedVolatility(portfolioReturns);
+  }
+
   /* ---------- 4. 백테스트 (자산 타임머신) ---------- */
   // 실제 월말 종가 인덱스를 그대로 사용한다. 곡선을 만들어내지 않는다.
-  function backtest(asset, startMonth, amount) {
+  function backtest(asset, startMonth, amount, endMonth = null) {
     if (!asset || !Number.isFinite(amount) || amount <= 0) return null;
     const idx = asset.index || {};
-    const months = Object.keys(idx).sort().filter((m) => m >= startMonth);
+    // 요청한 달이 없는데 다음 관측월을 시작점인 것처럼 쓰면 화면의 날짜와
+    // 계산 기준이 달라진다. 정확한 시작월이 없으면 없다고 반환한다.
+    if (!Object.prototype.hasOwnProperty.call(idx, startMonth)) return null;
+    const months = Object.keys(idx).sort()
+      .filter((m) => m >= startMonth && (!endMonth || m <= endMonth));
     if (months.length < 2) return null;
 
-    const base = idx[months[0]];
-    if (!base) return null;
+    const base = idx[startMonth];
+    if (!Number.isFinite(base) || base <= 0) return null;
 
     const path = months.map((m) => ({
       month: m,
@@ -89,9 +140,13 @@
     }));
 
     const finalValue = path[path.length - 1].value;
-    const years = (months.length - 1) / 12;
+    const elapsedMonths = monthToNum(months[months.length - 1]) - monthToNum(startMonth);
+    const years = elapsedMonths / 12;
     const totalReturn = finalValue / amount - 1;
     const cagr = years > 0 ? Math.pow(finalValue / amount, 1 / years) - 1 : 0;
+    const volatility = annualizedVolatility(
+      [...consecutiveMonthlyReturns(idx, months).values()]
+    );
 
     // 이 구간만의 최대 낙폭
     let peak = -Infinity, mdd = 0;
@@ -100,16 +155,16 @@
       else if (peak > 0) mdd = Math.min(mdd, p.value / peak - 1);
     }
 
-    return { path, finalValue, totalReturn, cagr, mdd, months, years };
+    return { path, finalValue, totalReturn, cagr, volatility, mdd, months, years };
   }
 
   // 특정 시작 달 하나의 우연을 결과로 오해하지 않도록 앞뒤 달의 실제 결과도
   // 함께 계산한다. 결측 월은 보간하지 않고, 실제 관측치가 있는 달만 쓴다.
-  function backtestWindow(asset, startMonth, amount, radius = 6) {
+  function backtestWindow(asset, startMonth, amount, radius = 6, endMonth = null) {
     const byObservedMonth = new Map();
     for (let offset = -radius; offset <= radius; offset++) {
       const requested = addMonths(startMonth, offset);
-      const bt = backtest(asset, requested, amount);
+      const bt = backtest(asset, requested, amount, endMonth);
       if (!bt) continue;
       const observed = bt.months[0];
       if (!byObservedMonth.has(observed)) {
@@ -129,7 +184,7 @@
     const median = samples.length % 2
       ? samples[mid].finalValue
       : (samples[mid - 1].finalValue + samples[mid].finalValue) / 2;
-    const selected = backtest(asset, startMonth, amount);
+    const selected = backtest(asset, startMonth, amount, endMonth);
 
     return {
       samples,
@@ -142,8 +197,10 @@
   }
 
   // 소비자물가지수도 같은 방식으로 환산해 "물가선"을 만든다.
-  function inflationPath(cpiIndex, startMonth, amount) {
-    const months = Object.keys(cpiIndex).sort().filter((m) => m >= startMonth);
+  function inflationPath(cpiIndex, startMonth, amount, endMonth = null) {
+    if (!Object.prototype.hasOwnProperty.call(cpiIndex || {}, startMonth)) return null;
+    const months = Object.keys(cpiIndex).sort()
+      .filter((m) => m >= startMonth && (!endMonth || m <= endMonth));
     if (months.length < 2) return null;
     const base = cpiIndex[months[0]];
     if (!base) return null;
@@ -156,9 +213,8 @@
   /* ---------- 5. 포트폴리오 ---------- */
   // 실제 자산 CAGR의 가중평균으로 계산된 값을 market.json에서 그대로 읽는다.
   /* 사용자가 직접 맞춘 비중으로 포트폴리오를 만든다.
-     기대수익률·변동성 계산식은 파이프라인이 프리셋에 쓴 것과 같다
-     (구성 자산의 실제 CAGR 가중평균). 그래야 프리셋과 커스텀을
-     같은 잣대로 비교할 수 있다. */
+     기대수익률은 실제 CAGR 가중평균, 변동성은 공통 월의 포트폴리오
+     수익률로 계산해 파이프라인의 프리셋과 같은 잣대로 비교한다. */
   function customPlan(market, weights) {
     const byId = Object.fromEntries(market.assets.map((a) => [a.id, a]));
     const entries = Object.entries(weights).filter(([id, w]) => byId[id] && w > 0);
@@ -166,7 +222,12 @@
     if (total <= 0) return null;
 
     const expected = entries.reduce((s, [id, w]) => s + byId[id].cagr * w, 0) / total;
-    const vol = entries.reduce((s, [id, w]) => s + (byId[id].volatility || 0) * w, 0) / total;
+    const actualVol = portfolioVolatility(market, Object.fromEntries(entries));
+    // 공통 연속 월 수익률이 12개 미만일 때만 기존 가중평균을 fallback으로
+    // 쓴다. 0은 완전 상쇄된 유효 결과일 수 있으므로 null과 구분한다.
+    const vol = actualVol == null
+      ? entries.reduce((s, [id, w]) => s + (byId[id].volatility || 0) * w, 0) / total
+      : actualVol;
     const items = entries
       .map(([id, w]) => ({ id, weight: w / total, asset: byId[id] }))
       .sort((a, b) => b.weight - a.weight);
@@ -178,6 +239,9 @@
       weights: Object.fromEntries(items.map((i) => [i.id, i.weight])),
       expected_return: expected,
       expected_volatility: vol,
+      volatility_method: actualVol == null
+        ? "weighted_asset_volatility_fallback"
+        : "common_consecutive_monthly_returns",
       items,
     };
   }
@@ -341,6 +405,7 @@
   global.Engine = {
     diagnose, negotiate, project, requiredMonthly, monthsToGoal,
     backtest, backtestWindow, inflationPath, planOf, customPlan, badYear,
+    portfolioVolatility,
     personalInflation, personalIndexPath, aggregateByGroup, salaryScore,
     monthToNum, monthLabel, addMonths,
   };

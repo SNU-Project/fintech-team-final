@@ -77,12 +77,25 @@
   // 조정한다. keys를 생략하면(전체 12개) "월 생활비" 총액 편집에 쓰이고,
   // 일부만 넘기면(그룹 멤버 2~3개) 그룹 총액 편집에 쓰인다 — 로직은
   // 하나인데 대상 범위만 다르다.
-  function scaleSpending(spending, nextTotal, keys = Object.keys(spending)) {
-    const subset = Object.fromEntries(keys.map((k) => [k, spending[k] || 0]));
-    const current = spendingTotal(subset);
+  function scaleSpending(spending, nextTotal, keys = Object.keys(spending), fallbackSpending = null) {
+    let subset = Object.fromEntries(keys.map((k) => [k, spending[k] || 0]));
+    let current = spendingTotal(subset);
     const zeroed = Object.fromEntries(keys.map((key) => [key, 0]));
-    if (current <= 0 || nextTotal <= 0) {
+    if (nextTotal <= 0) {
       return { ...spending, ...zeroed };
+    }
+
+    // 한 번 0원으로 만든 뒤 다시 금액을 올리면 현재 비중만으로는 복구할
+    // 기준이 없다. 온보딩에서는 선택한 생활 유형의 통계 비중을 넘겨 받아
+    // 그 비중으로 되살린다. fallback도 비어 있는 예외적인 경우에만 균등
+    // 배분해, 양수를 입력했는데 상태가 계속 0으로 남는 일은 막는다.
+    if (current <= 0) {
+      subset = Object.fromEntries(keys.map((k) => [k, fallbackSpending?.[k] || 0]));
+      current = spendingTotal(subset);
+      if (current <= 0) {
+        subset = Object.fromEntries(keys.map((k) => [k, 1]));
+        current = keys.length;
+      }
     }
     const scale = nextTotal / current;
     const scaled = Object.fromEntries(Object.entries(subset).map(([key, value]) =>
@@ -105,10 +118,21 @@
     inflation: 2.8, inflationLive: false,
     picks: new Set(["kodex200", "sp500", "gold"]),
     startMonth: null,
+    timeComparisonEnd: null,
     spending: roundSpending(PERSONAS[DEFAULT_PERSONA].spending),
     persona: DEFAULT_PERSONA,
     personalRate: null,
   };
+
+  // 카드 4~7의 핵심 연봉 계산은 화면 설명대로 개인 물가를 기준으로 한다.
+  // 개인 물가를 계산할 지출값이 없을 때만, 품목별 개인 물가와 같은 월인
+  // 스냅샷 공식 CPI를 쓴다. 최신 전체 CPI(state.inflation)는 발표 시점에
+  // 더 새 달이 들어올 수 있어 이 계산에 섞지 않고 비교·참고값으로 둔다.
+  function diagnosticInflation() {
+    if (Number.isFinite(state.personalRate)) return state.personalRate;
+    const snapshotOfficial = state.cpi?.latest?.yoy;
+    return Number.isFinite(snapshotOfficial) ? snapshotOfficial : state.inflation;
+  }
 
   // 카드뉴스 덱의 공개 인터페이스. setupCardDeck()이 채워 넣는다.
   // setupHomeFlow()/setupNextSteps()가 실제로 이 메서드를 "호출"하는
@@ -189,13 +213,14 @@
       state.inflationLive = true;
       $("#inflSource").innerHTML =
         `<span class="live-dot" style="display:inline-block;vertical-align:middle"></span>
-         실시간 · OECD 기준 ${d.month} 한국 소비자물가 <b>${d.value.toFixed(1)}%</b>를 기본값으로 넣었습니다.`;
+         접속 시 최신값 조회 · OECD ${d.month} 공식 물가 <b>${d.value.toFixed(1)}%</b> · 연봉 진단은 내 지출 기준 개인 물가를 사용합니다.`;
       renderAll();
+      refreshFinalConclusionIfStarted();
     } else {
       $("#inflSource").innerHTML =
         `<span class="live-dot stale" style="display:inline-block;vertical-align:middle"></span>
-         저장된 스냅샷 · ${state.cpi.latest.month} 기준 ${state.cpi.latest.yoy.toFixed(1)}%
-         (실시간 조회 실패)`;
+         저장된 공식 물가 · ${state.cpi.latest.month} 기준 ${state.cpi.latest.yoy.toFixed(1)}%
+         (최신값 조회 실패 · 연봉 진단은 내 지출 기준 개인 물가 사용)`;
     }
 
     // 비트코인 실시간 시세는 전체 요약바가 아니라, 실제로 관련 있는
@@ -358,8 +383,11 @@
 
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
+    // 점수는 (명목 인상률−공식 물가)와 (개인 물가−공식 물가)를 따로
+    // 평가한다. 두 항목에서 같은 달의 공식 물가를 써야 평균낼 때 공식
+    // 물가가 정확히 상쇄되므로, 접속 뒤 더 최신인 전체 CPI와 섞지 않는다.
     const realRatePct = cur > 0
-      ? E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation }).realRatePct
+      ? E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: official }).realRatePct
       : null;
 
     return { realRatePct, diffPp };
@@ -436,7 +464,7 @@
   function readGoalDuration() {
     const years = Math.max(0, Math.min(40, +$("#goalYears").value || 0));
     const extraMonths = Math.max(0, Math.min(11, +$("#goalMonths").value || 0));
-    return { years, extraMonths, months: Math.max(1, years * 12 + extraMonths) };
+    return { years, extraMonths, months: years * 12 + extraMonths };
   }
   const formatDuration = (totalMonths) => {
     const y = Math.floor(totalMonths / 12), m = totalMonths % 12;
@@ -469,7 +497,7 @@
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
     if (cur > 0) {
-      const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
+      const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: diagnosticInflation() });
       lines.push(d.beatsInflation
         ? "다행히 내년 연봉은 물가를 이기고 있어서, 실질 소득이 조금씩 늘어나는 흐름이에요."
         : `하지만 내년 연봉은 물가를 다 따라가지 못해서, 실질적으로는 연 ${man(d.gap)}만원만큼 뒷걸음질 치고 있어요.`);
@@ -533,9 +561,10 @@
   // 결론의 핵심 한 문장 — 점수 카드 아래 미리보기와 맨 끝 결론 카드
   // 첫 줄이 같은 문장을 반복해서 계산하다 어긋나지 않도록 한 곳으로 모았다.
   function buildConclusionHeadline() {
-    const rate = state.personalRate;
-    if (rate == null) return null;
-    return `체감 물가 ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`;
+    const rate = diagnosticInflation();
+    if (!Number.isFinite(rate)) return null;
+    const label = Number.isFinite(state.personalRate) ? "체감 물가" : "공식 물가";
+    return `${label} ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`;
   }
 
   // 카드3("얼마나 비싸게 살고 있나")의 "범인" 랭킹 1위를 그대로 다시
@@ -581,7 +610,7 @@
     // white-space:pre-line이 자동 줄바꿈보다 먼저 문장 경계에서 끊게 한다.
     const lines = [];
     if (cur > 0) {
-      const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
+      const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: diagnosticInflation() });
       if (d.beatsInflation) {
         lines.push(`내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요.`);
         lines.push("지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.");
@@ -618,6 +647,24 @@
       typewriter(body, text);
       sessionStorage.setItem(FINAL_TYPED_KEY, "1");
     }
+  }
+
+  // 실시간 응답이 늦게 도착해도 이미 열어 본 결론 카드가 이전 계산값에
+  // 머물지 않게 한다. 타이핑 중이었다면 기존 타이머까지 정리한 뒤 최신
+  // 계산문을 즉시 보여 주고, 아직 결론 카드를 열지 않았다면 건드리지 않는다.
+  function refreshFinalConclusionIfStarted(force = false) {
+    const body = $("#finalBody");
+    if (!body || (!force && !body.textContent && !typewriterTimers.has(body))) return;
+
+    const active = typewriterTimers.get(body);
+    if (active) {
+      clearInterval(active.interval);
+      clearTimeout(active.watchdog);
+      body.removeEventListener("click", active.skip);
+      typewriterTimers.delete(body);
+    }
+    body.classList.remove("typing-cursor");
+    body.textContent = buildFinalConclusion();
   }
 
   // 목표 자산/타임머신은 카드뉴스 덱이 아니라 예전처럼 독립된 화면이다.
@@ -683,6 +730,11 @@
 
     try {
       if (typeof window.print !== "function") throw new Error("print unsupported");
+      // 목표·기간·타임머신 입력은 renderAll()을 거치지 않고 자기 화면만
+      // 다시 그릴 수 있으므로, 인쇄 버튼을 누른 바로 그 시점의 값으로
+      // 문서 헤더를 한 번 더 만든다.
+      if (filenameBase === "연봉성적표") refreshFinalConclusionIfStarted(true);
+      renderPrintMeta();
       document.title = `${filenameBase}_${dateStr}`;
       window.print();
     } catch (err) {
@@ -1073,7 +1125,12 @@
       SPEND_GROUPS.forEach((g) => {
         $(`#onb-sp-${g.id}`).addEventListener("input", (e) => {
           const nextGroupTotal = Math.max(0, +e.target.value || 0);
-          draft.spending = scaleSpending(draft.spending, nextGroupTotal, g.members);
+          draft.spending = scaleSpending(
+            draft.spending,
+            nextGroupTotal,
+            g.members,
+            PERSONAS[draft.persona]?.spending
+          );
           draft.monthlySpend = spendingTotal(draft.spending);
           $("#onbMonthlySpend").value = Math.round(draft.monthlySpend);
           renderOnbSpendDonut();
@@ -1104,7 +1161,12 @@
 
     $("#onbMonthlySpend").addEventListener("input", (e) => {
       const nextTotal = Math.max(0, +e.target.value || 0);
-      draft.spending = scaleSpending(draft.spending, nextTotal);
+      draft.spending = scaleSpending(
+        draft.spending,
+        nextTotal,
+        Object.keys(draft.spending),
+        PERSONAS[draft.persona]?.spending
+      );
       renderOnbSpendFields();
       renderOnbSpendDonut();
     });
@@ -1232,7 +1294,7 @@
     // 굳이 막을 이유가 적고, 의미상으로도 "금액"이 아니다).
     const RULES = [
       { test: (id) => id === "monthlySpend" || id === "onbMonthlySpend", min: 0, max: 5000, label: "월 생활비", money: true, amount: true },
-      { test: (id) => id.startsWith("sp-"), min: 0, max: 3000, label: "지출 항목", money: true, amount: true },
+      { test: (id) => id.startsWith("sp-") || id.startsWith("onb-sp-"), min: 0, max: 3000, label: "지출 항목", money: true, amount: true },
       { test: (id) => id === "curSalary" || id === "onbCurSalary" || id === "nextSalary" || id === "onbNextSalary", min: 0, max: 100000, label: "연봉", money: true, amount: true },
       { test: (id) => id === "goalAmount", min: 0, max: 100000, label: "목표 금액", money: true, amount: true },
       { test: (id) => id === "goalCurrent", min: 0, max: 100000, label: "현재 보유 자산", money: true, amount: true },
@@ -1453,6 +1515,8 @@
       $("#myRateDiff").textContent = "—";
       $("#contribRank").innerHTML = "";
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
+      $("#contribMath").innerHTML = "";
+      $("#mineSrc").textContent = "";
       return;
     }
 
@@ -1525,7 +1589,7 @@
       })));
     renderContribMath(grouped, result, official);
     $("#mineSrc").textContent =
-      `OECD 한국 소비자물가 COICOP 12분류 · ${result.month} 기준 · 브라우저에서 실시간 조회`;
+      `OECD 한국 소비자물가 COICOP 12분류 · ${result.month} 기준 · 주 1회 수집 스냅샷`;
   }
 
   /* ══════════════ 탭 1 · 실질임금 진단 ══════════════ */
@@ -1580,6 +1644,8 @@
       $("#trendLegend").innerHTML = "";
       $("#gapStats").innerHTML = "";
       $("#negoStats").innerHTML = "";
+      $("#negoChart").innerHTML = "";
+      $("#negoPrintTable tbody").innerHTML = "";
       $("#gapVerdict").className = "verdict";
       $("#gapVerdict").textContent = guide;
       $("#trendVerdict").className = "verdict";
@@ -1589,7 +1655,8 @@
       return;
     }
 
-    const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
+    const inflationPct = diagnosticInflation();
+    const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct });
 
     // KPI
     const gapCls = d.beatsInflation ? "is-good" : (d.gap > cur * 0.03 ? "is-bad" : "is-warn");
@@ -1620,16 +1687,16 @@
         <b>작년과 같은 생활을 하려면 ${days.toFixed(1)}일을 더 일해야 하는 셈입니다.</b>`;
     }
 
-    renderTrend(cur, next, d);
-    renderNegotiation(cur, d);
+    renderTrend(cur, next, d, inflationPct);
+    renderNegotiation(cur, d, inflationPct);
   }
 
   /* 격차는 해마다 벌어진다 — 명목 인상률과 물가가 유지될 때의 두 곡선.
      (bumyong 프로토타입의 연도별 추이 관점을 실데이터 기준으로 다시 만듦) */
-  function renderTrend(cur, next, d) {
+  function renderTrend(cur, next, d, inflationPct) {
     const YEARS = 10;
     const raise = cur > 0 ? (next - cur) / cur : 0;
-    const infl = state.inflation / 100;
+    const infl = inflationPct / 100;
 
     const nominal = [], required = [];
     for (let y = 0; y <= YEARS; y++) {
@@ -1651,7 +1718,7 @@
 
     $("#trendLegend").innerHTML =
       `<span class="legend-item"><span class="legend-swatch" style="background:var(--series-1)"></span>내 연봉 (인상률 ${(raise * 100).toFixed(1)}%)</span>
-       <span class="legend-item"><span class="legend-swatch" style="background:var(--critical)"></span>물가 유지선 (${state.inflation.toFixed(1)}%)</span>`;
+       <span class="legend-item"><span class="legend-swatch" style="background:var(--critical)"></span>물가 유지선 (${inflationPct.toFixed(1)}%)</span>`;
 
     const endGap = required[YEARS].y - nominal[YEARS].y;
     const v = $("#trendVerdict");
@@ -1662,7 +1729,7 @@
     } else {
       v.className = "verdict bad";
       v.innerHTML = `지금 조건이 유지되면 10년 뒤 격차는 <b>연 ${man(endGap)}만원</b>까지 벌어집니다.
-        매년 <b>${(state.inflation - d.nominalRatePct).toFixed(1)}포인트</b>씩 밀리는 게 복리로 쌓인 결과입니다.`;
+        매년 <b>${(inflationPct - d.nominalRatePct).toFixed(1)}포인트</b>씩 밀리는 게 복리로 쌓인 결과입니다.`;
     }
   }
 
@@ -1803,16 +1870,17 @@
 
     const src = state.market.assets.find((a) => a.id === "kodex200");
     $("#planSrc").textContent =
-      `실제 월말 종가 ${src ? src.range[0] : ""}~${src ? src.range[1] : ""} 기준 · ` +
+      `실제 월별 가격 ${src ? src.range[0] : ""}~${src ? src.range[1] : ""} 기준` +
+      `${src?.last_month_partial ? ` · ${src.last_month}은 수집 시점 가격` : ""} · ` +
       `예금은 OECD 한국 3개월 은행간금리 (최근 ${state.market.deposit_rate_latest}%)`;
   }
 
-  function renderNegotiation(cur, d) {
+  function renderNegotiation(cur, d, inflationPct) {
     const n = E.negotiate({
-      curSalary: cur, inflationPct: state.inflation,
+      curSalary: cur, inflationPct,
       offeredRatePct: d.nominalRatePct, desiredRealRatePct: 1,
     });
-    const defendAmount = cur * (state.inflation / 100);
+    const defendAmount = cur * (inflationPct / 100);
     const offeredAmount = cur * (d.nominalRatePct / 100);
     const targetAmount = n.targetSalary - cur;
     const achieved = n.shortfallPp <= 0;
@@ -1833,7 +1901,7 @@
 
     $("#negoStats").innerHTML = `
       <div class="stat"><span class="k">물가 방어 최소 인상액</span><span class="v">${man(defendAmount)}만원</span>
-        <span class="s">최소 기준선 (${state.inflation.toFixed(1)}%)</span></div>
+        <span class="s">최소 기준선 (${inflationPct.toFixed(1)}%)</span></div>
       <div class="stat"><span class="k">실질 +1% 목표 인상액</span><span class="v">${man(targetAmount)}만원</span>
         <span class="s">목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</span></div>
       <div class="stat"><span class="k">제안받은 인상액</span><span class="v">${man(offeredAmount)}만원</span>
@@ -1844,7 +1912,7 @@
     const negoTableBody = $("#negoPrintTable tbody");
     if (negoTableBody) {
       negoTableBody.innerHTML = `
-        <tr><td>물가 방어 최소 인상액</td><td class="num">${man(defendAmount)}만원</td><td>최소 기준선 (${state.inflation.toFixed(1)}%)</td></tr>
+        <tr><td>물가 방어 최소 인상액</td><td class="num">${man(defendAmount)}만원</td><td>최소 기준선 (${inflationPct.toFixed(1)}%)</td></tr>
         <tr><td>실질 +1% 목표 인상액</td><td class="num">${man(targetAmount)}만원</td><td>목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</td></tr>
         <tr><td>제안받은 인상액</td><td class="num">${man(offeredAmount)}만원</td><td>설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</td></tr>`;
     }
@@ -1866,6 +1934,26 @@
       $(sel).addEventListener("input", renderGoal));
   }
 
+  function clearGoalResults(guide) {
+    $("#goalStats").innerHTML = "";
+    $("#goalScenarioTable").innerHTML = "";
+    $("#growthChart").innerHTML = `<p class="skeleton">${guide}</p>`;
+    $("#goalScenarioChart").innerHTML =
+      `<p class="skeleton">목표와 기간을 정하면 투자 성향별로 필요한 저축액을 비교해 드려요.</p>`;
+    $("#goalVerdict").className = "verdict";
+    $("#goalVerdict").textContent = guide;
+    $("#goalRiskNote").textContent = "";
+    $("#riskCompare").innerHTML = "";
+    $("#mixFields").innerHTML = "";
+    $("#mixReset").hidden = true;
+    $("#donut").style.background = "none";
+    $("#donutCenter").innerHTML = "";
+    $("#planStats").innerHTML = "";
+    $("#planLegend").innerHTML = "";
+    $("#planTable").innerHTML = "";
+    $("#planSrc").textContent = "";
+  }
+
   function renderGoal() {
     const goal = Math.max(0, +$("#goalAmount").value || 0);
     const { years, months } = readGoalDuration();
@@ -1874,8 +1962,11 @@
     $("#goalMonthlyVal").textContent = `${man(monthly)}만원`;
 
     const err = $("#goalErr");
-    if (goal <= current) {
+    if (goal > 0 && goal <= current) {
       err.textContent = "목표 금액이 현재 보유 자산보다 크지 않습니다.";
+      err.hidden = false;
+    } else if (goal > 0 && months <= 0) {
+      err.textContent = "목표 기간은 1개월 이상이어야 합니다.";
       err.hidden = false;
     } else { err.hidden = true; }
 
@@ -1884,14 +1975,11 @@
     // 고장으로 보이므로, 왜 비었는지와 무엇을 하면 되는지 알려 준다.
     if (goal <= 0) {
       const guide = "목표 금액을 입력하면 매달 얼마를 모아야 하는지 계산해 드려요.";
-      $("#goalStats").innerHTML = "";
-      $("#goalScenarioTable").innerHTML = "";
-      $("#growthChart").innerHTML = `<p class="skeleton">${guide}</p>`;
-      $("#goalScenarioChart").innerHTML =
-        `<p class="skeleton">목표를 정하면 투자 성향별로 필요한 저축액을 비교해 드려요.</p>`;
-      $("#goalVerdict").className = "verdict";
-      $("#goalVerdict").textContent = guide;
-      $("#goalRiskNote").textContent = "";
+      clearGoalResults(guide);
+      return;
+    }
+    if (months <= 0) {
+      clearGoalResults("목표 기간을 1개월 이상 입력해 주세요.");
       return;
     }
 
@@ -2005,7 +2093,8 @@
     input.value = state.startMonth;
 
     input.addEventListener("input", () => {
-      if (input.value) { state.startMonth = input.value; renderTime(); }
+      state.startMonth = input.value || null;
+      renderTime();
     });
     $("#investAmount").addEventListener("input", renderTime);
 
@@ -2024,32 +2113,56 @@
     });
   }
 
+  function clearTimeResults(message) {
+    state.timeComparisonEnd = null;
+    $("#timeStats").innerHTML = "";
+    $("#timeChart").innerHTML = `<p class="skeleton">${message}</p>`;
+    $("#timeTable").innerHTML = "";
+    $("#timeVerdict").className = "verdict";
+    $("#timeVerdict").textContent = message;
+    $("#timeLegend").innerHTML = "";
+    $("#timeSrc").textContent = "";
+    $("#timingTable").innerHTML = "";
+    $("#timingVerdict").textContent = message;
+  }
+
   function renderTime() {
     const amount = Math.max(0, +$("#investAmount").value || 0);
     const start = state.startMonth;
     const picked = state.market.assets.filter((a) => state.picks.has(a.id));
 
+    if (!start) {
+      clearTimeResults("투자 시작 시점을 선택해 주세요.");
+      return;
+    }
+    if (amount <= 0) {
+      clearTimeResults("투자 금액을 입력해 주세요.");
+      return;
+    }
     if (!picked.length) {
-      $("#timeStats").innerHTML = "";
-      $("#timeChart").innerHTML = `<p class="skeleton">자산을 하나 이상 선택해 주세요.</p>`;
-      $("#timeTable").innerHTML = "";
-      $("#timeVerdict").textContent = "—";
-      $("#timeLegend").innerHTML = "";
-      $("#timingTable").innerHTML = "";
-      $("#timingVerdict").textContent = "자산을 하나 이상 선택해 주세요.";
+      clearTimeResults("자산을 하나 이상 선택해 주세요.");
       return;
     }
 
-    const results = picked.map((a) => ({ asset: a, bt: E.backtest(a, start, amount) }))
+    const eligible = picked.filter((asset) =>
+      Object.prototype.hasOwnProperty.call(asset.index || {}, start));
+    const cpiMonths = Object.keys(state.cpi.index || {}).filter((month) => month >= start).sort();
+    const endCandidates = [
+      cpiMonths[cpiMonths.length - 1],
+      ...eligible.map((asset) => Object.keys(asset.index || {}).filter((month) => month >= start).sort().at(-1)),
+    ].filter(Boolean);
+    const commonEnd = endCandidates.sort()[0];
+
+    const results = eligible.map((a) => ({ asset: a, bt: E.backtest(a, start, amount, commonEnd) }))
       .filter((r) => r.bt);
+    const unavailable = picked.filter((asset) => !results.some((r) => r.asset.id === asset.id));
     if (!results.length) {
-      $("#timeChart").innerHTML = `<p class="skeleton">투자금액을 입력하고, 데이터가 있는 시작 시점을 골라 주세요.</p>`;
-      $("#timingTable").innerHTML = "";
-      $("#timingVerdict").textContent = "계산할 수 있는 실제 관측치가 없습니다.";
+      clearTimeResults("선택한 시작 시점에 계산할 수 있는 실제 관측치가 없습니다.");
       return;
     }
+    state.timeComparisonEnd = commonEnd;
 
-    const infl = E.inflationPath(state.cpi.index, start, amount);
+    const infl = E.inflationPath(state.cpi.index, start, amount, commonEnd);
     const sorted = [...results].sort((a, b) => b.bt.finalValue - a.bt.finalValue);
     const best = sorted[0], worst = sorted[sorted.length - 1];
     const years = best.bt.years;
@@ -2074,10 +2187,12 @@
     const v = $("#timeVerdict");
     v.className = "verdict";
     v.innerHTML = `${E.monthLabel(start)}에 <b>${man(amount)}만원</b>을 넣었다면,
-      ${best.asset.name}은 지금 <b>${man(best.bt.finalValue)}만원</b>입니다
+      ${best.asset.name}은 ${E.monthLabel(commonEnd)} 기준 <b>${man(best.bt.finalValue)}만원</b>입니다
       (연평균 ${signPct(best.bt.cagr)}, 최대 낙폭 ${signPct(best.bt.mdd)}).
-      선택한 ${results.length}개 중 <b>${beat.length}개</b>가 같은 기간 물가상승을 이겼습니다.
-      다만 이것은 선택한 한 시작 달의 기록이지, 앞으로의 수익을 약속하는 숫자는 아닙니다.`;
+      계산 가능한 ${results.length}개 중 <b>${beat.length}개</b>가 같은 기간 물가상승을 이겼습니다.
+      다만 이것은 선택한 한 시작 달의 기록이지, 앞으로의 수익을 약속하는 숫자는 아닙니다.${unavailable.length
+        ? ` 선택한 시작 달의 실제 값이 없어 제외된 자산: ${unavailable.map((a) => a.name).join(", ")}.`
+        : ""}`;
 
     // 차트
     const series = results.map((r) => ({
@@ -2110,7 +2225,7 @@
     ).join("");
 
     $("#timeSrc").textContent =
-      `Yahoo Finance 월말 종가 · 물가는 OECD 한국 CPI · 스냅샷 ${state.market.source_fetched_at.slice(0, 10)}`;
+      `Yahoo Finance 월별 가격 · 물가는 OECD 한국 CPI · 공통 종료 ${commonEnd} · 스냅샷 ${state.market.source_fetched_at.slice(0, 10)}`;
 
     // 표
     $("#timeTable").innerHTML = sorted.map((r) => `
@@ -2119,16 +2234,16 @@
           ${r.asset.krw_converted ? '<span class="risk-badge risk-mid">원화환산</span>' : ""}</td>
         <td class="num">${signPct(r.bt.totalReturn)}</td>
         <td class="num">${signPct(r.bt.cagr)}</td>
-        <td class="num">${pct(r.asset.volatility)}</td>
+        <td class="num">${Number.isFinite(r.bt.volatility) ? pct(r.bt.volatility) : "—"}</td>
         <td class="num">${signPct(r.bt.mdd)}</td></tr>`).join("");
 
-    renderTiming(results, amount, start);
+    renderTiming(results, amount, start, commonEnd);
   }
 
-  function renderTiming(results, amount, start) {
+  function renderTiming(results, amount, start, endMonth) {
     const windows = results.map((r) => ({
       asset: r.asset,
-      result: E.backtestWindow(r.asset, start, amount, 6),
+      result: E.backtestWindow(r.asset, start, amount, 6, endMonth),
     })).filter((item) => item.result);
 
     if (!windows.length) {
@@ -2171,13 +2286,19 @@
       const badge = s.reference
         ? '<span class="risk-badge risk-low">공식 통계 기준값</span>'
         : (s.live_in_browser
-          ? '<span class="risk-badge risk-low">브라우저에서 실시간 조회</span>'
-          : `<span class="risk-badge risk-mid">일 1회 스냅샷</span> <span style="color:var(--text-muted)">${s.reason || ""}</span>`);
+          ? '<span class="risk-badge risk-low">접속 시 최신값 조회</span>'
+          : `<span class="risk-badge risk-mid">주 1회 스냅샷</span> <span style="color:var(--text-muted)">${s.reason || ""}</span>`);
       return `<li><strong><a href="${s.url}">${s.name} ↗</a></strong>
         — ${s.use} ${badge}</li>`;
     }).join("");
 
-    const clean = state.meta.notes || [];
+    // meta.json에는 재현·감사를 위해 판정 수치가 든 원문을 그대로 두되,
+    // 화면에서는 사용자가 바로 이해할 수 있는 문장으로 번역한다.
+    const clean = (state.meta.notes || []).map((note) =>
+      typeof note === "string" && note.includes("원/달러 2017-09: 0.1154")
+        ? "원/달러 2017년 9월의 비정상 값 1건을 앞뒤 달과 비교해 오류로 판단하고 제외했습니다."
+        : note
+    );
     $("#cleanList").innerHTML = clean.length
       ? clean.map((n) => `<li>${n}</li>`).join("")
       : `<li>이번 수집분에서 제외된 값은 없습니다.</li>`;
@@ -2187,7 +2308,7 @@
     const gen = new Date(state.meta.generated_at);
     $("#buildInfo").classList.remove("skeleton-bar");
     $("#buildInfo").textContent =
-      `데이터 갱신 ${gen.toLocaleString("ko-KR")} · 물가·환율·비트코인은 실시간 조회, 시세 시계열은 주 1회 수집한 스냅샷입니다.`;
+      `데이터 갱신 ${gen.toLocaleString("ko-KR")} · 전체 물가·환율·비트코인은 접속 시 최신값 조회, 품목별 물가·시세 시계열은 주 1회 스냅샷입니다.`;
   }
 
   /* ══════════════ 전체 렌더 ══════════════ */
@@ -2211,9 +2332,9 @@
     const goalMeta = $("#printMetaGoal");
     if (goalMeta) {
       const goal = Math.max(0, +$("#goalAmount").value || 0);
-      const { years, months } = readGoalDuration();
+      const { months } = readGoalDuration();
       goalMeta.textContent = goal > 0
-        ? `목표 금액 ${man(goal)}만원 · 목표 기간 ${years}년 ${months}개월 · ${dateStr}`
+        ? `목표 금액 ${man(goal)}만원 · 목표 기간 ${formatDuration(months)} · ${dateStr}`
         : dateStr;
     }
 
@@ -2221,10 +2342,14 @@
     if (timeMeta) {
       const amount = Math.max(0, +$("#investAmount").value || 0);
       const assetNames = state.market
-        ? state.market.assets.filter((a) => state.picks.has(a.id)).map((a) => a.name).join(", ")
+        ? state.market.assets
+            .filter((a) => state.picks.has(a.id)
+              && state.startMonth
+              && Object.prototype.hasOwnProperty.call(a.index || {}, state.startMonth))
+            .map((a) => a.name).join(", ")
         : "";
       timeMeta.textContent = state.startMonth
-        ? `투자 시작 ${E.monthLabel(state.startMonth)} · 투자 금액 ${man(amount)}만원${assetNames ? ` · 비교 자산 ${assetNames}` : ""} · ${dateStr}`
+        ? `투자 시작 ${E.monthLabel(state.startMonth)}${state.timeComparisonEnd ? ` · 비교 종료 ${E.monthLabel(state.timeComparisonEnd)}` : ""} · 투자 금액 ${man(amount)}만원${assetNames ? ` · 비교 자산 ${assetNames}` : ""} · ${dateStr}`
         : dateStr;
     }
   }

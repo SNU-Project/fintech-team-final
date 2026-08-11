@@ -124,11 +124,17 @@ jobs:
           done
           echo "통과 — JS 문법 정상."
 
+      - name: 계산 엔진 단위검사
+        run: |
+          set -e
+          node tests/engine.test.js
+          python -m unittest discover -s tests -p 'test_*.py'
+
       # ── 5. 데이터 파일 무결성 ─────────────────────────────────
       - name: 데이터 검증
         run: |
           python - <<'PY'
-          import json, sys
+          import json, re, sys
 
           problems = []
           try:
@@ -138,6 +144,19 @@ jobs:
           except Exception as exc:
               print(f"::error::데이터 파일을 읽을 수 없습니다: {exc}")
               sys.exit(1)
+
+          fx_excluded = {
+              match.group(1)
+              for note in market.get("notes", [])
+              if (match := re.search(r"원/달러 (\d{4}-\d{2}).*제외", note))
+          }
+
+          def month_number(month):
+              year, value = map(int, month.split("-"))
+              return year * 12 + value - 1
+
+          def month_label(number):
+              return f"{number // 12:04d}-{number % 12 + 1:02d}"
 
           for a in market["assets"]:
               if a.get("assumed"):
@@ -151,6 +170,33 @@ jobs:
               if a["mdd"] and a["mdd"]["depth"] <= -0.99:
                   problems.append(f"{a['name']}: MDD {a['mdd']['depth']:.1%} — 오류 틱 의심")
 
+              index = a.get("index") or {}
+              months = sorted(index)
+              if len(months) != a["months"]:
+                  problems.append(
+                      f"{a['name']}: months={a['months']}지만 index 관측치는 {len(months)}개"
+                  )
+              if len(months) >= 2:
+                  expected = {
+                      month_label(number)
+                      for number in range(month_number(months[0]), month_number(months[-1]) + 1)
+                  }
+                  missing = sorted(expected - set(months))
+                  # 원/달러 정제 로그에 남은 단일 오류 월만 USD 자산에
+                  # 허용한다. 일봉 fallback이 실패해 다른 달이 비면 막는다.
+                  allowed = fx_excluded if a.get("krw_converted") else set()
+                  unexpected = [month for month in missing if month not in allowed]
+                  if unexpected or len(missing) > 1:
+                      problems.append(
+                          f"{a['name']}: 월 시계열 결측 {len(missing)}개 "
+                          f"({', '.join(missing[:8])}{'…' if len(missing) > 8 else ''})"
+                      )
+                  elif missing:
+                      print(
+                          f"::warning::{a['name']}: 원/달러 오류 틱 제외로 "
+                          f"{missing[0]} 한 달 결측 허용"
+                      )
+
           if len(cpi["index"]) < 24:
               problems.append(f"CPI 관측치 {len(cpi['index'])}개월")
           if len(cpi.get("categories", [])) != 12:
@@ -163,7 +209,7 @@ jobs:
               sys.exit(1)
 
           print(f"통과 — 자산 {len(market['assets'])}종, CPI {len(cpi['index'])}개월, "
-                f"품목 {len(cpi['categories'])}개")
+                f"품목 {len(cpi['categories'])}개, 월 시계열 연속성 정상")
           PY
 
       # ── 6. 하드코딩된 수익률 ──────────────────────────────────

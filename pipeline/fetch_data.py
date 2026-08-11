@@ -46,6 +46,15 @@ YAHOO_URL = (
     "?range={years}y&interval=1mo"
 )
 
+# Yahoo의 1mo 응답은 GC=F처럼 거래가 있었던 달도 close=null로 주는 경우가
+# 있다. 월봉의 정상값은 그대로 두고 그 누락 월만 실제 일봉의 마지막 유효
+# 종가로 복구한다. 한 달 안의 두 가격을 섞는 보간이 아니라, Yahoo가 같은
+# 심볼에 제공한 실제 거래일 종가를 월말 값으로 집계하는 fallback이다.
+YAHOO_DAILY_URL = (
+    "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+    "?period1={period1}&period2={period2}&interval=1d&events=history"
+)
+
 # KOR = 한국, M = 월별, CPI, IX = 지수(2015=100 계열), _T = 전체품목
 OECD_CPI_URL = (
     "https://sdmx.oecd.org/public/rest/data/"
@@ -134,6 +143,98 @@ def fetch_monthly_closes(symbol: str) -> dict[str, float]:
     if len(series) < 24:
         raise DataFetchError(f"{symbol}: 유효 관측치 {len(series)}개뿐 — 최소 24개 필요")
     return series
+
+
+def _month_start(month: str) -> dt.datetime:
+    try:
+        year, value = (int(part) for part in month.split("-"))
+        return dt.datetime(year, value, 1, tzinfo=dt.UTC)
+    except (TypeError, ValueError) as exc:
+        raise DataFetchError(f"잘못된 월 형식: {month!r}") from exc
+
+
+def _next_month(value: dt.datetime) -> dt.datetime:
+    if value.month == 12:
+        return value.replace(year=value.year + 1, month=1)
+    return value.replace(month=value.month + 1)
+
+
+def calendar_months(start: str, end: str) -> list[str]:
+    """start~end 사이의 달을 양 끝 포함해 돌려준다."""
+    current = _month_start(start)
+    finish = _month_start(end)
+    if current > finish:
+        raise DataFetchError(f"월 범위가 거꾸로임: {start} ~ {end}")
+    months = []
+    while current <= finish:
+        months.append(current.strftime("%Y-%m"))
+        current = _next_month(current)
+    return months
+
+
+def fetch_daily_month_ends(symbol: str, start: str, end: str) -> dict[str, float]:
+    """실제 일봉을 월별 마지막 유효 종가로 집계한다."""
+    period1 = int(_month_start(start).timestamp())
+    # Yahoo의 period2는 미포함 경계이므로 끝 달의 다음 달 1일을 쓴다.
+    period2 = int(_next_month(_month_start(end)).timestamp())
+    raw = json.loads(_get(YAHOO_DAILY_URL.format(
+        symbol=symbol, period1=period1, period2=period2)))
+    chart = raw.get("chart") or {}
+    if chart.get("error"):
+        raise DataFetchError(f"{symbol} 일봉: {chart['error']}")
+    result = (chart.get("result") or [None])[0]
+    if not result:
+        raise DataFetchError(f"{symbol} 일봉: 응답에 result 없음")
+
+    stamps = result.get("timestamp") or []
+    indicators = result.get("indicators") or {}
+    quote = (indicators.get("quote") or [{}])[0]
+    closes = quote.get("close") or []
+    if not stamps or not closes:
+        raise DataFetchError(f"{symbol} 일봉: 시계열이 비어 있음")
+
+    offset = dt.timedelta(seconds=int(result.get("meta", {}).get("gmtoffset") or 0))
+    allowed = set(calendar_months(start, end))
+    # 응답 순서를 가정하지 않고 timestamp도 같이 보관해, 각 월에서 가장
+    # 늦은 실제 거래일 종가만 선택한다.
+    latest: dict[str, tuple[int, float]] = {}
+    for ts, close in zip(stamps, closes):
+        if close is None:
+            continue
+        month = (dt.datetime.fromtimestamp(ts, dt.UTC) + offset).strftime("%Y-%m")
+        if month not in allowed:
+            continue
+        previous = latest.get(month)
+        if previous is None or ts > previous[0]:
+            latest[month] = (ts, float(close))
+    return {month: value for month, (_ts, value) in sorted(latest.items())}
+
+
+def restore_missing_months(
+        symbol: str, series: dict[str, float]
+) -> tuple[dict[str, float], list[str], list[str]]:
+    """월봉의 내부 결측만 실제 일봉 월말값으로 복구한다.
+
+    기존 월봉 값은 절대 덮어쓰지 않는다. 일봉에도 값이 없는 달은 그대로
+    남겨 이후 무결성 검사가 막도록 한다.
+    """
+    if len(series) < 2:
+        return dict(series), [], []
+    expected = calendar_months(min(series), max(series))
+    missing = [month for month in expected if month not in series]
+    if not missing:
+        return dict(series), [], []
+
+    daily = fetch_daily_month_ends(symbol, min(missing), max(missing))
+    restored_series = dict(series)
+    restored = []
+    for month in missing:
+        if month not in daily:
+            continue
+        restored_series[month] = daily[month]
+        restored.append(month)
+    unresolved = [month for month in missing if month not in restored_series]
+    return dict(sorted(restored_series.items())), restored, unresolved
 
 
 def reject_outliers(series: dict[str, float], label: str,
@@ -276,6 +377,11 @@ def main() -> None:
 
     print("[1/5] 원/달러 환율 수집")
     fx = fetch_monthly_closes(FX_SYMBOL)
+    fx, fx_restored, fx_unresolved = restore_missing_months(FX_SYMBOL, fx)
+    if fx_restored:
+        print(f"    · 월봉 결측 {len(fx_restored)}개월을 실제 일봉 월말값으로 복구")
+    if fx_unresolved:
+        print(f"    ! 일봉에도 값이 없는 월: {', '.join(fx_unresolved)}")
     fx, dropped = reject_outliers(fx, "원/달러")
     cleaning_log += dropped
     for d in dropped:
@@ -284,8 +390,15 @@ def main() -> None:
 
     print("[2/5] 자산별 월말 종가 수집")
     raw_series: dict[str, dict[str, float]] = {}
+    restored_by_id: dict[str, list[str]] = {}
     for asset in ASSETS:
         series = fetch_monthly_closes(asset["symbol"])
+        series, restored, unresolved = restore_missing_months(asset["symbol"], series)
+        restored_by_id[asset["id"]] = restored
+        if restored:
+            print(f"    · {asset['name']}: 월봉 결측 {len(restored)}개월을 실제 일봉 월말값으로 복구")
+        if unresolved:
+            print(f"    ! {asset['name']}: 일봉에도 값이 없는 월 {', '.join(unresolved)}")
         series, dropped = reject_outliers(series, asset["name"])
         cleaning_log += dropped
         for d in dropped:
@@ -325,12 +438,14 @@ def main() -> None:
         "fetched_at": fetched_at.isoformat(timespec="seconds"),
         "fx": fx,
         "assets": [
-            {**asset, "series": raw_series[asset["id"]]}
+            {**asset, "series": raw_series[asset["id"]],
+             "daily_fallback_months": restored_by_id[asset["id"]]}
             for asset in ASSETS
         ],
         "cpi": {"index": cpi_index, "yoy": cpi_yoy, "categories": categories},
         "deposit_rate": deposit_rate,
         "cleaning_log": cleaning_log,
+        "fx_daily_fallback_months": fx_restored,
     }
 
     out = DATA_DIR / "_raw.json"

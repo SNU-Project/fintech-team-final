@@ -1,7 +1,7 @@
 """수집 원본(_raw.json)을 화면이 바로 쓸 수 있는 형태로 정제한다.
 
 하는 일
-  1. 자산별 월말 종가 → 100 기준 성장지수로 정규화
+  1. 자산별 월별 기준 가격 → 100 기준 성장지수로 정규화
   2. CAGR(연평균 수익률), 연환산 변동성, MDD(최대 낙폭) 산출
   3. 소비자물가지수로 실질 수익률(= 물가를 이긴 부분) 계산
   4. 포트폴리오 유형별 기대수익률을 실제 자산 수익률에서 역산
@@ -45,30 +45,91 @@ PORTFOLIOS = {
 # 이제 화면에 가정값이 하나도 없다.
 
 
-def cagr(series: dict[str, float]) -> float | None:
-    """연평균 복리 수익률. 관측 구간이 1년 미만이면 None."""
+def month_number(month: str) -> int:
+    """YYYY-MM을 월 단위 정수로 바꾼다."""
+    try:
+        year, value = (int(part) for part in month.split("-"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"잘못된 월 형식: {month!r}") from exc
+    if not 1 <= value <= 12:
+        raise ValueError(f"잘못된 월 형식: {month!r}")
+    return year * 12 + value - 1
+
+
+def consecutive_monthly_returns(series: dict[str, float]) -> dict[str, float]:
+    """실제로 연속한 두 달에서만 월 수익률을 계산한다.
+
+    결측 전후의 여러 달짜리 변화를 한 달 수익률로 취급하면 변동성이
+    부풀거나 줄어든다. 그렇다고 월별 값을 보간할 수도 없으므로, 달력상
+    정확히 한 달 차이인 관측쌍만 사용한다.
+    """
     months = sorted(series)
-    if len(months) < 13:
+    returns: dict[str, float] = {}
+    for prev, cur in zip(months, months[1:]):
+        if month_number(cur) - month_number(prev) != 1:
+            continue
+        if series[prev] <= 0 or series[cur] <= 0:
+            continue
+        returns[cur] = series[cur] / series[prev] - 1
+    return returns
+
+
+def annualized_volatility(returns: list[float]) -> float | None:
+    """월 수익률 표본표준편차를 연환산한다."""
+    if len(returns) < 12:
+        return None
+    mean = sum(returns) / len(returns)
+    var = sum((value - mean) ** 2 for value in returns) / (len(returns) - 1)
+    return math.sqrt(var) * math.sqrt(12)
+
+
+def cagr(series: dict[str, float]) -> float | None:
+    """달력상 실제 경과기간으로 계산한 연평균 복리 수익률."""
+    months = sorted(series)
+    if len(months) < 2:
         return None
     first, last = series[months[0]], series[months[-1]]
-    if first <= 0:
+    elapsed = month_number(months[-1]) - month_number(months[0])
+    if first <= 0 or last <= 0 or elapsed < 12:
         return None
-    years = len(months) / 12
+    years = elapsed / 12
     return (last / first) ** (1 / years) - 1
 
 
 def annual_volatility(series: dict[str, float]) -> float | None:
-    """월 수익률 표준편차를 연환산."""
-    months = sorted(series)
-    rets = []
-    for prev, cur in zip(months, months[1:]):
-        if series[prev] > 0:
-            rets.append(series[cur] / series[prev] - 1)
-    if len(rets) < 12:
-        return None
-    mean = sum(rets) / len(rets)
-    var = sum((r - mean) ** 2 for r in rets) / (len(rets) - 1)
-    return math.sqrt(var) * math.sqrt(12)
+    """연속 관측쌍으로 만든 월 수익률 표준편차를 연환산."""
+    return annualized_volatility(list(consecutive_monthly_returns(series).values()))
+
+
+def portfolio_monthly_returns(
+        series_by_id: dict[str, dict[str, float]],
+        weights: dict[str, float]) -> list[float]:
+    """모든 구성자산이 함께 관측된 연속 월의 포트폴리오 수익률.
+
+    매월 같은 비중으로 재조정한다고 보고 Σ(비중×월수익률)을 계산한다.
+    구성자산 중 하나라도 해당 월 수익률이 없으면 그 월은 쓰지 않는다.
+    값을 채우거나 보간하지 않는다.
+    """
+    usable = {asset_id: weight for asset_id, weight in weights.items()
+              if weight > 0 and asset_id in series_by_id}
+    total = sum(usable.values())
+    if total <= 0 or len(usable) != len([w for w in weights.values() if w > 0]):
+        return []
+
+    normalized = {asset_id: weight / total for asset_id, weight in usable.items()}
+    by_asset = {
+        asset_id: consecutive_monthly_returns(series_by_id[asset_id])
+        for asset_id in normalized
+    }
+    if any(not returns for returns in by_asset.values()):
+        return []
+
+    common = set.intersection(*(set(returns) for returns in by_asset.values()))
+    return [
+        sum(normalized[asset_id] * by_asset[asset_id][month]
+            for asset_id in normalized)
+        for month in sorted(common)
+    ]
 
 
 def max_drawdown(series: dict[str, float]) -> dict | None:
@@ -102,8 +163,12 @@ def normalize(series: dict[str, float], base: str | None = None) -> dict[str, fl
 
 
 def window(series: dict[str, float], years: int) -> dict[str, float]:
+    """마지막 관측월에서 달력상 years년 전까지의 관측치만 남긴다."""
     months = sorted(series)
-    keep = months[-(years * 12 + 1):]
+    if not months:
+        return {}
+    cutoff = month_number(months[-1]) - years * 12
+    keep = [month for month in months if month_number(month) >= cutoff]
     return {m: series[m] for m in keep}
 
 
@@ -120,6 +185,8 @@ def main() -> None:
     # 자산별 지표
     assets = []
     returns_by_id: dict[str, float] = {}
+    series_by_id: dict[str, dict[str, float]] = {}
+    fetched_month = raw["fetched_at"][:7]
     for asset in raw["assets"]:
         series = asset["series"]
         full_cagr = cagr(series)
@@ -127,6 +194,11 @@ def main() -> None:
             notes.append(f"{asset['name']}: 관측 구간이 짧아 제외")
             continue
         returns_by_id[asset["id"]] = full_cagr
+        series_by_id[asset["id"]] = series
+
+        cagr_1y = cagr(window(series, 1))
+        cagr_3y = cagr(window(series, 3))
+        cagr_5y = cagr(window(series, 5))
 
         entry = {
             "id": asset["id"],
@@ -139,15 +211,19 @@ def main() -> None:
             "months": len(series),
             "range": [min(series), max(series)],
             "cagr": round(full_cagr, 5),
-            "cagr_1y": round(cagr(window(series, 1)) or 0, 5) if cagr(window(series, 1)) else None,
-            "cagr_3y": round(cagr(window(series, 3)) or 0, 5) if cagr(window(series, 3)) else None,
-            "cagr_5y": round(cagr(window(series, 5)) or 0, 5) if cagr(window(series, 5)) else None,
+            "cagr_1y": round(cagr_1y, 5) if cagr_1y is not None else None,
+            "cagr_3y": round(cagr_3y, 5) if cagr_3y is not None else None,
+            "cagr_5y": round(cagr_5y, 5) if cagr_5y is not None else None,
             "volatility": round(annual_volatility(series) or 0, 5),
             "mdd": max_drawdown(series),
             "index": normalize(series),
             "last_price": series[max(series)],
             "last_month": max(series),
+            # 현재 달 월봉은 월말 확정값이 아니라 수집 시점 최신값이다.
+            "last_month_partial": max(series) == fetched_month,
         }
+        if asset.get("daily_fallback_months"):
+            entry["daily_fallback_months"] = asset["daily_fallback_months"]
         if entry["mdd"]:
             entry["mdd"]["depth"] = round(entry["mdd"]["depth"], 5)
         assets.append(entry)
@@ -168,20 +244,25 @@ def main() -> None:
 
     cash_cagr = cagr(cash_series)
     returns_by_id["cash"] = cash_cagr
+    series_by_id["cash"] = cash_series
     latest_rate = deposit_rate[rate_months[-1]]
+    cash_cagr_1y = cagr(window(cash_series, 1))
+    cash_cagr_3y = cagr(window(cash_series, 3))
+    cash_cagr_5y = cagr(window(cash_series, 5))
     assets.append({
         "id": "cash", "name": "예금·적금", "category": "저축",
         "desc": f"3개월 은행간금리 기준 (최근 {latest_rate:.2f}%)",
         "symbol": "IR3TIB", "currency": "KRW", "krw_converted": False,
         "months": len(cash_series), "range": [rate_months[0], rate_months[-1]],
         "cagr": round(cash_cagr, 5),
-        "cagr_1y": round(cagr(window(cash_series, 1)) or 0, 5),
-        "cagr_3y": round(cagr(window(cash_series, 3)) or 0, 5),
-        "cagr_5y": round(cagr(window(cash_series, 5)) or 0, 5),
+        "cagr_1y": round(cash_cagr_1y, 5) if cash_cagr_1y is not None else None,
+        "cagr_3y": round(cash_cagr_3y, 5) if cash_cagr_3y is not None else None,
+        "cagr_5y": round(cash_cagr_5y, 5) if cash_cagr_5y is not None else None,
         "volatility": round(annual_volatility(cash_series) or 0, 5),
         "mdd": max_drawdown(cash_series),
         "index": {m: round(v, 3) for m, v in cash_series.items()},
         "last_price": None, "last_month": rate_months[-1],
+        "last_month_partial": rate_months[-1] == fetched_month,
         "latest_rate": round(latest_rate, 3),
     })
 
@@ -195,16 +276,30 @@ def main() -> None:
         usable = {a: w for a, w in weights.items() if a in returns_by_id}
         total_w = sum(usable.values()) or 1
         expected = sum(returns_by_id[a] * w for a, w in usable.items()) / total_w
-        vol = sum(
-            (next((x["volatility"] for x in assets if x["id"] == a), 0)) * w
-            for a, w in usable.items()
-        ) / total_w
+        monthly_returns = portfolio_monthly_returns(series_by_id, usable)
+        vol = annualized_volatility(monthly_returns)
+        volatility_method = "common_consecutive_monthly_returns"
+        if vol is None:
+            # 정상 수집분에는 공통 월이 충분하다. 그래도 구성자산이 짧아
+            # 계산이 불가능한 경우 UI에 0%를 내보내지 않고, 기존의 보수적
+            # 가중평균을 명시적인 fallback으로만 사용한다.
+            vol = sum(
+                (next((x["volatility"] for x in assets if x["id"] == a), 0)) * w
+                for a, w in usable.items()
+            ) / total_w
+            volatility_method = "weighted_asset_volatility_fallback"
+            notes.append(
+                f"{cfg['label']}: 공통 연속 월 수익률이 {len(monthly_returns)}개라 "
+                "자산별 변동성 가중평균을 대체값으로 사용"
+            )
         portfolios[key] = {
             "label": cfg["label"],
             "desc": cfg["desc"],
             "weights": {a: round(w / total_w, 4) for a, w in usable.items()},
             "expected_return": round(expected, 5),
             "expected_volatility": round(vol, 5),
+            "volatility_method": volatility_method,
+            "volatility_observations": len(monthly_returns),
             "real_return": round(expected - latest_inflation / 100, 5),
         }
 
@@ -274,19 +369,23 @@ def main() -> None:
     meta = {
         "generated_at": market["generated_at"],
         "sources": [
-            {"name": "Yahoo Finance chart API", "use": "자산별 월말 종가 10년",
+            {"name": "Yahoo Finance chart API", "use": "자산별 월별 가격 10년(완료월 월말·최신월 수집 시점)",
              "url": "https://finance.yahoo.com", "live_in_browser": False,
-             "reason": "CORS 미허용 — GitHub Actions가 매일 수집해 스냅샷으로 커밋"},
-            {"name": "OECD SDMX", "use": "한국 소비자물가(월, 전체 + 12품목) · 3개월 은행간금리",
+             "reason": "CORS 미허용 — GitHub Actions가 주 1회 수집해 스냅샷으로 커밋"},
+            {"name": "OECD SDMX", "use": "한국 전체 소비자물가 최신값",
              "url": "https://www.oecd.org/en/data.html", "live_in_browser": True},
-            {"name": "Frankfurter", "use": "원/달러 환율(실시간)",
+            {"name": "OECD SDMX", "use": "한국 소비자물가 12품목 · 3개월 은행간금리",
+             "url": "https://www.oecd.org/en/data.html", "live_in_browser": False,
+             "reason": "GitHub Actions가 주 1회 수집해 스냅샷으로 커밋"},
+            {"name": "Frankfurter", "use": "원/달러 환율 최신값",
              "url": "https://frankfurter.dev", "live_in_browser": True},
-            {"name": "CoinGecko", "use": "비트코인 시세(실시간)",
+            {"name": "CoinGecko", "use": "비트코인 시세 최신값",
              "url": "https://www.coingecko.com", "live_in_browser": True},
         ],
         "assumptions": [
             "예금은 OECD 한국 3개월 은행간금리를 월 복리로 굴린 값입니다. 실제 예금 상품의 금리와는 다를 수 있습니다.",
             "USD 표시 자산(S&P500·금·비트코인)은 원/달러 환율로 환산한 원화 기준 수익률입니다.",
+            "시계열의 마지막 월이 수집한 달과 같으면 월말 확정 종가가 아니라 수집 시점까지의 최신 유효 종가입니다.",
             "세금·거래비용·배당은 반영하지 않았습니다.",
         ],
         "notes": notes,
