@@ -659,6 +659,26 @@
     });
     const dots = Array.from(dotsWrap.children);
 
+    // v11: CSS calc(100dvh - 13rem)은 상단바+티커+점 인디케이터 높이를
+    // rem 상수로 어림한 값이라, 상단바 부제목이 줄바꿈되는 화면 폭
+    // (약 861~950px)처럼 실제 헤더 높이가 그 상수와 어긋나는 경우
+    // 뷰포트가 살짝 더 길게 계산되고, 그만큼 카드 아래쪽을 보려고 페이지가
+    // 조금 스크롤되면서 sticky 헤더가 카드 위쪽을 가리는 문제가 있었다.
+    // 지금 이 엘리먼트가 화면에서 실제로 시작하는 지점(getBoundingClientRect)을
+    // 기준으로 남은 높이를 직접 재서 어떤 헤더 높이·줌 배율에서도
+    // 어긋나지 않게 한다.
+    function syncViewportHeight() {
+      if (deckEl.hidden) return;
+      const top = viewport.getBoundingClientRect().top;
+      const available = window.innerHeight - top - 16;
+      viewport.style.height = `${Math.max(360, Math.round(available))}px`;
+    }
+    let resizeRaf = null;
+    window.addEventListener("resize", () => {
+      if (resizeRaf) cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(syncViewportHeight);
+    });
+
     function syncUI() {
       track.style.transform = `translateX(${-index * 100}%)`;
       dots.forEach((d, i) => {
@@ -772,6 +792,10 @@
     CardDeck.open = function () {
       index = 0;
       syncUI();
+      syncViewportHeight();
+      // 열리는 시점엔 폰트·티커 실시간 값 등이 아직 자리를 잡는 중일 수
+      // 있어, 페인트 한 번 지난 뒤 다시 재서 확정한다.
+      requestAnimationFrame(syncViewportHeight);
       history.replaceState({ deckIndex: 0 }, "", "#card-1");
     };
     CardDeck.goToLast = function () {
@@ -1175,11 +1199,17 @@
   /* ══════════════ 탭 0 · 내 물가 ══════════════ */
   const groupTotal = (g) => g.members.reduce((sum, id) => sum + (state.spending[id] || 0), 0);
 
+  // v11: 세부 품목별 금액을 접힌 텍스트 목록 대신 가로 막대그래프로
+  // 기본 펼쳐서 보여준다 — 금액과 비중이 한눈에 비교되도록.
+  function renderSpendChart() {
+    const rows = SPEND_GROUPS.map((g) => ({
+      label: g.name, value: groupTotal(g), color: SPEND_GROUP_COLOR[g.id],
+    }));
+    hBarChart($("#spendChart"), rows);
+  }
+
   function syncSpendingFields(syncTotal = true) {
-    SPEND_GROUPS.forEach((g) => {
-      const input = $(`#sp-${g.id}`);
-      if (input) input.value = Math.round(groupTotal(g));
-    });
+    renderSpendChart();
     if (syncTotal) {
       $("#monthlySpend").value = Math.round(spendingTotal(state.spending));
     }
@@ -1206,20 +1236,7 @@
       return;
     }
 
-    const row = (g) => {
-      return `<div class="spend-row">
-        <label for="sp-${g.id}">
-          <b>${g.name}</b>
-          <small>${g.hint}</small>
-        </label>
-        <span class="input-wrap">
-          <input type="number" id="sp-${g.id}" min="0" step="1" inputmode="numeric" value="${Math.round(groupTotal(g))}" readonly>
-          <span>만원</span>
-        </span>
-      </div>`;
-    };
-
-    $("#spendFields").innerHTML = SPEND_GROUPS.map(row).join("");
+    renderSpendChart();
 
     // 이 탭의 지출 입력은 이제 전부 readonly라 사용자가 직접 타이핑해서
     // "input" 이벤트를 쏠 일이 없다. 그래도 이 리스너는 남겨 둔다 —
@@ -1286,7 +1303,6 @@
       $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
       $("#vsFigures").textContent = "—";
       $("#americanoCallout").innerHTML = "";
-      $("#spendTotal").textContent = "0만원";
       $("#contribSummary").hidden = true;
       $("#contribRank").innerHTML = "";
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
@@ -1294,7 +1310,6 @@
     }
 
     state.personalRate = result.rate;
-    $("#spendTotal").textContent = `${man(result.total)}만원`;
     const diff = result.rate - official;
 
     // 기여도 분해 — 헤드라인이 "무엇 때문에" 비싼지 가리키는 항목도

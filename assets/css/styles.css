@@ -452,13 +452,36 @@ section { scroll-margin-top: 5rem; }
 @media (max-width: 860px) { .deck-arrow { display: none; } }
 
 /* 카드 한 장 = 화면 한 장. 상단바+티커+점 인디케이터 높이를 뺀
-   나머지를 뷰포트 높이로 쓴다(.home-hero의 calc(100dvh - 9rem) 패턴과
-   동일한 방식). 콘텐츠가 넘치면 카드 안에서만 세로 스크롤된다. */
+   나머지를 뷰포트 높이로 쓴다. calc(100dvh - 13rem)은 JS가 실제
+   측정값으로 덮어쓰기 전까지의 초기값일 뿐이다 — 고정 rem 상수는
+   상단바 부제목이 줄바꿈되는 화면 폭(약 861~950px) 등에서 실제
+   헤더 높이와 어긋나 카드 위쪽이 sticky 헤더에 가려지는 문제가 있었다
+   (setupCardDeck의 syncViewportHeight 참고). 콘텐츠가 그래도 넘치면
+   카드 안에서만 세로 스크롤된다. */
 .deck-viewport {
   width: 100%; max-width: 540px; min-height: 420px;
   height: calc(100dvh - 13rem); height: calc(100svh - 13rem);
   overflow: hidden; border-radius: var(--radius); position: relative;
   touch-action: pan-y;
+}
+/* 데스크톱은 모바일 폭(540px)을 그대로 쓰면 좌우 여백이 불필요하게
+   넓다. 가로 배치(.deck-split)와 함께 화면을 더 활용하되, 텍스트
+   줄 길이가 늘어져 가독성이 떨어지지 않도록 1000px에서 제한한다. */
+@media (min-width: 861px) {
+  .deck-viewport { max-width: 1000px; }
+}
+
+/* 카드 안 요소를 데스크톱에서 2단으로 배치해 세로 길이를 줄인다
+   (카드 2의 정보+그래프, 카드 5의 소득 조건+진단 카드). 모바일은
+   화면이 좁아 강제하지 않고 기존처럼 세로로 쌓는다. */
+.deck-split { display: block; }
+.deck-split > * + * { margin-top: 1rem; }
+@media (min-width: 861px) {
+  .deck-split {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.4rem; align-items: start;
+  }
+  .deck-split > * + * { margin-top: 0; }
 }
 .deck-track {
   display: flex; height: 100%;
