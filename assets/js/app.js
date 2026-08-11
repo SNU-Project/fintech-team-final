@@ -167,6 +167,7 @@
       renderAll();
     });
     setupNextSteps();
+    setupPdfDownload();
     setupScrollReveal();
     setupScrollTopButton();
     renderBasis();
@@ -638,6 +639,63 @@
     $("#revealGoalBtn").addEventListener("click", () => openStandalone("panel-goal"));
     $("#revealTimeBtn").addEventListener("click", () => openStandalone("panel-time"));
     $$(".deck-back-btn").forEach((b) => b.addEventListener("click", backToDeck));
+  }
+
+  /* ══════════════ PDF 다운로드 ══════════════
+     CLAUDE.md가 빌드 도구·npm·외부 CDN 추가를 금지하고 있어서(PR
+     자동검사도 외부 CDN <script>를 막는다), html2canvas/jsPDF 같은
+     라이브러리를 새로 끌어오는 대신 브라우저 네이티브 인쇄
+     (window.print())를 쓴다. 사용자가 인쇄 대화상자에서 "대상"을
+     PDF로 저장하면 그게 곧 다운로드다 — 대부분의 브라우저는 이미
+     "PDF로 저장"이 기본 대상이다.
+     라이트모드 강제·카드뉴스 세로 펼침·조작용 UI 숨김은 전부
+     styles.css의 @media print 블록이 담당하고, 여기서는 파일명
+     (document.title을 인쇄 시점에만 잠깐 바꾼다 — 브라우저 인쇄
+     대화상자가 이 값을 파일명 기본값으로 제안한다)과 버튼의 로딩
+     상태만 다룬다. 차트는 SVG라 캡처 타이밍 이슈 자체가 없다. */
+  function downloadPdf(btn, filenameBase) {
+    const originalTitle = document.title;
+    const originalLabel = btn.textContent;
+    const pad = (n) => String(n).padStart(2, "0");
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+
+    btn.disabled = true;
+    btn.textContent = "PDF 만드는 중…";
+
+    let restored = false;
+    const restore = () => {
+      if (restored) return;
+      restored = true;
+      document.title = originalTitle;
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      window.removeEventListener("afterprint", restore);
+    };
+    window.addEventListener("afterprint", restore);
+    // afterprint를 안 쏴 주는 아주 드문 환경을 대비한 안전장치.
+    setTimeout(restore, 8000);
+
+    try {
+      if (typeof window.print !== "function") throw new Error("print unsupported");
+      document.title = `${filenameBase}_${dateStr}`;
+      window.print();
+    } catch (err) {
+      restore();
+      alert("다운로드에 실패했어요. 다시 시도해주세요.");
+    }
+  }
+
+  function setupPdfDownload() {
+    const targets = [
+      ["#downloadReportBtn", "연봉성적표"],
+      ["#downloadGoalBtn", "목표자산계획"],
+      ["#downloadTimeBtn", "자산타임머신"],
+    ];
+    targets.forEach(([sel, name]) => {
+      const btn = $(sel);
+      if (btn) btn.addEventListener("click", () => downloadPdf(btn, name));
+    });
   }
 
   /* ══════════════ 카드뉴스 덱 (v8) ══════════════
