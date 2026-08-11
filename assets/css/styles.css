@@ -934,6 +934,12 @@ input[readonly] { -moz-appearance: textfield; }
 .legend-swatch { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
 
 .donut-row { display: flex; gap: 1.3rem; align-items: center; flex-wrap: wrap; }
+/* 도넛 옆에 나란히 놓을 다른 요소(입력 목록 등)가 없는 자리에서는
+   기본 flex-start 정렬 때문에 도넛이 카드 왼쪽으로 치우쳐 보인다 —
+   카드 2의 세부 품목 그래프처럼 도넛 혼자 있는 칸에서만 가운데로 맞춘다. */
+.spend-chart-col { text-align: center; }
+.donut-row.is-centered { justify-content: center; }
+.legend.is-centered { justify-content: center; }
 /* mask는 그 엘리먼트가 그려낸 전체(자식 포함)를 하나로 합성한 뒤에
    잘라낸다 — 안쪽 원을 뚫으려고 .donut에 mask를 걸면, 자식인
    .donut-center에 mask:none을 줘도 가운데 텍스트까지 같이 사라진다
