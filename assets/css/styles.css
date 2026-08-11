@@ -272,8 +272,14 @@ section { scroll-margin-top: 5rem; }
 .score-preview-conclusion {
   max-width: 26rem; margin: .5rem auto 0; padding: .7rem 1.1rem;
   background: var(--surface-2); border-radius: var(--radius-sm);
-  font-size: .86rem; font-weight: 600; line-height: 1.5;
+  font-size: .86rem; font-weight: 600; line-height: 1.6;
   text-align: center; color: var(--text-primary); word-break: keep-all;
+  /* 문장이 두 줄로 넘어갈 때 한쪽 줄만 유독 짧아지는 등 줄바꿈이
+     들쭉날쭉해 보인다는 피드백 — text-wrap:balance는 줄 길이를 최대한
+     고르게 맞춰준다(미지원 브라우저에서는 기본 자동 줄바꿈으로 안전하게
+     대체). 숫자(체감 물가 %)가 사람마다 달라 문장 길이가 매번 바뀌므로
+     특정 지점에 <br>을 박아두는 대신 이 방식이 항상 맞는다. */
+  text-wrap: balance;
 }
 .score-preview-conclusion[hidden] { display: none; }
 .score-ring-wrap { width: 168px; height: 168px; position: relative; margin-top: .3rem; }
@@ -501,8 +507,6 @@ section { scroll-margin-top: 5rem; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; gap: 1rem; min-height: 100%;
 }
-.deck-swipe-hint { font-size: .78rem; color: var(--text-muted); margin-top: -.3rem; }
-
 /* 카드 1에만 "다음 카드 보기" 버튼이 있어서 카드 2부터는 점 인디케이터를
    직접 눌러야만 다음으로 넘어갈 수 있었다는 버그 리포트 — 모든 카드
    하단에 똑같이 둔다. display:block + margin:auto로 가운데 정렬하면
@@ -510,6 +514,10 @@ section { scroll-margin-top: 5rem; }
    양쪽에서 다 가운데로 온다. */
 .deck-next-btn { display: block; margin: 1.5rem auto 0; }
 .deck-card.is-cover .deck-next-btn { margin-top: 0; }
+/* 카드 1의 "다음 카드 보기"는 점 인디케이터·화살표·스와이프로도 이미
+   이동할 수 있는 보조 수단이라, 화면의 유일한 CTA처럼 크게 보일
+   필요가 없다 — 다른 텍스트 요소와 비슷한 비중으로 줄인다. */
+.deck-next-btn.is-compact { font-size: .82rem; padding: .55rem 1.3rem; }
 
 /* 카드 7의 "처음으로 돌아가기" — 다른 카드의 .deck-next-btn과 같은
    자리(카드 상단 콘텐츠 바로 아래)에 오는 마무리 버튼이라 같은 방식으로
