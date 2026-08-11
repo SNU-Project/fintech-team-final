@@ -185,8 +185,7 @@
               </details>
             </div>
             <p class="score-preview-conclusion" id="scorePreviewConclusion" hidden>—</p>
-            <button class="home-start-btn deck-next-btn" type="button">다음 카드 보기 →</button>
-            <p class="deck-swipe-hint">옆으로 넘겨보세요 →</p>
+            <button class="home-start-btn deck-next-btn is-compact" type="button">다음 카드 보기 →</button>
             <button class="onboarding-back deck-restart-link" type="button">처음부터 다시 입력하기</button>
           </section>
 
@@ -202,22 +201,20 @@
                 <div><h2>나와 가까운 생활 유형</h2><p>설문에서 입력하신 내용이에요.</p></div>
               </div>
 
-              <label class="field total-field">가구 유형
-                <p class="field-value" id="personaLabel">—</p>
-              </label>
+              <div class="deck-split">
+                <div>
+                  <label class="field total-field">가구 유형
+                    <p class="field-value" id="personaLabel">—</p>
+                  </label>
 
-              <label class="field total-field">내 월 생활비
-                <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0" readonly><span>만원</span></span>
-              </label>
-
-              <details class="spend-details">
-                <summary>세부 품목별 금액 보기</summary>
-                <div id="spendFields"></div>
-              </details>
-
-              <div class="spend-total">
-                <span>계산에 반영한 월 지출</span>
-                <b id="spendTotal">—</b>
+                  <label class="field total-field">내 월 생활비
+                    <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0" readonly><span>만원</span></span>
+                  </label>
+                </div>
+                <div>
+                  <p class="spend-details-label">세부 품목별 금액</p>
+                  <div class="chart-box" id="spendChart"></div>
+                </div>
               </div>
             </div>
             <button class="home-start-btn deck-next-btn" type="button">다음 카드 보기 →</button>
@@ -261,33 +258,35 @@
                  넘으면 실질 소득이 늘어난 것이고, 못 넘으면 <b>연봉은
                  올랐는데 형편은 나빠진 것</b>입니다.</p>
             </div>
-            <div class="card bento-input">
-              <div class="section-head">
-                <div><h2>나의 소득 조건</h2><p>설문에서 답하신 연봉이에요.</p></div>
+            <div class="deck-split">
+              <div class="card bento-input">
+                <div class="section-head">
+                  <div><h2>나의 소득 조건</h2><p>설문에서 답하신 연봉이에요.</p></div>
+                </div>
+
+                <div class="field-grid">
+                  <label class="field">현재 연봉
+                    <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600" readonly><span>만원</span></span>
+                  </label>
+                  <label class="field">내년 예상 연봉
+                    <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750" readonly><span>만원</span></span>
+                  </label>
+                </div>
+                <p class="err-text" id="salaryErr" hidden></p>
+
+                <p class="field-note skeleton-bar" id="inflSource">—</p>
               </div>
 
-              <div class="field-grid">
-                <label class="field">현재 연봉
-                  <span class="input-wrap"><input type="number" id="curSalary" min="0" step="100" value="3600" readonly><span>만원</span></span>
-                </label>
-                <label class="field">내년 예상 연봉
-                  <span class="input-wrap"><input type="number" id="nextSalary" min="0" step="100" value="3750" readonly><span>만원</span></span>
-                </label>
+              <div class="card bento-main">
+                <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
+                <p class="verdict" id="gapVerdict">—</p>
+                <details class="calc-detail">
+                  <summary>막대그래프·자세한 수치 보기</summary>
+                  <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
+                  <div class="chart-box" id="salaryChart"></div>
+                  <div class="stat-grid" id="gapStats"></div>
+                </details>
               </div>
-              <p class="err-text" id="salaryErr" hidden></p>
-
-              <p class="field-note skeleton-bar" id="inflSource">—</p>
-            </div>
-
-            <div class="card bento-main">
-              <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
-              <p class="verdict" id="gapVerdict">—</p>
-              <details class="calc-detail">
-                <summary>막대그래프·자세한 수치 보기</summary>
-                <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
-                <div class="chart-box" id="salaryChart"></div>
-                <div class="stat-grid" id="gapStats"></div>
-              </details>
             </div>
 
             <div class="card bento-half-a">
@@ -323,15 +322,15 @@
               <p class="final-body" id="finalBody"></p>
             </div>
 
-            <button class="home-start-btn deck-restart-link" type="button">처음으로 돌아가기</button>
+            <button class="onboarding-back deck-restart-link" type="button">처음으로 돌아가기</button>
 
             <div class="card">
               <p class="kicker">더 보고 싶다면</p>
               <h3 class="block-title">목표와 과거 성과도 확인해 보세요</h3>
               <p class="block-q">필요하면 펼쳐서 볼 수 있어요 — 기본 리포트에는 포함하지 않았습니다.</p>
               <div class="next-step-actions">
-                <button class="home-start-btn" id="revealGoalBtn" type="button">목표 자산 계획 보기 →</button>
-                <button class="home-start-btn" id="revealTimeBtn" type="button">자산 타임머신으로 확인하기 →</button>
+                <button class="home-start-btn is-compact" id="revealGoalBtn" type="button">목표 자산 계획 보기 →</button>
+                <button class="home-start-btn is-compact" id="revealTimeBtn" type="button">자산 타임머신으로 확인하기 →</button>
               </div>
             </div>
 

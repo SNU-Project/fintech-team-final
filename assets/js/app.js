@@ -659,6 +659,26 @@
     });
     const dots = Array.from(dotsWrap.children);
 
+    // v11: CSS calc(100dvh - 13rem)은 상단바+티커+점 인디케이터 높이를
+    // rem 상수로 어림한 값이라, 상단바 부제목이 줄바꿈되는 화면 폭
+    // (약 861~950px)처럼 실제 헤더 높이가 그 상수와 어긋나는 경우
+    // 뷰포트가 살짝 더 길게 계산되고, 그만큼 카드 아래쪽을 보려고 페이지가
+    // 조금 스크롤되면서 sticky 헤더가 카드 위쪽을 가리는 문제가 있었다.
+    // 지금 이 엘리먼트가 화면에서 실제로 시작하는 지점(getBoundingClientRect)을
+    // 기준으로 남은 높이를 직접 재서 어떤 헤더 높이·줌 배율에서도
+    // 어긋나지 않게 한다.
+    function syncViewportHeight() {
+      if (deckEl.hidden) return;
+      const top = viewport.getBoundingClientRect().top;
+      const available = window.innerHeight - top - 16;
+      viewport.style.height = `${Math.max(360, Math.round(available))}px`;
+    }
+    let resizeRaf = null;
+    window.addEventListener("resize", () => {
+      if (resizeRaf) cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(syncViewportHeight);
+    });
+
     function syncUI() {
       track.style.transform = `translateX(${-index * 100}%)`;
       dots.forEach((d, i) => {
@@ -724,7 +744,12 @@
       if (axis !== "x") return; // 세로 제스처는 카드 내부 스크롤에 그대로 맡긴다
       e.preventDefault();
       moved = true;
-      deltaX = dx;
+      // 첫 카드에서 이전 방향, 마지막 카드에서 다음 방향으로 드래그해도
+      // 갈 곳이 없다 — 트랙이 살짝 밀렸다 튕겨 돌아오는 어색한 움직임
+      // 대신 그 방향으로는 아예 반응하지 않게 델타를 0으로 막는다.
+      const atFirstGoingPrev = index === 0 && dx > 0;
+      const atLastGoingNext = index === FINAL_INDEX && dx < 0;
+      deltaX = (atFirstGoingPrev || atLastGoingNext) ? 0 : dx;
       const pct = (deltaX / viewport.clientWidth) * 100;
       track.style.transform = `translateX(${-index * 100 + pct}%)`;
     });
@@ -772,6 +797,10 @@
     CardDeck.open = function () {
       index = 0;
       syncUI();
+      syncViewportHeight();
+      // 열리는 시점엔 폰트·티커 실시간 값 등이 아직 자리를 잡는 중일 수
+      // 있어, 페인트 한 번 지난 뒤 다시 재서 확정한다.
+      requestAnimationFrame(syncViewportHeight);
       history.replaceState({ deckIndex: 0 }, "", "#card-1");
     };
     CardDeck.goToLast = function () {
@@ -1175,11 +1204,17 @@
   /* ══════════════ 탭 0 · 내 물가 ══════════════ */
   const groupTotal = (g) => g.members.reduce((sum, id) => sum + (state.spending[id] || 0), 0);
 
+  // v11: 세부 품목별 금액을 접힌 텍스트 목록 대신 가로 막대그래프로
+  // 기본 펼쳐서 보여준다 — 금액과 비중이 한눈에 비교되도록.
+  function renderSpendChart() {
+    const rows = SPEND_GROUPS.map((g) => ({
+      label: g.name, value: groupTotal(g), color: SPEND_GROUP_COLOR[g.id],
+    }));
+    hBarChart($("#spendChart"), rows);
+  }
+
   function syncSpendingFields(syncTotal = true) {
-    SPEND_GROUPS.forEach((g) => {
-      const input = $(`#sp-${g.id}`);
-      if (input) input.value = Math.round(groupTotal(g));
-    });
+    renderSpendChart();
     if (syncTotal) {
       $("#monthlySpend").value = Math.round(spendingTotal(state.spending));
     }
@@ -1206,20 +1241,7 @@
       return;
     }
 
-    const row = (g) => {
-      return `<div class="spend-row">
-        <label for="sp-${g.id}">
-          <b>${g.name}</b>
-          <small>${g.hint}</small>
-        </label>
-        <span class="input-wrap">
-          <input type="number" id="sp-${g.id}" min="0" step="1" inputmode="numeric" value="${Math.round(groupTotal(g))}" readonly>
-          <span>만원</span>
-        </span>
-      </div>`;
-    };
-
-    $("#spendFields").innerHTML = SPEND_GROUPS.map(row).join("");
+    renderSpendChart();
 
     // 이 탭의 지출 입력은 이제 전부 readonly라 사용자가 직접 타이핑해서
     // "input" 이벤트를 쏠 일이 없다. 그래도 이 리스너는 남겨 둔다 —
@@ -1286,7 +1308,6 @@
       $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
       $("#vsFigures").textContent = "—";
       $("#americanoCallout").innerHTML = "";
-      $("#spendTotal").textContent = "0만원";
       $("#contribSummary").hidden = true;
       $("#contribRank").innerHTML = "";
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
@@ -1294,7 +1315,6 @@
     }
 
     state.personalRate = result.rate;
-    $("#spendTotal").textContent = `${man(result.total)}만원`;
     const diff = result.rate - official;
 
     // 기여도 분해 — 헤드라인이 "무엇 때문에" 비싼지 가리키는 항목도
@@ -1304,20 +1324,30 @@
       .sort((a, b) => b.contribution - a.contribution);
     const ranked = grouped.filter((g) => g.amount > 0);
 
-    // %p 숫자보다 "나는 비싸게/저렴하게 살고 있다"는 체감 결론을 먼저
-    // 보여주고, 정확한 수치는 그 아래 작은 보조 정보로만 남긴다.
+    // "비싸게/저렴하게 산다"는 체감 결론만 있으면 무엇과 비교한 건지
+    // 애매하다는 피드백 — 가장 크게 기여한 항목의 실제 물가상승률을
+    // 공식 평균과 나란히 병기해서, 비교 기준이 문장 하나로 바로
+    // 보이게 한다(diff의 부호와 무관하게 항상 실제 수치만 말하므로
+    // "그래서 더/덜 올랐다"처럼 어긋날 수 있는 단정은 하지 않는다).
     const v = $("#mineVerdict");
+    const cause = ranked[0];
     if (Math.abs(diff) < 0.05) {
       v.className = "verdict";
       v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 거의 같아요.`;
     } else if (diff > 0) {
-      const causeName = ranked[0] ? ranked[0].name : null;
       v.className = "verdict warn";
-      v.innerHTML = `당신은 다른 사람들보다${causeName ? ` <b>${causeName}</b> 기준으로` : ""}
-        <b>더 비싸게 살고 있어요!</b>`;
+      v.innerHTML = cause
+        ? `당신은 다른 사람들보다 <b>더 비싸게 살고 있어요!</b>
+           가장 크게 영향을 준 <b>${cause.name}</b> 물가가 <b>${cause.rate.toFixed(1)}%</b>
+           올랐어요 (전체 평균 ${official.toFixed(1)}%).`
+        : `당신은 다른 사람들보다 <b>더 비싸게 살고 있어요!</b>`;
     } else {
       v.className = "verdict";
-      v.innerHTML = `당신은 다른 사람들보다 <b>더 저렴하게 살고 있어요!</b>`;
+      v.innerHTML = cause
+        ? `당신은 다른 사람들보다 <b>더 저렴하게 살고 있어요!</b>
+           지출 비중이 가장 큰 <b>${cause.name}</b> 물가는 <b>${cause.rate.toFixed(1)}%</b>예요
+           (전체 평균 ${official.toFixed(1)}%).`
+        : `당신은 다른 사람들보다 <b>더 저렴하게 살고 있어요!</b>`;
     }
     $("#vsFigures").textContent =
       `공식 물가 ${official.toFixed(1)}% · 내 물가 ${result.rate.toFixed(1)}% (${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%p)`;
@@ -1349,7 +1379,7 @@
       const first = ranked[0];
       const monthlyExtra = first.amount * (first.rate / 100);
       summary.hidden = false;
-      summary.innerHTML = `<b>${first.name}</b>${first.rate >= official
+      summary.innerHTML = `당신의 물가에서는 <b>${first.name}</b>${first.rate >= official
         ? `${josa(first.name, "이", "가")} 가장 많이 올랐어요`
         : `${josa(first.name, "은", "는")} 비중이 가장 커요`}
         (한 달에 약 ${man(Math.abs(monthlyExtra))}만원 ${monthlyExtra >= 0 ? "더" : "덜"} 나가요)`;
@@ -1672,10 +1702,7 @@
       <div class="stat"><span class="k">실질 +1% 목표 인상액</span><span class="v">${man(targetAmount)}만원</span>
         <span class="s">목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</span></div>
       <div class="stat"><span class="k">제안받은 인상액</span><span class="v">${man(offeredAmount)}만원</span>
-        <span class="s">현재 입력값 (${d.nominalRatePct.toFixed(1)}%)</span></div>
-      <div class="stat ${n.shortfallPp <= 0 ? "is-good" : "is-warn"}"><span class="k">차이</span>
-        <span class="v">${n.shortfallPp <= 0 ? "달성" : `${man(n.shortfallAmount)}만원 부족`}</span>
-        <span class="s">${n.shortfallPp <= 0 ? "목표 이상" : `${n.shortfallPp.toFixed(1)}포인트 차이`}</span></div>`;
+        <span class="s">설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</span></div>`;
 
     const v = $("#negoVerdict");
     if (n.shortfallPp <= 0) {

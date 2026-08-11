@@ -272,8 +272,14 @@ section { scroll-margin-top: 5rem; }
 .score-preview-conclusion {
   max-width: 26rem; margin: .5rem auto 0; padding: .7rem 1.1rem;
   background: var(--surface-2); border-radius: var(--radius-sm);
-  font-size: .86rem; font-weight: 600; line-height: 1.5;
+  font-size: .86rem; font-weight: 600; line-height: 1.6;
   text-align: center; color: var(--text-primary); word-break: keep-all;
+  /* 문장이 두 줄로 넘어갈 때 한쪽 줄만 유독 짧아지는 등 줄바꿈이
+     들쭉날쭉해 보인다는 피드백 — text-wrap:balance는 줄 길이를 최대한
+     고르게 맞춰준다(미지원 브라우저에서는 기본 자동 줄바꿈으로 안전하게
+     대체). 숫자(체감 물가 %)가 사람마다 달라 문장 길이가 매번 바뀌므로
+     특정 지점에 <br>을 박아두는 대신 이 방식이 항상 맞는다. */
+  text-wrap: balance;
 }
 .score-preview-conclusion[hidden] { display: none; }
 .score-ring-wrap { width: 168px; height: 168px; position: relative; margin-top: .3rem; }
@@ -452,13 +458,36 @@ section { scroll-margin-top: 5rem; }
 @media (max-width: 860px) { .deck-arrow { display: none; } }
 
 /* 카드 한 장 = 화면 한 장. 상단바+티커+점 인디케이터 높이를 뺀
-   나머지를 뷰포트 높이로 쓴다(.home-hero의 calc(100dvh - 9rem) 패턴과
-   동일한 방식). 콘텐츠가 넘치면 카드 안에서만 세로 스크롤된다. */
+   나머지를 뷰포트 높이로 쓴다. calc(100dvh - 13rem)은 JS가 실제
+   측정값으로 덮어쓰기 전까지의 초기값일 뿐이다 — 고정 rem 상수는
+   상단바 부제목이 줄바꿈되는 화면 폭(약 861~950px) 등에서 실제
+   헤더 높이와 어긋나 카드 위쪽이 sticky 헤더에 가려지는 문제가 있었다
+   (setupCardDeck의 syncViewportHeight 참고). 콘텐츠가 그래도 넘치면
+   카드 안에서만 세로 스크롤된다. */
 .deck-viewport {
   width: 100%; max-width: 540px; min-height: 420px;
   height: calc(100dvh - 13rem); height: calc(100svh - 13rem);
   overflow: hidden; border-radius: var(--radius); position: relative;
   touch-action: pan-y;
+}
+/* 데스크톱은 모바일 폭(540px)을 그대로 쓰면 좌우 여백이 불필요하게
+   넓다. 가로 배치(.deck-split)와 함께 화면을 더 활용하되, 텍스트
+   줄 길이가 늘어져 가독성이 떨어지지 않도록 1000px에서 제한한다. */
+@media (min-width: 861px) {
+  .deck-viewport { max-width: 1000px; }
+}
+
+/* 카드 안 요소를 데스크톱에서 2단으로 배치해 세로 길이를 줄인다
+   (카드 2의 정보+그래프, 카드 5의 소득 조건+진단 카드). 모바일은
+   화면이 좁아 강제하지 않고 기존처럼 세로로 쌓는다. */
+.deck-split { display: block; }
+.deck-split > * + * { margin-top: 1rem; }
+@media (min-width: 861px) {
+  .deck-split {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.4rem; align-items: start;
+  }
+  .deck-split > * + * { margin-top: 0; }
 }
 .deck-track {
   display: flex; height: 100%;
@@ -478,8 +507,6 @@ section { scroll-margin-top: 5rem; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; gap: 1rem; min-height: 100%;
 }
-.deck-swipe-hint { font-size: .78rem; color: var(--text-muted); margin-top: -.3rem; }
-
 /* 카드 1에만 "다음 카드 보기" 버튼이 있어서 카드 2부터는 점 인디케이터를
    직접 눌러야만 다음으로 넘어갈 수 있었다는 버그 리포트 — 모든 카드
    하단에 똑같이 둔다. display:block + margin:auto로 가운데 정렬하면
@@ -487,11 +514,11 @@ section { scroll-margin-top: 5rem; }
    양쪽에서 다 가운데로 온다. */
 .deck-next-btn { display: block; margin: 1.5rem auto 0; }
 .deck-card.is-cover .deck-next-btn { margin-top: 0; }
-
-/* 카드 7의 "처음으로 돌아가기" — 다른 카드의 .deck-next-btn과 같은
-   자리(카드 상단 콘텐츠 바로 아래)에 오는 마무리 버튼이라 같은 방식으로
-   가운데 정렬한다. */
-.deck-restart-link.home-start-btn { display: block; margin: 1.5rem auto 0; }
+/* 점 인디케이터·화살표·스와이프로도 이미 이동할 수 있는 보조
+   버튼(카드 1의 "다음 카드 보기", 카드 7의 목표/타임머신 진입 버튼)은
+   화면의 유일한 CTA처럼 크게 보일 필요가 없다 — 다른 텍스트 요소와
+   비슷한 비중으로 줄인다. */
+.home-start-btn.is-compact { font-size: .82rem; padding: .55rem 1.3rem; }
 
 @media (prefers-reduced-motion: reduce) {
   .deck-track { transition: none; }
@@ -1105,15 +1132,20 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
   .mix-desc-col { display: none; }
 }
 
-/* ---------- 내 물가 계산 과정 따라가기 ---------- */
+/* ---------- 내 물가 계산 과정 따라가기 ----------
+   전에는 이 박스 배경이 부모 카드(.card)와 같은 --surface-2라 테두리
+   왼쪽 선 하나로만 구분됐는데, 그러다 보니 ①②③ 단계가 위 설명
+   문단·아래 차트와 뭉쳐 보인다는 피드백이 있었다. 눌러앉은 톤
+   (--surface-sunk, 다른 중첩 박스들과 같은 톤)으로 실제 배경 대비를
+   주고, 위아래 여백과 단계 사이 간격을 넉넉히 늘려 하나의 "계산
+   과정" 블록으로 또렷하게 읽히게 했다. */
 .calc-walk {
-  margin: .1rem 0 .9rem; padding: .8rem .9rem;
-  background: var(--surface-2); border-radius: var(--radius-sm);
-  border-left: 3px solid var(--brand);
+  margin: .9rem 0 1.1rem; padding: 1rem 1.1rem;
+  background: var(--surface-sunk); border-radius: var(--radius-sm);
 }
 .calc-step {
-  margin: 0 0 .45rem; font-size: .82rem; line-height: 1.6;
-  color: var(--text-secondary); display: flex; gap: .55rem; align-items: baseline;
+  margin: 0 0 .7rem; font-size: .82rem; line-height: 1.6;
+  color: var(--text-secondary); display: flex; gap: .6rem; align-items: baseline;
 }
 .calc-step:last-child { margin-bottom: 0; }
 .calc-step b { color: var(--text-primary); font-weight: 700; }
@@ -1123,7 +1155,7 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
   font-size: .7rem; font-weight: 700; line-height: 1.25rem;
   text-align: center; align-self: flex-start;
 }
-.calc-last { padding-top: .5rem; border-top: 1px dashed var(--border); }
+.calc-last { margin-top: .2rem; padding-top: .7rem; border-top: 1px dashed var(--border-strong); }
 .calc-last .calc-no { background: transparent; color: var(--text-muted); font-size: .9rem; }
 .tip-ex { color: var(--text-muted); font-size: .72rem; }
 
