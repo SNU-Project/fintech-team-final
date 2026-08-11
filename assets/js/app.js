@@ -540,21 +540,28 @@
   // 리포트 맨 끝의 결론 — 4개 섹션 결과를 한데 모아 정리한다.
   // 투자 권유로 읽히면 안 되므로 단정 대신 "~해볼 만해요" 같은 선택지
   // 톤을 쓰고, 마지막 줄에서 참고자료라는 점을 다시 한 번 짚는다.
+  //
+  // 첫 줄은 연봉 입력이 있으면(cur > 0) 카드4("내 연봉 vs 물가")의 물가
+  // 유지선 계산(E.diagnose)을 그대로 재사용해 "방어하려면 얼마"/"이미
+  // 넘었다"처럼 실제 금액이 박힌 문장으로 바꾼다. 새 계산 로직이 아니라
+  // 카드4가 쓰는 것과 같은 값이라, 두 카드의 숫자가 어긋나지 않는다.
   function buildFinalConclusion() {
     const headline = buildConclusionHeadline();
     if (headline == null) {
       return "아직 결과를 계산할 수 없어요.\n리포트에서 값을 입력하면 여기서 정리해 드릴게요.";
     }
 
-    const lines = [headline];
-
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
+
+    const lines = [];
     if (cur > 0) {
       const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
       lines.push(d.beatsInflation
-        ? "내년 연봉은 물가를 이기고 있어서, 지금 페이스라면 실질 소득은 지켜지고 있어요."
-        : "내년 연봉은 물가를 다 따라가지 못하고 있어서, 그 차이를 투자나 협상으로 메워야 해요.");
+        ? `내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요. 지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.`
+        : `물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요. 그 차이는 투자나 협상으로 메워야 해요.`);
+    } else {
+      lines.push(headline);
     }
 
     lines.push("과거 데이터는 참고 자료일 뿐, 결정은 늘 본인의 몫입니다.");
