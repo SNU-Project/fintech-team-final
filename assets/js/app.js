@@ -744,7 +744,12 @@
       if (axis !== "x") return; // 세로 제스처는 카드 내부 스크롤에 그대로 맡긴다
       e.preventDefault();
       moved = true;
-      deltaX = dx;
+      // 첫 카드에서 이전 방향, 마지막 카드에서 다음 방향으로 드래그해도
+      // 갈 곳이 없다 — 트랙이 살짝 밀렸다 튕겨 돌아오는 어색한 움직임
+      // 대신 그 방향으로는 아예 반응하지 않게 델타를 0으로 막는다.
+      const atFirstGoingPrev = index === 0 && dx > 0;
+      const atLastGoingNext = index === FINAL_INDEX && dx < 0;
+      deltaX = (atFirstGoingPrev || atLastGoingNext) ? 0 : dx;
       const pct = (deltaX / viewport.clientWidth) * 100;
       track.style.transform = `translateX(${-index * 100 + pct}%)`;
     });
