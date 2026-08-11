@@ -1037,16 +1037,42 @@
     // 동작을 하도록 함수로 뽑아 여러 진입점이 공유한다(v9 — 카드뉴스로
     // 바뀌면서 재입력 경로가 어느 카드에도 안 보인다는 버그 리포트에
     // 대응해 진입점을 늘렸다).
-    function triggerRestart() {
-      // 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라 한 번
-      // 더 확인한다.
-      if (!confirm("처음부터 다시 입력할까요? 지금까지 입력한 내용은 모두 사라져요.")) return;
+    function performRestart() {
       localStorage.removeItem(ONBOARD_KEY);
       setReportVisible(false);
       draft = freshDraft();
       $$("#onbPersonaGrid button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.persona === DEFAULT_PERSONA)));
       wizardView.hidden = false;
       showStep(0);
+    }
+
+    // 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라 한 번 더
+    // 확인한다. window.confirm()은 실행을 동기적으로 막는 네이티브
+    // API라, 카카오톡 등 인앱 브라우저에서 그 다이얼로그 자체를 못
+    // 띄우거나 화면 밖으로 보내버리면 사용자 눈엔 페이지가 완전히
+    // 멈춘 것처럼 보인다 — "처음부터 다시 입력하기 클릭 시 페이지
+    // 멈춤" 버그 리포트와 정확히 일치하는 증상이라, confirm() 대신
+    // 페이지 안 <dialog>로 바꿨다.
+    const restartDialog = $("#restartConfirmDialog");
+    function triggerRestart() {
+      if (restartDialog && typeof restartDialog.showModal === "function") {
+        restartDialog.showModal();
+      } else {
+        // <dialog>를 못 쓰는 아주 오래된 브라우저를 위한 최후의 대체.
+        if (confirm("처음부터 다시 입력할까요? 지금까지 입력한 내용은 모두 사라져요.")) performRestart();
+      }
+    }
+    if (restartDialog) {
+      $("#restartConfirmBtn").addEventListener("click", () => {
+        restartDialog.close();
+        performRestart();
+      });
+      $("#restartCancelBtn").addEventListener("click", () => restartDialog.close());
+      // 카드 안(배경이 아닌 곳)을 눌렀을 때는 안 닫히게, 진짜 바깥
+      // 배경을 눌렀을 때만 취소로 처리한다.
+      restartDialog.addEventListener("click", (e) => {
+        if (e.target === restartDialog) restartDialog.close();
+      });
     }
     $$(".deck-restart-link").forEach((b) => b.addEventListener("click", triggerRestart));
 

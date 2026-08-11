@@ -553,6 +553,23 @@
   </svg>
 </button>
 
+<!-- 처음부터 다시 입력하기 확인 — window.confirm() 대신 페이지 안
+     <dialog>를 쓴다. 카카오톡 등 인앱 브라우저는 네이티브 confirm()을
+     아예 안 띄우거나 화면 밖으로 보내는 경우가 있는데, confirm()은
+     실행을 동기적으로 막는 API라 그러면 사용자 눈엔 페이지가 완전히
+     멈춘 것처럼 보인다("처음부터 다시 입력하기 클릭 시 페이지 멈춤"
+     버그 리포트와 정확히 일치하는 증상). <dialog>는 페이지 안
+     엘리먼트라 항상 화면에 그려지고, 스타일도 디자인 시스템에 맞출
+     수 있다. -->
+<dialog class="restart-dialog" id="restartConfirmDialog">
+  <p class="block-title">처음부터 다시 입력할까요?</p>
+  <p class="block-q">지금까지 입력한 내용은 모두 사라져요.</p>
+  <div class="restart-dialog-actions">
+    <button class="onboarding-back" id="restartCancelBtn" type="button">취소</button>
+    <button class="home-start-btn is-compact" id="restartConfirmBtn" type="button">처음부터 다시 입력하기</button>
+  </div>
+</dialog>
+
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/engine.js"></script>
 <script src="assets/js/live.js"></script>

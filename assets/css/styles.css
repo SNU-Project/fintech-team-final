@@ -1024,6 +1024,25 @@ footer a { color: var(--text-secondary); }
 .scroll-top-btn:active { transform: translateY(1px); }
 .scroll-top-btn svg { width: 20px; height: 20px; }
 
+/* ---------- 처음부터 다시 입력하기 확인 다이얼로그 ----------
+   window.confirm() 대신 페이지 안 <dialog>를 쓴다 — 인앱 브라우저에서
+   네이티브 confirm()이 안 뜨거나 화면 밖으로 나가버리면 confirm()의
+   동기 실행 특성 때문에 사용자 눈엔 페이지가 완전히 멈춘 것처럼
+   보인다. <dialog>는 그냥 페이지 안 엘리먼트라 항상 그려지고 스타일도
+   디자인 시스템 그대로 맞춘다. */
+.restart-dialog {
+  border: 0; padding: 1.4rem 1.5rem; border-radius: var(--radius);
+  background: var(--surface-1); color: var(--text-primary);
+  box-shadow: var(--shadow); max-width: min(90vw, 22rem);
+}
+.restart-dialog .block-title { margin: 0 0 .4rem; }
+.restart-dialog .block-q { margin: 0; color: var(--text-secondary); }
+.restart-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.restart-dialog-actions {
+  display: flex; justify-content: flex-end; align-items: center;
+  gap: .6rem; margin-top: 1.2rem;
+}
+
 /* ---------- 로딩 / 에러 ---------- */
 .skeleton { color: var(--text-muted); font-size: .85rem; padding: 1.4rem 0; text-align: center; }
 
