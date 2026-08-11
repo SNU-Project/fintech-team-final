@@ -137,8 +137,10 @@
   </section>
 
   <!-- ══════════════ 리포트 · 카드뉴스 덱 (v8) ══════════════
-       내 물가·실질임금 진단·결론을 세로 스크롤 대신 카드 7장을 좌우로
-       넘기며 보는 방식으로 바꿨다. id는 전부 예전 그대로 유지했다 —
+       내 물가·실질임금 진단·결론을 세로 스크롤 대신 카드 6장을 좌우로
+       넘기며 보는 방식으로 바꿨다(v12에서 "얼마나 비싸게 살고 있나"와
+       "범인은?" 카드를 하나로 합쳐 7장→6장이 됐다). id는 전부 예전
+       그대로 유지했다 —
        renderMine()/renderGap()/renderScore() 등은 전부 $("#id")로
        엘리먼트를 찾아 쓰는 구조라, 어느 카드가 감싸든 그대로 동작한다.
        설문 도중에는 숨겨 둔다 — 아직 안 끝난 설문 밑에 결과가 미리
@@ -218,7 +220,12 @@
             </div>
           </section>
 
-          <!-- 카드 3 · 얼마나 비싸게 살고 있나 -->
+          <!-- 카드 3 · 얼마나 비싸게 살고 있나 (구 카드3 "얼마나 비싸게
+               살고 있나" + 카드4 "범인은?" 통합 — 같은 이야기(내 물가가
+               어떤 항목 때문에 더 비싼지)를 두 카드로 나눌 필요가
+               없다는 피드백. 1위 항목을 두 번 말하던 문장(#contribSummary)은
+               지우고 그 정보(한 달에 약 X만원 더/덜 나가요)를
+               #mineVerdict 헤드라인 문장에 흡수했다. -->
           <section class="deck-card" id="card-3">
             <h2 class="report-heading">얼마나 비싸게 살고 있나</h2>
             <div class="card bento-hero">
@@ -227,13 +234,8 @@
               <p class="vs-figures" id="vsFigures">—</p>
               <div class="americano-callout" id="americanoCallout"></div>
             </div>
-          </section>
-
-          <!-- 카드 4 · 범인은? -->
-          <section class="deck-card" id="card-4">
-            <h2 class="report-heading">내 물가를 밀어올린 범인</h2>
             <div class="card bento-contrib">
-              <p class="verdict" id="contribSummary" hidden>—</p>
+              <h3 class="block-title">내 물가를 밀어올린 범인</h3>
               <ol class="contrib-rank" id="contribRank"></ol>
               <details class="calc-detail">
                 <summary>상세 계산 보기</summary>
@@ -245,8 +247,8 @@
             </div>
           </section>
 
-          <!-- 카드 5 · 내 연봉 vs 물가 -->
-          <section class="deck-card" id="card-5">
+          <!-- 카드 4 · 내 연봉 vs 물가 -->
+          <section class="deck-card" id="card-4">
             <h2 class="report-heading">내 연봉 vs 물가</h2>
             <div class="concept-note is-compact">
               <p><b>물가 유지선</b>은 작년과 똑같이 살려면 필요한 연봉입니다.
@@ -297,8 +299,8 @@
             </div>
           </section>
 
-          <!-- 카드 6 · 그래서 얼마 더 받아야 하나 -->
-          <section class="deck-card" id="card-6">
+          <!-- 카드 5 · 그래서 얼마 더 받아야 하나 -->
+          <section class="deck-card" id="card-5">
             <h2 class="report-heading">그래서 얼마 더 받아야 하나</h2>
             <div class="card bento-half-b">
               <h3 class="block-title">연봉 협상 가이드</h3>
@@ -308,8 +310,8 @@
             </div>
           </section>
 
-          <!-- 카드 7 · 결론 + 더 보기 -->
-          <section class="deck-card" id="card-7">
+          <!-- 카드 6 · 결론 + 더 보기 -->
+          <section class="deck-card" id="card-6">
             <div class="card final-card">
               <p class="kicker">마지막으로 정리하면</p>
               <h2 class="report-heading" id="finalHeadline">당신을 위한 결론</h2>

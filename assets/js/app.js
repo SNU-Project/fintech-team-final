@@ -571,8 +571,8 @@
   // 재생했다는 표시를 남기고 이후로는 완성된 문장을 바로 보여준다.
   // (v8 이전에는 스크롤로 카드에 처음 닿을 때 IntersectionObserver로
   // 트리거했는데, 카드뉴스 덱은 transform으로 카드를 넘기지 실제
-  // 스크롤이 아니라서 그 방식이 안 걸린다. CardDeck이 카드 7에 처음
-  // 도달하는 순간 이 로직을 직접 호출한다 — 아래 setupCardDeck 참고.)
+  // 스크롤이 아니라서 그 방식이 안 걸린다. CardDeck이 마지막 카드에
+  // 처음 도달하는 순간 이 로직을 직접 호출한다 — 아래 setupCardDeck 참고.)
   const FINAL_TYPED_KEY = "sr_finalConclusionTyped";
   function typeFinalConclusionOnce() {
     const body = $("#finalBody");
@@ -587,7 +587,7 @@
 
   // 목표 자산/타임머신은 카드뉴스 덱이 아니라 예전처럼 독립된 화면이다.
   // 버튼을 누르면 덱을 숨기고 그 화면을 보여주고, 그 화면 맨 위의
-  // "카드 리포트로 돌아가기"를 누르면 덱으로 복귀해 카드 7(결론)에
+  // "카드 리포트로 돌아가기"를 누르면 덱으로 복귀해 마지막 카드(결론)에
   // 이어서 보여준다. renderAll()이 이미 renderGoal()/renderTime()을
   // 항상 호출해 두므로 내용은 hidden 상태에서도 다 그려져 있다.
   function setupNextSteps() {
@@ -1028,7 +1028,7 @@
     // ---- 요약 화면 ----
     // 카드 이동은 화살표·점 인디케이터·스와이프만으로 이루어진다(v12 —
     // 카드마다 있던 "다음 카드 보기" 버튼은 이 셋과 중복이라 없앴다).
-    // "처음부터 다시 입력하기"는 카드 1·카드 7 양쪽, 그리고 헤더 로고
+    // "처음부터 다시 입력하기"는 카드 1·마지막 카드 양쪽, 그리고 헤더 로고
     // 클릭에서도 같은 동작을 하도록 함수로 뽑아 여러 진입점이
     // 공유한다(v9 — 카드뉴스로 바뀌면서 재입력 경로가 어느 카드에도
     // 안 보인다는 버그 리포트에
@@ -1330,7 +1330,6 @@
       $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
       $("#vsFigures").textContent = "—";
       $("#americanoCallout").innerHTML = "";
-      $("#contribSummary").hidden = true;
       $("#contribRank").innerHTML = "";
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
       return;
@@ -1351,8 +1350,14 @@
     // 공식 평균과 나란히 병기해서, 비교 기준이 문장 하나로 바로
     // 보이게 한다(diff의 부호와 무관하게 항상 실제 수치만 말하므로
     // "그래서 더/덜 올랐다"처럼 어긋날 수 있는 단정은 하지 않는다).
+    // v12: "얼마나 비싸게 살고 있나" 카드와 "범인" 카드를 하나로
+    // 합치면서, 예전에 범인 카드 쪽에서 따로 보여주던 "한 달에 약
+    // X만원 더/덜 나가요" 문장이 이 헤드라인과 같은 항목(1위)을 두 번
+    // 말하는 중복이 됐다 — 그 금액 정보만 이 문장에 흡수하고 별도
+    // 문단은 없앴다.
     const v = $("#mineVerdict");
     const cause = ranked[0];
+    const monthlyExtra = cause ? cause.amount * (cause.rate / 100) : 0;
     if (Math.abs(diff) < 0.05) {
       v.className = "verdict";
       v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 거의 같아요.`;
@@ -1361,7 +1366,7 @@
       v.innerHTML = cause
         ? `당신은 다른 사람들보다 <b>더 비싸게 살고 있어요!</b>
            가장 크게 영향을 준 <b>${cause.name}</b> 물가가 <b>${cause.rate.toFixed(1)}%</b>
-           올랐어요 (전체 평균 ${official.toFixed(1)}%).`
+           올랐어요 (전체 평균 ${official.toFixed(1)}%, 한 달에 약 ${man(Math.abs(monthlyExtra))}만원 더 나가요).`
         : `당신은 다른 사람들보다 <b>더 비싸게 살고 있어요!</b>`;
     } else {
       v.className = "verdict";
@@ -1395,19 +1400,6 @@
         <span class="rank-name">${g.name}</span>
       </li>`;
     $("#contribRank").innerHTML = ranked.map((g, i) => rankRow(g, i)).join("");
-
-    const summary = $("#contribSummary");
-    if (ranked.length) {
-      const first = ranked[0];
-      const monthlyExtra = first.amount * (first.rate / 100);
-      summary.hidden = false;
-      summary.innerHTML = `당신의 물가에서는 <b>${first.name}</b>${first.rate >= official
-        ? `${josa(first.name, "이", "가")} 가장 많이 올랐어요`
-        : `${josa(first.name, "은", "는")} 비중이 가장 커요`}
-        (한 달에 약 ${man(Math.abs(monthlyExtra))}만원 ${monthlyExtra >= 0 ? "더" : "덜"} 나가요)`;
-    } else {
-      summary.hidden = true;
-    }
 
     Charts.contributionChart($("#contribChart"),
       grouped.filter((g) => g.amount > 0).map((g) => ({
