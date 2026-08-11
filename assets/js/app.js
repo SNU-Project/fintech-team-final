@@ -1324,20 +1324,30 @@
       .sort((a, b) => b.contribution - a.contribution);
     const ranked = grouped.filter((g) => g.amount > 0);
 
-    // %p 숫자보다 "나는 비싸게/저렴하게 살고 있다"는 체감 결론을 먼저
-    // 보여주고, 정확한 수치는 그 아래 작은 보조 정보로만 남긴다.
+    // "비싸게/저렴하게 산다"는 체감 결론만 있으면 무엇과 비교한 건지
+    // 애매하다는 피드백 — 가장 크게 기여한 항목의 실제 물가상승률을
+    // 공식 평균과 나란히 병기해서, 비교 기준이 문장 하나로 바로
+    // 보이게 한다(diff의 부호와 무관하게 항상 실제 수치만 말하므로
+    // "그래서 더/덜 올랐다"처럼 어긋날 수 있는 단정은 하지 않는다).
     const v = $("#mineVerdict");
+    const cause = ranked[0];
     if (Math.abs(diff) < 0.05) {
       v.className = "verdict";
       v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 거의 같아요.`;
     } else if (diff > 0) {
-      const causeName = ranked[0] ? ranked[0].name : null;
       v.className = "verdict warn";
-      v.innerHTML = `당신은 다른 사람들보다${causeName ? ` <b>${causeName}</b> 기준으로` : ""}
-        <b>더 비싸게 살고 있어요!</b>`;
+      v.innerHTML = cause
+        ? `당신은 다른 사람들보다 <b>더 비싸게 살고 있어요!</b>
+           가장 크게 영향을 준 <b>${cause.name}</b> 물가가 <b>${cause.rate.toFixed(1)}%</b>
+           올랐어요 (전체 평균 ${official.toFixed(1)}%).`
+        : `당신은 다른 사람들보다 <b>더 비싸게 살고 있어요!</b>`;
     } else {
       v.className = "verdict";
-      v.innerHTML = `당신은 다른 사람들보다 <b>더 저렴하게 살고 있어요!</b>`;
+      v.innerHTML = cause
+        ? `당신은 다른 사람들보다 <b>더 저렴하게 살고 있어요!</b>
+           지출 비중이 가장 큰 <b>${cause.name}</b> 물가는 <b>${cause.rate.toFixed(1)}%</b>예요
+           (전체 평균 ${official.toFixed(1)}%).`
+        : `당신은 다른 사람들보다 <b>더 저렴하게 살고 있어요!</b>`;
     }
     $("#vsFigures").textContent =
       `공식 물가 ${official.toFixed(1)}% · 내 물가 ${result.rate.toFixed(1)}% (${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%p)`;
