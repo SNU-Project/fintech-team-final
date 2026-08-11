@@ -29,37 +29,7 @@
   </div>
 </header>
 
-<div class="wrap app-container">
-  <aside class="sidebar" id="mainTabs" aria-label="섹션 바로가기" hidden>
-    <div class="sidebar-header">
-      <span class="sidebar-title">페이지 바로가기</span>
-    </div>
-    <nav class="sidebar-nav">
-      <a class="tab" id="tab-home" href="#panel-home">
-        <span class="tab-num">01</span>
-        <span class="tab-text">홈</span>
-      </a>
-      <a class="tab" id="tab-mine" href="#card-2">
-        <span class="tab-num">02</span>
-        <span class="tab-text">내 물가</span>
-      </a>
-      <a class="tab" id="tab-gap" href="#card-4">
-        <span class="tab-num">03</span>
-        <span class="tab-text">실질임금 진단</span>
-      </a>
-      <a class="tab" id="tab-final" href="#card-7">
-        <span class="tab-num">04</span>
-        <span class="tab-text">당신을 위한 결론 &amp; 목표 자산과 자산 타임머신</span>
-      </a>
-      <a class="tab" id="tab-basis" href="#basis">
-        <span class="tab-num">05</span>
-        <span class="tab-text">계산 근거와 데이터 출처</span>
-      </a>
-    </nav>
-  </aside>
-
-  <div class="main-body">
-    <main id="top">
+<main class="wrap" id="top">
 
   <!-- ══════════════ 홈 · 온보딩 → 로딩 → 요약 ══════════════
        탭이 패널을 숨기지 않으므로, 아래로 내 물가 → 실질임금 진단 →
@@ -363,7 +333,7 @@
           <section class="deck-card" id="card-7">
             <div class="card final-card">
               <p class="kicker">마지막으로 정리하면</p>
-              <h2 class="report-heading" id="finalHeadline">당신을 위한 결론 &amp; 목표 자산과 자산 타임머신</h2>
+              <h2 class="report-heading" id="finalHeadline">당신을 위한 결론</h2>
               <p class="final-body" id="finalBody"></p>
               <button class="home-start-btn is-compact pdf-download-btn" id="downloadReportBtn" type="button">PDF로 다운받기</button>
             </div>
@@ -608,8 +578,6 @@
     <p class="copyright">&copy; 2026 연봉 성적표 팀. 모든 권리 보유.</p>
   </footer>
 </main>
-</div><!-- /.main-body -->
-</div><!-- /.app-container -->
 
 <div id="tooltip" hidden></div>
 

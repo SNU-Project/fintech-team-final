@@ -153,7 +153,6 @@
     state.inflation = state.cpi.latest.yoy;
 
     setupNumberInputGuards();
-    setupTabs();
     setupMineTab();
     setupGapTab();
     setupGoalTab();
@@ -176,50 +175,6 @@
 
     // 실시간은 화면이 다 그려진 뒤에 붙인다 (실패해도 화면은 이미 완성)
     hydrateLive();
-  }
-
-  function setupTabs() {
-    const tabs = $$(".sidebar .tab");
-    if (!tabs.length) return;
-
-    const tabBySection = new Map(tabs.map((t) => [t.getAttribute("href").slice(1), t]));
-
-    tabs.forEach((tab) => {
-      tab.addEventListener("click", (e) => {
-        const id = tab.getAttribute("href").slice(1);
-        const target = document.getElementById(id);
-        if (!target) return;
-        e.preventDefault();
-
-        if (target.hidden) {
-          target.hidden = false;
-        }
-
-        if (id.startsWith("card-") && typeof window.goToDeckCard === "function") {
-          const cardIndex = parseInt(id.replace("card-", ""), 10) - 1;
-          if (!isNaN(cardIndex)) {
-            window.goToDeckCard(cardIndex);
-          }
-        }
-
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    });
-
-    const targetElements = Array.from(tabBySection.keys())
-      .map((id) => document.getElementById(id))
-      .filter(Boolean);
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        tabs.forEach((t) => t.removeAttribute("aria-current"));
-        const matchingTab = tabBySection.get(entry.target.id);
-        if (matchingTab) matchingTab.setAttribute("aria-current", "true");
-      });
-    }, { rootMargin: "-30% 0px -60% 0px", threshold: 0 });
-
-    targetElements.forEach((el) => observer.observe(el));
   }
 
   /* ══════════════ 실시간 ══════════════ */
@@ -310,7 +265,6 @@
     $("#deck").hidden = !visible;
     $("#ticker").hidden = !visible;
     $("#basis").hidden = !visible;
-    if ($("#mainTabs")) $("#mainTabs").hidden = !visible;
     if (!visible) {
       $("#panel-goal").hidden = true;
       $("#panel-time").hidden = true;
@@ -840,7 +794,6 @@
         history.pushState({ deckIndex: index }, "", `#card-${index + 1}`);
       }
     }
-    window.goToDeckCard = goTo;
 
     prevBtn.addEventListener("click", () => goTo(index - 1));
     nextBtn.addEventListener("click", () => goTo(index + 1));
