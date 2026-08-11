@@ -705,11 +705,6 @@
 
     prevBtn.addEventListener("click", () => goTo(index - 1));
     nextBtn.addEventListener("click", () => goTo(index + 1));
-    // 카드 1에만 있던 "다음 카드 보기" 버튼을 모든 카드(1~6) 하단에
-    // 똑같이 둔다 — 점 인디케이터를 직접 눌러야만 다음 카드로 갈 수
-    // 있어 발견하기 어렵다는 버그 리포트에 대응. 클래스 하나로 위임해서
-    // 카드가 늘어나도 개별 배선이 필요 없게 한다.
-    $$(".deck-next-btn").forEach((b) => b.addEventListener("click", () => goTo(index + 1)));
 
     document.addEventListener("keydown", (e) => {
       if (deckEl.hidden) return;
@@ -1031,11 +1026,12 @@
     });
 
     // ---- 요약 화면 ----
-    // "리포트 보기"(카드 1 → 카드 2)는 카드뉴스 덱 안(setupCardDeck의
-    // .deck-next-btn 델리게이션)에서 처리한다. "처음부터 다시
-    // 입력하기"는 카드 1·카드 7 양쪽, 그리고 헤더 로고 클릭에서도 같은
-    // 동작을 하도록 함수로 뽑아 여러 진입점이 공유한다(v9 — 카드뉴스로
-    // 바뀌면서 재입력 경로가 어느 카드에도 안 보인다는 버그 리포트에
+    // 카드 이동은 화살표·점 인디케이터·스와이프만으로 이루어진다(v12 —
+    // 카드마다 있던 "다음 카드 보기" 버튼은 이 셋과 중복이라 없앴다).
+    // "처음부터 다시 입력하기"는 카드 1·카드 7 양쪽, 그리고 헤더 로고
+    // 클릭에서도 같은 동작을 하도록 함수로 뽑아 여러 진입점이
+    // 공유한다(v9 — 카드뉴스로 바뀌면서 재입력 경로가 어느 카드에도
+    // 안 보인다는 버그 리포트에
     // 대응해 진입점을 늘렸다).
     function performRestart() {
       localStorage.removeItem(ONBOARD_KEY);
