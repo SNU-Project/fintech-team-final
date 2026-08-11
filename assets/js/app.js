@@ -537,6 +537,22 @@
     return `체감 물가 ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`;
   }
 
+  // 카드3("얼마나 비싸게 살고 있나")의 "범인" 랭킹 1위를 그대로 다시
+  // 계산한다 — renderMine()의 지역 변수(cause)를 그대로 재사용할 수는
+  // 없으므로, 같은 E.personalInflation/E.aggregateByGroup 호출을
+  // 그대로 반복해 같은 값을 얻는다(카드3과 결론 카드가 다른 1위를
+  // 말하면 안 되니까).
+  function topSpendingCause() {
+    const cats = state.cpi.categories || [];
+    if (!cats.length) return null;
+    const result = E.personalInflation(state.spending, cats);
+    if (!result) return null;
+    const ranked = E.aggregateByGroup(result.contributions, SPEND_GROUPS)
+      .sort((a, b) => b.contribution - a.contribution)
+      .filter((g) => g.amount > 0);
+    return ranked[0] || null;
+  }
+
   // 리포트 맨 끝의 결론 — 4개 섹션 결과를 한데 모아 정리한다.
   // 투자 권유로 읽히면 안 되므로 단정 대신 "~해볼 만해요" 같은 선택지
   // 톤을 쓰고, 마지막 줄에서 참고자료라는 점을 다시 한 번 짚는다.
@@ -545,6 +561,10 @@
   // 유지선 계산(E.diagnose)을 그대로 재사용해 "방어하려면 얼마"/"이미
   // 넘었다"처럼 실제 금액이 박힌 문장으로 바꾼다. 새 계산 로직이 아니라
   // 카드4가 쓰는 것과 같은 값이라, 두 카드의 숫자가 어긋나지 않는다.
+  //
+  // 물가를 이기는 경우(beatsInflation)는 "괜찮다"에서 끝내지 않고, 그
+  // 여유분(카드4의 "연간 여유"와 같은 값)을 목표 자산에 보태보라는
+  // 제안과, 카드3의 1위 항목은 계속 지켜보라는 안내를 이어 붙인다.
   function buildFinalConclusion() {
     const headline = buildConclusionHeadline();
     if (headline == null) {
@@ -557,9 +577,16 @@
     const lines = [];
     if (cur > 0) {
       const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
-      lines.push(d.beatsInflation
-        ? `내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요. 지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.`
-        : `물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요. 그 차이는 투자나 협상으로 메워야 해요.`);
+      if (d.beatsInflation) {
+        lines.push(`내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요. 지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.`);
+        const cause = topSpendingCause();
+        const surplus = man(-d.gap);
+        lines.push(cause
+          ? `여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요? 다만 ${cause.name}처럼 유독 많이 오른 항목은 계속 지켜보는 게 좋아요.`
+          : `여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요?`);
+      } else {
+        lines.push(`물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요. 그 차이는 투자나 협상으로 메워야 해요.`);
+      }
     } else {
       lines.push(headline);
     }
