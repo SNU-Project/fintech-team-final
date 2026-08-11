@@ -575,18 +575,23 @@
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
 
+    // 문장 두 개를 한 줄에 이어붙이면(예: "…넘었어요. 지금 페이스라면…")
+    // 화면 폭에 따라 줄바꿈이 "유독 많이 / 오른"처럼 의미 단위 중간에서
+    // 끊길 수 있다 — 문장 하나당 줄 하나(lines.push 하나)로 쪼개서,
+    // white-space:pre-line이 자동 줄바꿈보다 먼저 문장 경계에서 끊게 한다.
     const lines = [];
     if (cur > 0) {
       const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
       if (d.beatsInflation) {
-        lines.push(`내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요. 지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.`);
+        lines.push(`내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요.`);
+        lines.push("지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.");
         const cause = topSpendingCause();
         const surplus = man(-d.gap);
-        lines.push(cause
-          ? `여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요? 다만 ${cause.name}처럼 유독 많이 오른 항목은 계속 지켜보는 게 좋아요.`
-          : `여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요?`);
+        lines.push(`여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요?`);
+        if (cause) lines.push(`다만 ${cause.name}처럼 유독 많이 오른 항목은 계속 지켜보는 게 좋아요.`);
       } else {
-        lines.push(`물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요. 그 차이는 투자나 협상으로 메워야 해요.`);
+        lines.push(`물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요.`);
+        lines.push("그 차이는 투자나 협상으로 메워야 해요.");
       }
     } else {
       lines.push(headline);
@@ -1834,6 +1839,16 @@
       <div class="stat"><span class="k">제안받은 인상액</span><span class="v">${man(offeredAmount)}만원</span>
         <span class="s">설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</span></div>`;
 
+    // 인쇄용 표 — 화면의 막대그래프(#negoChart)는 정적 인쇄물에서 축 없이
+    // 크기만으로는 세 값을 비교하기 어려워, 같은 값을 표로도 병기한다.
+    const negoTableBody = $("#negoPrintTable tbody");
+    if (negoTableBody) {
+      negoTableBody.innerHTML = `
+        <tr><td>물가 방어 최소 인상액</td><td class="num">${man(defendAmount)}만원</td><td>최소 기준선 (${state.inflation.toFixed(1)}%)</td></tr>
+        <tr><td>실질 +1% 목표 인상액</td><td class="num">${man(targetAmount)}만원</td><td>목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</td></tr>
+        <tr><td>제안받은 인상액</td><td class="num">${man(offeredAmount)}만원</td><td>설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</td></tr>`;
+    }
+
     const v = $("#negoVerdict");
     if (achieved) {
       v.className = "verdict";
@@ -2176,12 +2191,51 @@
   }
 
   /* ══════════════ 전체 렌더 ══════════════ */
+  // 인쇄(PDF) 문서 맨 위에만 보이는 제목·생성일·요약 한 줄 — 화면에는
+  // .print-only가 항상 숨긴다. 새 계산 없이 이미 화면에 있는 값만
+  // 다시 읽어서 문장으로 합친다.
+  function renderPrintMeta() {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일 생성`;
+
+    const reportMeta = $("#printMetaReport");
+    if (reportMeta) {
+      const persona = $("#personaLabel")?.textContent || "—";
+      const cur = Math.max(0, +$("#curSalary").value || 0);
+      const next = Math.max(0, +$("#nextSalary").value || 0);
+      reportMeta.textContent = cur > 0
+        ? `가구 유형: ${persona} · 현재 연봉 ${man(cur)}만원 · 내년 예상 연봉 ${man(next)}만원 · ${dateStr}`
+        : dateStr;
+    }
+
+    const goalMeta = $("#printMetaGoal");
+    if (goalMeta) {
+      const goal = Math.max(0, +$("#goalAmount").value || 0);
+      const { years, months } = readGoalDuration();
+      goalMeta.textContent = goal > 0
+        ? `목표 금액 ${man(goal)}만원 · 목표 기간 ${years}년 ${months}개월 · ${dateStr}`
+        : dateStr;
+    }
+
+    const timeMeta = $("#printMetaTime");
+    if (timeMeta) {
+      const amount = Math.max(0, +$("#investAmount").value || 0);
+      const assetNames = state.market
+        ? state.market.assets.filter((a) => state.picks.has(a.id)).map((a) => a.name).join(", ")
+        : "";
+      timeMeta.textContent = state.startMonth
+        ? `투자 시작 ${E.monthLabel(state.startMonth)} · 투자 금액 ${man(amount)}만원${assetNames ? ` · 비교 자산 ${assetNames}` : ""} · ${dateStr}`
+        : dateStr;
+    }
+  }
+
   function renderAll() {
     if (!state.market) return;
     renderMine();
     renderGap();
     renderGoal();
     renderTime();
+    renderPrintMeta();
   }
 
   document.addEventListener("DOMContentLoaded", boot);

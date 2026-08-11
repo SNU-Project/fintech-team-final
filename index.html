@@ -149,6 +149,10 @@
        설문 도중에는 숨겨 둔다 — 아직 안 끝난 설문 밑에 결과가 미리
        보이면 안 된다. 설문을 마치면(또는 재방문자면) JS가 드러낸다. -->
   <section class="deck" id="deck" hidden>
+    <div class="print-doc-header print-only">
+      <p class="print-doc-title">연봉 성적표</p>
+      <p class="print-doc-meta" id="printMetaReport"></p>
+    </div>
     <div class="deck-dots" id="deckDots" role="tablist" aria-label="카드 진행"></div>
     <p class="visually-hidden" id="deckLiveRegion" aria-live="polite"></p>
 
@@ -328,6 +332,10 @@
               <p class="block-q">물가를 방어하려면 최소 얼마를 올려야 하는지, 세 금액을 나란히 비교합니다.</p>
               <div class="chart-box is-compact-bar" id="negoChart"></div>
               <div class="stat-grid" id="negoStats"></div>
+              <table class="print-only print-only-table" id="negoPrintTable">
+                <thead><tr><th>항목</th><th class="num">금액</th><th>기준</th></tr></thead>
+                <tbody></tbody>
+              </table>
               <p class="verdict" id="negoVerdict">—</p>
             </div>
           </section>
@@ -366,6 +374,10 @@
   <!-- ══════════════ 리포트 3 · 목표 자산 ══════════════ -->
   <section class="panel" id="panel-goal" hidden>
     <button class="deck-back-btn" type="button">← 카드 리포트로 돌아가기</button>
+    <div class="print-doc-header print-only">
+      <p class="print-doc-title">목표 자산 계획</p>
+      <p class="print-doc-meta" id="printMetaGoal"></p>
+    </div>
     <h2 class="report-heading">목표 자산 모으기</h2>
     <p class="report-intro">다음은 목표까지 얼마나 남았는지 계산해봤어요.</p>
     <button class="home-start-btn is-compact pdf-download-btn" id="downloadGoalBtn" type="button">PDF로 다운받기</button>
@@ -467,6 +479,10 @@
   <!-- ══════════════ 리포트 4 · 자산 타임머신 ══════════════ -->
   <section class="panel" id="panel-time" hidden>
     <button class="deck-back-btn" type="button">← 카드 리포트로 돌아가기</button>
+    <div class="print-doc-header print-only">
+      <p class="print-doc-title">자산 타임머신</p>
+      <p class="print-doc-meta" id="printMetaTime"></p>
+    </div>
     <h2 class="report-heading">자산 타임머신</h2>
     <p class="report-intro">마지막으로, 그때 샀다면 어땠을지 시간을 되돌려볼게요.</p>
     <button class="home-start-btn is-compact pdf-download-btn" id="downloadTimeBtn" type="button">PDF로 다운받기</button>
