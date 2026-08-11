@@ -35,11 +35,6 @@
   };
   const colorOf = (id) => ASSET_COLOR[id] || "var(--text-muted)";
 
-  // 체감 물가 격차를 실물 감각으로 보여주는 기준가 — 매장마다 다른
-  // 가정값이라 '가정값' 배지로 명시한다(CLAUDE.md의 "가정값 0개" 원칙에 대한
-  // 예외로 기록해 둠).
-  const ICED_AMERICANO_PRICE = 4500;
-
   const PERSONA_DATA = window.Personas;
   const PERSONAS = PERSONA_DATA.profiles;
   const DEFAULT_PERSONA = "solo";
@@ -1347,8 +1342,9 @@
       state.personalRate = null;
       $("#mineVerdict").className = "verdict";
       $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
-      $("#vsFigures").textContent = "—";
-      $("#americanoCallout").innerHTML = "";
+      $("#officialRateBig").textContent = "—";
+      $("#myRateBig").textContent = "—";
+      $("#myRateDiff").textContent = "—";
       $("#contribRank").innerHTML = "";
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
       return;
@@ -1395,18 +1391,14 @@
            (전체 평균 ${official.toFixed(1)}%).`
         : `당신은 다른 사람들보다 <b>더 저렴하게 살고 있어요!</b>`;
     }
-    $("#vsFigures").textContent =
-      `공식 물가 ${official.toFixed(1)}% · 내 물가 ${result.rate.toFixed(1)}% (${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%p)`;
-
-    // 만원 단위 %p 격차보다 실물로 와닿는 지표 — 이번 달 체감 격차를
-    // 아이스 아메리카노 잔수로 환산한다.
-    const monthlyGapWon = result.total * (diff / 100); // 만원
-    const cups = Math.round((Math.abs(monthlyGapWon) * 10000) / ICED_AMERICANO_PRICE);
-    $("#americanoCallout").innerHTML = `
-      <span class="americano-icon" aria-hidden="true">☕</span>
-      <p>아이스 아메리카노 기준으로 보면, 한 달에 <b>${cups}잔</b> 값이 ${diff >= 0 ? "더 들어요" : "덜 들어요"}
-        <span class="risk-badge risk-mid">가정값</span></p>
-      <p class="americano-sub">기준가 ${ICED_AMERICANO_PRICE.toLocaleString("ko-KR")}원 · 이번 달 격차 기준</p>`;
+    // v13: "공식 물가 2.8% · 내 물가 2.9%"가 작은 보조 텍스트라 헤드라인
+    // 문장에 묻혀 보인다는 피드백 — 카드의 시각적 중심이 되도록 큰
+    // 숫자로 따로 뺐다(.price-compare, 아이스 아메리카노 카드를 없앤
+    // 자리). 헤드라인 문장은 그대로 아래에 이어져 "왜"를 설명한다.
+    $("#officialRateBig").textContent = `${official.toFixed(1)}%`;
+    $("#myRateBig").textContent = `${result.rate.toFixed(1)}%`;
+    $("#myRateDiff").textContent = `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%p`;
+    $("#myRateDiff").className = `price-compare-diff ${diff > 0 ? "is-warn" : diff < 0 ? "is-good" : ""}`;
 
     // 그래프는 12개 실카테고리(top)를 5개 그룹(grouped/ranked, 위에서
     // 이미 계산)으로 묶어서 보여준다(품목이 너무 많아 읽기 힘들다는
@@ -1729,6 +1721,22 @@
     const defendAmount = cur * (state.inflation / 100);
     const offeredAmount = cur * (d.nominalRatePct / 100);
     const targetAmount = n.targetSalary - cur;
+    const achieved = n.shortfallPp <= 0;
+
+    // v13: 세 금액이 숫자 카드로만 나열돼 있어 한눈에 비교가 안
+    // 된다는 피드백 — 카드 4의 연봉 비교(barChart)와 같은 컴포넌트를
+    // 재사용해 나란히 놓고, "제안받은 인상액" 막대 색으로 목표
+    // 달성 여부를 바로 보여준다(과거 "차이 — 달성" 카드가 하던 역할).
+    barChart($("#negoChart"), [
+      { label: "물가 방어 최소", value: defendAmount, color: "var(--baseline)" },
+      { label: "실질 +1% 목표", value: targetAmount, color: "var(--brand)" },
+      {
+        label: "제안받은 인상액", value: offeredAmount,
+        color: achieved ? "var(--good)" : "var(--critical)",
+        sub: achieved ? "목표 달성" : "목표 미달", subColor: achieved ? "var(--good-text)" : "var(--critical-text)",
+      },
+    ]);
+
     $("#negoStats").innerHTML = `
       <div class="stat"><span class="k">물가 방어 최소 인상액</span><span class="v">${man(defendAmount)}만원</span>
         <span class="s">최소 기준선 (${state.inflation.toFixed(1)}%)</span></div>
@@ -1738,7 +1746,7 @@
         <span class="s">설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</span></div>`;
 
     const v = $("#negoVerdict");
-    if (n.shortfallPp <= 0) {
+    if (achieved) {
       v.className = "verdict";
       v.innerHTML = `제안받은 <b>${man(offeredAmount)}만원</b>(${d.nominalRatePct.toFixed(1)}%)은 물가에 실질 +1%를 더한 목표선을 이미 넘었습니다.`;
     } else {

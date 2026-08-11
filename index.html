@@ -91,7 +91,7 @@
         <p class="kicker">Q2 · 내 물가</p>
         <h2>한 달 생활비는 얼마 정도인가요?</h2>
         <div class="card onboarding-card is-wide">
-          <label class="field">내 월 생활비
+          <label class="field">월 생활비
             <span class="input-wrap"><input type="number" id="onbMonthlySpend" min="0" step="10" inputmode="numeric"><span>만원</span></span>
           </label>
           <p class="field-note">방금 고른 생활 유형의 평균값을 채워 뒀어요.</p>
@@ -136,10 +136,12 @@
   </section>
 
   <!-- ══════════════ 리포트 · 카드뉴스 덱 (v8) ══════════════
-       내 물가·실질임금 진단·결론을 세로 스크롤 대신 카드 6장을 좌우로
+       내 물가·실질임금 진단·결론을 세로 스크롤 대신 카드 7장을 좌우로
        넘기며 보는 방식으로 바꿨다(v12에서 "얼마나 비싸게 살고 있나"와
-       "범인은?" 카드를 하나로 합쳐 7장→6장이 됐다). id는 전부 예전
-       그대로 유지했다 —
+       "범인은?" 카드를 하나로 합쳐 7장→6장이 됐다가, v13에서 "내 연봉
+       vs 물가"가 스탯 5개까지 기본 펼침이 되며 다시 "인상률 상세
+       지표" 카드로 나뉘어 6장→7장이 됐다). id는 전부 예전 그대로
+       유지했다 —
        renderMine()/renderGap()/renderScore() 등은 전부 $("#id")로
        엘리먼트를 찾아 쓰는 구조라, 어느 카드가 감싸든 그대로 동작한다.
        설문 도중에는 숨겨 둔다 — 아직 안 끝난 설문 밑에 결과가 미리
@@ -211,15 +213,15 @@
                     <span class="input-wrap"><input type="number" id="monthlySpend" min="0" step="10" inputmode="numeric" value="0" readonly><span>만원</span></span>
                   </label>
                 </div>
-                <div>
+                <div class="spend-chart-col">
                   <p class="spend-details-label">세부 품목별 금액</p>
-                  <div class="donut-row">
+                  <div class="donut-row is-centered">
                     <div class="donut-wrap">
                       <div class="donut" id="spendDonut"></div>
                       <div class="donut-center" id="spendDonutCenter"></div>
                     </div>
                   </div>
-                  <div class="legend" id="spendLegend"></div>
+                  <div class="legend is-centered" id="spendLegend"></div>
                 </div>
               </div>
             </div>
@@ -235,9 +237,18 @@
             <h2 class="report-heading">얼마나 비싸게 살고 있나</h2>
             <div class="card bento-hero">
               <p class="kicker">뉴스에 나오는 물가는 전국 평균입니다</p>
+              <div class="price-compare">
+                <div class="price-compare-item">
+                  <span class="price-compare-label">공식 물가</span>
+                  <span class="price-compare-value" id="officialRateBig">—</span>
+                </div>
+                <div class="price-compare-item is-mine">
+                  <span class="price-compare-label">내 물가</span>
+                  <span class="price-compare-value" id="myRateBig">—</span>
+                  <span class="price-compare-diff" id="myRateDiff">—</span>
+                </div>
+              </div>
               <p class="verdict" id="mineVerdict">—</p>
-              <p class="vs-figures" id="vsFigures">—</p>
-              <div class="americano-callout" id="americanoCallout"></div>
             </div>
             <div class="card bento-contrib">
               <h3 class="block-title">내 물가를 밀어올린 범인</h3>
@@ -286,17 +297,9 @@
               </div>
             </div>
 
-            <!-- v12: "막대그래프·자세한 수치 보기" 토글을 없애고 기본
-                 펼침으로 바꾸면서 세로 길이가 크게 늘었다 — 차트와
-                 스탯을 데스크톱에서 좌우로 배치(.deck-split)해 최대한
-                 스크롤 없이 들어오게 했다. 모바일은 기존처럼 세로로
-                 쌓인다. -->
             <div class="card">
               <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
-              <div class="deck-split">
-                <div class="chart-box" id="salaryChart"></div>
-                <div class="stat-grid is-2col" id="gapStats"></div>
-              </div>
+              <div class="chart-box is-compact-bar" id="salaryChart"></div>
             </div>
 
             <div class="card bento-half-a">
@@ -311,26 +314,41 @@
             </div>
           </section>
 
-          <!-- 카드 5 · 그래서 얼마 더 받아야 하나 -->
+          <!-- 카드 5 · 인상률 상세 지표 (v13: 카드 4 "내 연봉 vs 물가"가
+               막대그래프까지 기본 펼침이 된 뒤로 스탯 5개(명목 인상액/
+               실질 인상률/연간 여유·부족분/실제 구매력/벌어둔 시간·더
+               일해야 하는 날)까지 한 카드에 다 넣으면 스크롤 없이는
+               도저히 안 들어와서 카드를 분리했다 — 계산·데이터는
+               그대로, 노출 위치만 나눴다. 전체 폭을 쓰니 flex-wrap이
+               자연스럽게 여러 개를 한 줄에 배치해서 별도 grid 트릭이
+               필요 없다. -->
           <section class="deck-card" id="card-5">
+            <h2 class="report-heading">인상률 상세 지표</h2>
+            <p class="report-intro">막대그래프에서 계산한 수치를 자세히 볼게요.</p>
+            <div class="card">
+              <div class="stat-grid" id="gapStats"></div>
+            </div>
+          </section>
+
+          <!-- 카드 6 · 그래서 얼마 더 받아야 하나 -->
+          <section class="deck-card" id="card-6">
             <h2 class="report-heading">그래서 얼마 더 받아야 하나</h2>
             <div class="card bento-half-b">
               <h3 class="block-title">연봉 협상 가이드</h3>
-              <p class="block-q">물가를 방어하려면 최소 얼마를 올려야 하는지.</p>
+              <p class="block-q">물가를 방어하려면 최소 얼마를 올려야 하는지, 세 금액을 나란히 비교합니다.</p>
+              <div class="chart-box is-compact-bar" id="negoChart"></div>
               <div class="stat-grid" id="negoStats"></div>
               <p class="verdict" id="negoVerdict">—</p>
             </div>
           </section>
 
-          <!-- 카드 6 · 결론 + 더 보기 -->
-          <section class="deck-card" id="card-6">
+          <!-- 카드 7 · 결론 + 더 보기 -->
+          <section class="deck-card" id="card-7">
             <div class="card final-card">
               <p class="kicker">마지막으로 정리하면</p>
               <h2 class="report-heading" id="finalHeadline">당신을 위한 결론</h2>
               <p class="final-body" id="finalBody"></p>
             </div>
-
-            <button class="onboarding-back deck-restart-link" type="button">처음으로 돌아가기</button>
 
             <div class="card">
               <p class="kicker">더 보고 싶다면</p>
