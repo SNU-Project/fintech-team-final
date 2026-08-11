@@ -1379,7 +1379,7 @@
       const first = ranked[0];
       const monthlyExtra = first.amount * (first.rate / 100);
       summary.hidden = false;
-      summary.innerHTML = `<b>${first.name}</b>${first.rate >= official
+      summary.innerHTML = `당신의 물가에서는 <b>${first.name}</b>${first.rate >= official
         ? `${josa(first.name, "이", "가")} 가장 많이 올랐어요`
         : `${josa(first.name, "은", "는")} 비중이 가장 커요`}
         (한 달에 약 ${man(Math.abs(monthlyExtra))}만원 ${monthlyExtra >= 0 ? "더" : "덜"} 나가요)`;
