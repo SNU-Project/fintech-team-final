@@ -1702,10 +1702,7 @@
       <div class="stat"><span class="k">실질 +1% 목표 인상액</span><span class="v">${man(targetAmount)}만원</span>
         <span class="s">목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</span></div>
       <div class="stat"><span class="k">제안받은 인상액</span><span class="v">${man(offeredAmount)}만원</span>
-        <span class="s">현재 입력값 (${d.nominalRatePct.toFixed(1)}%)</span></div>
-      <div class="stat ${n.shortfallPp <= 0 ? "is-good" : "is-warn"}"><span class="k">차이</span>
-        <span class="v">${n.shortfallPp <= 0 ? "달성" : `${man(n.shortfallAmount)}만원 부족`}</span>
-        <span class="s">${n.shortfallPp <= 0 ? "목표 이상" : `${n.shortfallPp.toFixed(1)}포인트 차이`}</span></div>`;
+        <span class="s">설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</span></div>`;
 
     const v = $("#negoVerdict");
     if (n.shortfallPp <= 0) {
