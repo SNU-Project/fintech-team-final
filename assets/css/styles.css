@@ -121,6 +121,152 @@ body {
 
 section { scroll-margin-top: 5rem; }
 
+/* ---------- 메인 레이아웃 & 사이드바 ---------- */
+.app-container {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 1.8rem;
+  align-items: start;
+  padding-top: 1.2rem;
+  padding-bottom: 3rem;
+}
+
+.main-body {
+  min-width: 0;
+}
+
+.sidebar {
+  position: sticky;
+  top: 4.8rem;
+  z-index: 40;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1rem;
+  box-shadow: var(--shadow);
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sidebar[hidden] {
+  display: none !important;
+}
+
+.sidebar-header {
+  padding-bottom: .75rem;
+  margin-bottom: .75rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-title {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.sidebar-nav .tab {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .65rem .8rem;
+  font-size: .86rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  margin-bottom: 0;
+  white-space: normal;
+  line-height: 1.35;
+  transition: all .18s ease;
+  text-align: left;
+  appearance: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sidebar-nav .tab:hover {
+  background: color-mix(in srgb, var(--surface-2) 60%, var(--brand));
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.sidebar-nav .tab[aria-current="true"],
+.sidebar-nav .tab[aria-selected="true"] {
+  background: color-mix(in srgb, var(--brand) 18%, var(--surface-2));
+  color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 45%, transparent);
+  font-weight: 700;
+}
+
+.tab-num {
+  font-size: .75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  opacity: .75;
+  padding: .15rem .4rem;
+  background: var(--border);
+  border-radius: 4px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.sidebar-nav .tab[aria-current="true"] .tab-num,
+.sidebar-nav .tab[aria-selected="true"] .tab-num {
+  background: var(--brand);
+  color: #fff;
+  opacity: 1;
+}
+
+.tab-text {
+  flex: 1;
+  word-break: keep-all;
+}
+
+@media (max-width: 1023px) {
+  .app-container {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    padding-top: .8rem;
+  }
+  .sidebar {
+    position: sticky;
+    top: 3.5rem;
+    max-height: none;
+    overflow-x: auto;
+    padding: .5rem .6rem;
+    scrollbar-width: none;
+  }
+  .sidebar::-webkit-scrollbar { display: none; }
+  .sidebar-header { display: none; }
+  .sidebar-nav {
+    flex-direction: row;
+    gap: .35rem;
+    overflow-x: auto;
+  }
+  .sidebar-nav .tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: .5rem .75rem;
+    font-size: .82rem;
+  }
+  .tab-num { display: none; }
+}
+
 /* ---------- 상단바 ---------- */
 .topbar {
   position: sticky; top: 0; z-index: 50;
