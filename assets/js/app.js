@@ -793,6 +793,15 @@
 
     CardDeck.open = function () {
       index = 0;
+      // "처음부터 다시 입력하기"로 재입력한 뒤 다시 열리는 경우를 포함해,
+      // 덱이 새로 열릴 때마다 "마지막 카드에 처음 도달했다"는 상태를
+      // 다시 무장한다. 이걸 안 하면 재입력 전 한 번이라도 결론 카드를
+      // 봤을 경우 finalTyped가 true로 남아 있어서, 재입력 후 다시
+      // 마지막 카드에 가도 typeFinalConclusionOnce()가 아예 호출되지
+      // 않고 #finalBody에 이전 입력값 기준 문구가 그대로 남는 버그가
+      // 있었다(세션 재사용 시에만 재현 — 새로고침하면 finalTyped 자체가
+      // 초기화돼 안 보였다).
+      finalTyped = false;
       syncUI();
       syncViewportHeight();
       // 열리는 시점엔 폰트·티커 실시간 값 등이 아직 자리를 잡는 중일 수
