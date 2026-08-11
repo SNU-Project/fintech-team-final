@@ -167,6 +167,7 @@
       renderAll();
     });
     setupNextSteps();
+    setupPdfDownload();
     setupScrollReveal();
     setupScrollTopButton();
     renderBasis();
@@ -537,6 +538,22 @@
     return `체감 물가 ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`;
   }
 
+  // 카드3("얼마나 비싸게 살고 있나")의 "범인" 랭킹 1위를 그대로 다시
+  // 계산한다 — renderMine()의 지역 변수(cause)를 그대로 재사용할 수는
+  // 없으므로, 같은 E.personalInflation/E.aggregateByGroup 호출을
+  // 그대로 반복해 같은 값을 얻는다(카드3과 결론 카드가 다른 1위를
+  // 말하면 안 되니까).
+  function topSpendingCause() {
+    const cats = state.cpi.categories || [];
+    if (!cats.length) return null;
+    const result = E.personalInflation(state.spending, cats);
+    if (!result) return null;
+    const ranked = E.aggregateByGroup(result.contributions, SPEND_GROUPS)
+      .sort((a, b) => b.contribution - a.contribution)
+      .filter((g) => g.amount > 0);
+    return ranked[0] || null;
+  }
+
   // 리포트 맨 끝의 결론 — 4개 섹션 결과를 한데 모아 정리한다.
   // 투자 권유로 읽히면 안 되므로 단정 대신 "~해볼 만해요" 같은 선택지
   // 톤을 쓰고, 마지막 줄에서 참고자료라는 점을 다시 한 번 짚는다.
@@ -545,6 +562,10 @@
   // 유지선 계산(E.diagnose)을 그대로 재사용해 "방어하려면 얼마"/"이미
   // 넘었다"처럼 실제 금액이 박힌 문장으로 바꾼다. 새 계산 로직이 아니라
   // 카드4가 쓰는 것과 같은 값이라, 두 카드의 숫자가 어긋나지 않는다.
+  //
+  // 물가를 이기는 경우(beatsInflation)는 "괜찮다"에서 끝내지 않고, 그
+  // 여유분(카드4의 "연간 여유"와 같은 값)을 목표 자산에 보태보라는
+  // 제안과, 카드3의 1위 항목은 계속 지켜보라는 안내를 이어 붙인다.
   function buildFinalConclusion() {
     const headline = buildConclusionHeadline();
     if (headline == null) {
@@ -557,9 +578,16 @@
     const lines = [];
     if (cur > 0) {
       const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: state.inflation });
-      lines.push(d.beatsInflation
-        ? `내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요. 지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.`
-        : `물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요. 그 차이는 투자나 협상으로 메워야 해요.`);
+      if (d.beatsInflation) {
+        lines.push(`내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요. 지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.`);
+        const cause = topSpendingCause();
+        const surplus = man(-d.gap);
+        lines.push(cause
+          ? `여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요? 다만 ${cause.name}처럼 유독 많이 오른 항목은 계속 지켜보는 게 좋아요.`
+          : `여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요?`);
+      } else {
+        lines.push(`물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요. 그 차이는 투자나 협상으로 메워야 해요.`);
+      }
     } else {
       lines.push(headline);
     }
@@ -611,6 +639,63 @@
     $("#revealGoalBtn").addEventListener("click", () => openStandalone("panel-goal"));
     $("#revealTimeBtn").addEventListener("click", () => openStandalone("panel-time"));
     $$(".deck-back-btn").forEach((b) => b.addEventListener("click", backToDeck));
+  }
+
+  /* ══════════════ PDF 다운로드 ══════════════
+     CLAUDE.md가 빌드 도구·npm·외부 CDN 추가를 금지하고 있어서(PR
+     자동검사도 외부 CDN <script>를 막는다), html2canvas/jsPDF 같은
+     라이브러리를 새로 끌어오는 대신 브라우저 네이티브 인쇄
+     (window.print())를 쓴다. 사용자가 인쇄 대화상자에서 "대상"을
+     PDF로 저장하면 그게 곧 다운로드다 — 대부분의 브라우저는 이미
+     "PDF로 저장"이 기본 대상이다.
+     라이트모드 강제·카드뉴스 세로 펼침·조작용 UI 숨김은 전부
+     styles.css의 @media print 블록이 담당하고, 여기서는 파일명
+     (document.title을 인쇄 시점에만 잠깐 바꾼다 — 브라우저 인쇄
+     대화상자가 이 값을 파일명 기본값으로 제안한다)과 버튼의 로딩
+     상태만 다룬다. 차트는 SVG라 캡처 타이밍 이슈 자체가 없다. */
+  function downloadPdf(btn, filenameBase) {
+    const originalTitle = document.title;
+    const originalLabel = btn.textContent;
+    const pad = (n) => String(n).padStart(2, "0");
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+
+    btn.disabled = true;
+    btn.textContent = "PDF 만드는 중…";
+
+    let restored = false;
+    const restore = () => {
+      if (restored) return;
+      restored = true;
+      document.title = originalTitle;
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      window.removeEventListener("afterprint", restore);
+    };
+    window.addEventListener("afterprint", restore);
+    // afterprint를 안 쏴 주는 아주 드문 환경을 대비한 안전장치.
+    setTimeout(restore, 8000);
+
+    try {
+      if (typeof window.print !== "function") throw new Error("print unsupported");
+      document.title = `${filenameBase}_${dateStr}`;
+      window.print();
+    } catch (err) {
+      restore();
+      alert("다운로드에 실패했어요. 다시 시도해주세요.");
+    }
+  }
+
+  function setupPdfDownload() {
+    const targets = [
+      ["#downloadReportBtn", "연봉성적표"],
+      ["#downloadGoalBtn", "목표자산계획"],
+      ["#downloadTimeBtn", "자산타임머신"],
+    ];
+    targets.forEach(([sel, name]) => {
+      const btn = $(sel);
+      if (btn) btn.addEventListener("click", () => downloadPdf(btn, name));
+    });
   }
 
   /* ══════════════ 카드뉴스 덱 (v8) ══════════════

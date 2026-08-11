@@ -905,6 +905,7 @@ input[readonly] { -moz-appearance: textfield; }
   min-height: 6em;
   word-break: keep-all;
 }
+.final-card .pdf-download-btn { margin-top: 1.4rem; }
 
 /* ---------- 차트 ---------- */
 .chart-box { margin-top: .3rem; overflow-x: auto; }
@@ -1203,3 +1204,82 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 .calc-detail summary { cursor: pointer; color: var(--brand); font-size: .8rem; font-weight: 700; padding: .3rem 0; }
 .calc-detail summary::marker { color: var(--brand); }
 .calc-detail[open] summary { margin-bottom: .5rem; }
+
+/* ---------- PDF 다운로드 버튼 (v18) ---------- */
+/* 별도 라이브러리 없이 브라우저 네이티브 인쇄(window.print())를 쓴다 —
+   사용자가 인쇄 대화상자에서 "대상: PDF로 저장"을 고르면 그게 곧
+   다운로드다. 버튼 자체는 기존 next-step-actions 버튼과 같은 톤. */
+.pdf-download-btn:disabled { opacity: .6; cursor: default; }
+
+/* ---------- 인쇄(=PDF 저장) 전용 스타일 ----------
+   화면에는 전혀 영향이 없다 — @media print 안의 규칙만 인쇄 렌더링에
+   적용된다. 다크모드로 보고 있어도 인쇄물은 늘 라이트 팔레트로
+   고정한다(보관·인쇄용 자료라 가독성·잉크 절약이 우선). */
+@media print {
+  :root, :root[data-theme="dark"] {
+    color-scheme: light !important;
+    --page-plane:     #f7f7f4 !important;
+    --surface-1:      #fcfcfb !important;
+    --surface-2:      #ffffff !important;
+    --surface-sunk:   #f0efea !important;
+    --text-primary:   #0b0b0b !important;
+    --text-secondary: #52514e !important;
+    --text-muted:     #8b8983 !important;
+    --gridline:       #e3e2db !important;
+    --baseline:       #c3c2b7 !important;
+    --border:         rgba(11, 11, 11, .10) !important;
+    --border-strong:  rgba(11, 11, 11, .18) !important;
+    --brand:          #24745a !important;
+    --brand-soft:     #e6f0ea !important;
+    --accent:         #b76442 !important;
+    --series-1:       #2a78d6 !important;
+    --series-2:       #eb6834 !important;
+    --series-3:       #1baf7a !important;
+    --series-4:       #eda100 !important;
+    --series-5:       #8d6fb0 !important;
+    --series-6:       #d64550 !important;
+    --good:           #0ca30c !important;
+    --good-text:      #056b05 !important;
+    --warning:        #fab219 !important;
+    --warning-text:   #8a5a00 !important;
+    --critical:       #d03b3b !important;
+    --critical-text:  #b32626 !important;
+    --shadow:         none !important;
+  }
+  body { background: #fff !important; }
+
+  /* 인쇄물에서는 의미 없는 조작용 UI를 뺀다 — 상단바, 점 인디케이터,
+     화살표, 되돌아가기/재입력 링크, PDF 버튼 자신 등. */
+  .no-print, .topbar, .ticker, .deck-dots, .deck-arrow, .deck-back-btn,
+  .next-step-actions, .home-summary-links, .pdf-download-btn,
+  .scroll-top-btn, #restartConfirmDialog {
+    display: none !important;
+  }
+
+  /* 카드뉴스 덱 — 한 장씩 넘기며 보던 걸 인쇄에서는 카드 1~7을 순서대로
+     세로로 펼쳐서 전부 담는다. */
+  .deck { padding: 0; }
+  .deck-shell { display: block; }
+  .deck-viewport {
+    width: auto; max-width: none; height: auto; min-height: 0; overflow: visible;
+  }
+  /* .deck-track에 걸린 transition(카드 넘김 애니메이션)이 인쇄 순간과
+     겹치면 transform이 "none"으로 다 바뀌기 전 중간값에서 캡처될 수
+     있다 — transition 자체를 꺼서 즉시 반영되게 한다. */
+  .deck-track { display: block; transform: none !important; transition: none !important; }
+  .deck-card {
+    flex: none; width: auto; height: auto; overflow: visible;
+    page-break-inside: avoid; break-inside: avoid;
+    padding: 0 0 1.4rem;
+  }
+  .deck-card + .deck-card { border-top: 1px dashed var(--border-strong); padding-top: 1.4rem; }
+  .deck-card.is-cover { min-height: 0; }
+
+  /* 목표 자산/타임머신 화면의 스크롤 리브일 애니메이션 — 사용자가
+     아직 스크롤을 안 내려 본 카드는 opacity:0로 DOM에 남아 있을 수
+     있어, 인쇄 시점에는 전부 강제로 보이게 한다. */
+  .bento > * { opacity: 1 !important; transform: none !important; }
+  .bento > .card { page-break-inside: avoid; break-inside: avoid; }
+
+  a { color: var(--text-primary); }
+}
