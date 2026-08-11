@@ -1721,6 +1721,22 @@
     const defendAmount = cur * (state.inflation / 100);
     const offeredAmount = cur * (d.nominalRatePct / 100);
     const targetAmount = n.targetSalary - cur;
+    const achieved = n.shortfallPp <= 0;
+
+    // v13: 세 금액이 숫자 카드로만 나열돼 있어 한눈에 비교가 안
+    // 된다는 피드백 — 카드 4의 연봉 비교(barChart)와 같은 컴포넌트를
+    // 재사용해 나란히 놓고, "제안받은 인상액" 막대 색으로 목표
+    // 달성 여부를 바로 보여준다(과거 "차이 — 달성" 카드가 하던 역할).
+    barChart($("#negoChart"), [
+      { label: "물가 방어 최소", value: defendAmount, color: "var(--baseline)" },
+      { label: "실질 +1% 목표", value: targetAmount, color: "var(--brand)" },
+      {
+        label: "제안받은 인상액", value: offeredAmount,
+        color: achieved ? "var(--good)" : "var(--critical)",
+        sub: achieved ? "목표 달성" : "목표 미달", subColor: achieved ? "var(--good-text)" : "var(--critical-text)",
+      },
+    ]);
+
     $("#negoStats").innerHTML = `
       <div class="stat"><span class="k">물가 방어 최소 인상액</span><span class="v">${man(defendAmount)}만원</span>
         <span class="s">최소 기준선 (${state.inflation.toFixed(1)}%)</span></div>
@@ -1730,7 +1746,7 @@
         <span class="s">설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</span></div>`;
 
     const v = $("#negoVerdict");
-    if (n.shortfallPp <= 0) {
+    if (achieved) {
       v.className = "verdict";
       v.innerHTML = `제안받은 <b>${man(offeredAmount)}만원</b>(${d.nominalRatePct.toFixed(1)}%)은 물가에 실질 +1%를 더한 목표선을 이미 넘었습니다.`;
     } else {
