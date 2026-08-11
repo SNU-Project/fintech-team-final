@@ -746,19 +746,27 @@ input[readonly] { -moz-appearance: textfield; }
 .verdict.bad { background: color-mix(in srgb, var(--critical) 10%, transparent); border-color: color-mix(in srgb, var(--critical) 30%, transparent); }
 .verdict.bad b { color: var(--critical-text); }
 
-/* 아이스 아메리카노 지수 — 만원 단위 숫자보다 실물 감각으로 와닿게
-   보여주는 콜아웃. .verdict과 같은 톤이되 아이콘+큰 숫자를 강조한다. */
-.americano-callout:empty { display: none; }
-.americano-callout {
-  margin-top: .6rem; padding: .85rem 1rem; border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--series-1) 10%, var(--surface-1));
-  border: 1px solid color-mix(in srgb, var(--series-1) 26%, var(--border));
-  display: flex; align-items: center; gap: .8rem;
+/* v13: 공식 물가·내 물가 %가 작은 보조 텍스트(.vs-figures)라 헤드라인
+   문장에 묻혀 보인다는 피드백 — 카드의 시각적 중심이 되도록 큰 숫자로
+   뺐다(아이스 아메리카노 콜아웃을 없앤 자리). "내 물가" 쪽은 브랜드
+   색으로 강조하고, 그 옆 %p 차이는 유불리에 따라 경고/양호 색을 쓴다. */
+.price-compare { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.price-compare-item {
+  display: flex; flex-direction: column; align-items: center; gap: .2rem;
+  padding: .7rem 1.4rem; border-radius: var(--radius-sm); background: var(--surface-1);
 }
-.americano-icon { font-size: 1.9rem; line-height: 1; flex: 0 0 auto; }
-.americano-callout p { margin: 0; font-size: .92rem; line-height: 1.5; }
-.americano-callout b { font-size: 1.1rem; }
-.americano-sub { margin-top: .15rem !important; font-size: .74rem !important; color: var(--text-muted); }
+.price-compare-label { font-size: .78rem; font-weight: 600; color: var(--text-muted); }
+.price-compare-value {
+  font-size: clamp(1.9rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -.02em;
+  line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text-primary);
+}
+.price-compare-item.is-mine {
+  background: var(--brand-soft); border: 1px solid color-mix(in srgb, var(--brand) 25%, transparent);
+}
+.price-compare-item.is-mine .price-compare-value { color: var(--brand); }
+.price-compare-diff { font-size: .82rem; font-weight: 700; color: var(--text-muted); }
+.price-compare-diff.is-warn { color: var(--warning-text); }
+.price-compare-diff.is-good { color: var(--good-text); }
 
 /* ---------- 베이토 그리드 ----------
    카드를 세로로 쌓으면 높이가 내용에 끌려다녀 크기가 제각각으로 보인다.
@@ -861,12 +869,6 @@ input[readonly] { -moz-appearance: textfield; }
 .headline-card { text-align: center; padding: 1.1rem 1.3rem 1rem; }
 .kicker { margin: 0 0 .7rem; font-size: .8rem; color: var(--text-muted); }
 .bento-hero .verdict { margin-top: .8rem; }
-
-/* 체감 헤드라인(#mineVerdict) 아래 정확한 수치는 작은 보조 정보로만 남긴다. */
-.vs-figures {
-  margin: .6rem 0 0; font-size: .78rem; color: var(--text-muted);
-  font-variant-numeric: tabular-nums; text-align: center;
-}
 
 /* 지출 입력 */
 .spend-details {
