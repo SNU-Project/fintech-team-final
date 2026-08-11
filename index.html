@@ -34,7 +34,7 @@
   <!-- ══════════════ 홈 · 온보딩 → 로딩 → 요약 ══════════════
        탭이 패널을 숨기지 않으므로, 아래로 내 물가 → 실질임금 진단 →
        목표 자산 → 자산 타임머신이 항상 이어져 있는 "리포트"다.
-       이 섹션은 그 리포트의 표지 역할만 한다: 처음이면 5문항을 순서대로
+       이 섹션은 그 리포트의 표지 역할만 한다: 처음이면 3문항을 순서대로
        묻고, 이미 답했으면 한 줄 요약만 보여준다. -->
   <section class="panel" id="panel-home">
 
@@ -44,11 +44,11 @@
       <p class="loading-msg" id="loadingMsg">당신의 물가를 계산하는 중…</p>
     </div>
 
-    <!-- 상태 3 · 온보딩 (0: 인트로, 1~5: 문항) -->
+    <!-- 상태 3 · 온보딩 (0: 인트로, 1~3: 문항) -->
     <div class="home-hero" id="homeOnboarding">
       <div class="onboarding-progress-wrap" id="onboardProgressWrap" hidden>
         <div class="onboarding-progressbar"><div class="onboarding-progressbar-fill" id="onbProgressFill"></div></div>
-        <span class="onboarding-progress-text" id="onbProgressText">1 / 5</span>
+        <span class="onboarding-progress-text" id="onbProgressText">1 / 3</span>
       </div>
 
       <!-- 0 · 인트로 -->
@@ -362,7 +362,7 @@
     <!-- 카드 덱 전체 아래로 옮겼다(v20) — 점수·결론이 먼저 보이고,
          시세는 다 보고 난 뒤 참고하는 보조 정보로. setReportVisible이
          hidden을 같이 켠다. -->
-    <div class="ticker" id="ticker" aria-label="실시간 시장 지표" hidden>
+    <div class="ticker" id="ticker" aria-label="시장 지표" hidden>
       <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:5.6em"></span></span>
       <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:6.4em"></span></span>
       <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:5em"></span></span>
@@ -488,7 +488,7 @@
 
     <div class="concept-note is-compact">
       <p>앞에서 “기대수익률 몇 %”라고 했는데, <b>정말 그랬는지 확인하는 곳</b>입니다.
-         실제 월말 종가 10년치로 “그때 넣었으면 지금 얼마”를 계산합니다.</p>
+         실제 월별 가격 10년치로 “그때 넣었으면 지금 얼마”를 계산합니다.</p>
       <p>회색 점선은 같은 기간 물가입니다. <b>이 선 아래면 물가를 못 이긴 것</b>이에요.
          수익률 옆에는 <b>최대 낙폭</b>을 나란히 뒀습니다 —
          그 수익을 얻기까지 견뎌야 했던 손실이라 함께 봐야 합니다.</p>
@@ -509,7 +509,7 @@
 
         <div class="field" style="margin-bottom:.3rem">비교할 자산</div>
         <div class="asset-picks" id="assetPicks"></div>
-        <p class="field-note">실제 월말 종가 10년치로 계산합니다. 해외 자산은 원/달러 환율로 환산한 원화 기준입니다.</p>
+        <p class="field-note">완료된 달은 월말 종가, 최신 진행 월은 수집 시점 가격을 씁니다. 해외 자산은 원/달러 환율로 환산한 원화 기준입니다.</p>
         <p class="field-note skeleton-bar" id="btcLiveNote">—</p>
       </div>
 
