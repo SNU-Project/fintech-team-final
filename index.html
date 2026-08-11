@@ -90,13 +90,12 @@
       <div class="onboarding-step" data-step="2" hidden>
         <p class="kicker">Q2 · 내 물가</p>
         <h2>한 달 생활비는 얼마 정도인가요?</h2>
-        <div class="card onboarding-card">
+        <div class="card onboarding-card is-wide">
           <label class="field">내 월 생활비
             <span class="input-wrap"><input type="number" id="onbMonthlySpend" min="0" step="10" inputmode="numeric"><span>만원</span></span>
           </label>
           <p class="field-note">방금 고른 생활 유형의 평균값을 채워 뒀어요.</p>
           <div class="spend-details">
-            <p class="spend-details-label">세부 항목</p>
             <div class="donut-row">
               <div id="onbSpendFields" style="flex:1;min-width:230px"></div>
               <div class="donut-wrap">
@@ -137,8 +136,10 @@
   </section>
 
   <!-- ══════════════ 리포트 · 카드뉴스 덱 (v8) ══════════════
-       내 물가·실질임금 진단·결론을 세로 스크롤 대신 카드 7장을 좌우로
-       넘기며 보는 방식으로 바꿨다. id는 전부 예전 그대로 유지했다 —
+       내 물가·실질임금 진단·결론을 세로 스크롤 대신 카드 6장을 좌우로
+       넘기며 보는 방식으로 바꿨다(v12에서 "얼마나 비싸게 살고 있나"와
+       "범인은?" 카드를 하나로 합쳐 7장→6장이 됐다). id는 전부 예전
+       그대로 유지했다 —
        renderMine()/renderGap()/renderScore() 등은 전부 $("#id")로
        엘리먼트를 찾아 쓰는 구조라, 어느 카드가 감싸든 그대로 동작한다.
        설문 도중에는 숨겨 둔다 — 아직 안 끝난 설문 밑에 결과가 미리
@@ -185,7 +186,6 @@
               </details>
             </div>
             <p class="score-preview-conclusion" id="scorePreviewConclusion" hidden>—</p>
-            <button class="home-start-btn deck-next-btn is-compact" type="button">다음 카드 보기 →</button>
             <button class="onboarding-back deck-restart-link" type="button">처음부터 다시 입력하기</button>
           </section>
 
@@ -213,14 +213,24 @@
                 </div>
                 <div>
                   <p class="spend-details-label">세부 품목별 금액</p>
-                  <div class="chart-box" id="spendChart"></div>
+                  <div class="donut-row">
+                    <div class="donut-wrap">
+                      <div class="donut" id="spendDonut"></div>
+                      <div class="donut-center" id="spendDonutCenter"></div>
+                    </div>
+                  </div>
+                  <div class="legend" id="spendLegend"></div>
                 </div>
               </div>
             </div>
-            <button class="home-start-btn deck-next-btn" type="button">다음 카드 보기 →</button>
           </section>
 
-          <!-- 카드 3 · 얼마나 비싸게 살고 있나 -->
+          <!-- 카드 3 · 얼마나 비싸게 살고 있나 (구 카드3 "얼마나 비싸게
+               살고 있나" + 카드4 "범인은?" 통합 — 같은 이야기(내 물가가
+               어떤 항목 때문에 더 비싼지)를 두 카드로 나눌 필요가
+               없다는 피드백. 1위 항목을 두 번 말하던 문장(#contribSummary)은
+               지우고 그 정보(한 달에 약 X만원 더/덜 나가요)를
+               #mineVerdict 헤드라인 문장에 흡수했다. -->
           <section class="deck-card" id="card-3">
             <h2 class="report-heading">얼마나 비싸게 살고 있나</h2>
             <div class="card bento-hero">
@@ -229,14 +239,8 @@
               <p class="vs-figures" id="vsFigures">—</p>
               <div class="americano-callout" id="americanoCallout"></div>
             </div>
-            <button class="home-start-btn deck-next-btn" type="button">다음 카드 보기 →</button>
-          </section>
-
-          <!-- 카드 4 · 범인은? -->
-          <section class="deck-card" id="card-4">
-            <h2 class="report-heading">내 물가를 밀어올린 범인</h2>
             <div class="card bento-contrib">
-              <p class="verdict" id="contribSummary" hidden>—</p>
+              <h3 class="block-title">내 물가를 밀어올린 범인</h3>
               <ol class="contrib-rank" id="contribRank"></ol>
               <details class="calc-detail">
                 <summary>상세 계산 보기</summary>
@@ -246,11 +250,10 @@
               </details>
               <span class="src-note" id="mineSrc">—</span>
             </div>
-            <button class="home-start-btn deck-next-btn" type="button">다음 카드 보기 →</button>
           </section>
 
-          <!-- 카드 5 · 내 연봉 vs 물가 -->
-          <section class="deck-card" id="card-5">
+          <!-- 카드 4 · 내 연봉 vs 물가 -->
+          <section class="deck-card" id="card-4">
             <h2 class="report-heading">내 연봉 vs 물가</h2>
             <div class="concept-note is-compact">
               <p><b>물가 유지선</b>은 작년과 똑같이 살려면 필요한 연봉입니다.
@@ -280,12 +283,19 @@
               <div class="card bento-main">
                 <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
                 <p class="verdict" id="gapVerdict">—</p>
-                <details class="calc-detail">
-                  <summary>막대그래프·자세한 수치 보기</summary>
-                  <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
-                  <div class="chart-box" id="salaryChart"></div>
-                  <div class="stat-grid" id="gapStats"></div>
-                </details>
+              </div>
+            </div>
+
+            <!-- v12: "막대그래프·자세한 수치 보기" 토글을 없애고 기본
+                 펼침으로 바꾸면서 세로 길이가 크게 늘었다 — 차트와
+                 스탯을 데스크톱에서 좌우로 배치(.deck-split)해 최대한
+                 스크롤 없이 들어오게 했다. 모바일은 기존처럼 세로로
+                 쌓인다. -->
+            <div class="card">
+              <p class="block-q">막대 3개를 비교하면 명목 인상이 실질을 지켰는지 한눈에 보입니다.</p>
+              <div class="deck-split">
+                <div class="chart-box" id="salaryChart"></div>
+                <div class="stat-grid is-2col" id="gapStats"></div>
               </div>
             </div>
 
@@ -299,11 +309,10 @@
                 <div class="legend" id="trendLegend"></div>
               </details>
             </div>
-            <button class="home-start-btn deck-next-btn" type="button">다음 카드 보기 →</button>
           </section>
 
-          <!-- 카드 6 · 그래서 얼마 더 받아야 하나 -->
-          <section class="deck-card" id="card-6">
+          <!-- 카드 5 · 그래서 얼마 더 받아야 하나 -->
+          <section class="deck-card" id="card-5">
             <h2 class="report-heading">그래서 얼마 더 받아야 하나</h2>
             <div class="card bento-half-b">
               <h3 class="block-title">연봉 협상 가이드</h3>
@@ -311,11 +320,10 @@
               <div class="stat-grid" id="negoStats"></div>
               <p class="verdict" id="negoVerdict">—</p>
             </div>
-            <button class="home-start-btn deck-next-btn" type="button">다음 카드 보기 →</button>
           </section>
 
-          <!-- 카드 7 · 결론 + 더 보기 -->
-          <section class="deck-card" id="card-7">
+          <!-- 카드 6 · 결론 + 더 보기 -->
+          <section class="deck-card" id="card-6">
             <div class="card final-card">
               <p class="kicker">마지막으로 정리하면</p>
               <h2 class="report-heading" id="finalHeadline">당신을 위한 결론</h2>
@@ -552,6 +560,23 @@
     <path d="M12 19V5M5 12l7-7 7 7"></path>
   </svg>
 </button>
+
+<!-- 처음부터 다시 입력하기 확인 — window.confirm() 대신 페이지 안
+     <dialog>를 쓴다. 카카오톡 등 인앱 브라우저는 네이티브 confirm()을
+     아예 안 띄우거나 화면 밖으로 보내는 경우가 있는데, confirm()은
+     실행을 동기적으로 막는 API라 그러면 사용자 눈엔 페이지가 완전히
+     멈춘 것처럼 보인다("처음부터 다시 입력하기 클릭 시 페이지 멈춤"
+     버그 리포트와 정확히 일치하는 증상). <dialog>는 페이지 안
+     엘리먼트라 항상 화면에 그려지고, 스타일도 디자인 시스템에 맞출
+     수 있다. -->
+<dialog class="restart-dialog" id="restartConfirmDialog">
+  <p class="block-title">처음부터 다시 입력할까요?</p>
+  <p class="block-q">지금까지 입력한 내용은 모두 사라져요.</p>
+  <div class="restart-dialog-actions">
+    <button class="onboarding-back" id="restartCancelBtn" type="button">취소</button>
+    <button class="home-start-btn is-compact" id="restartConfirmBtn" type="button">처음부터 다시 입력하기</button>
+  </div>
+</dialog>
 
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/engine.js"></script>

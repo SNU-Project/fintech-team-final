@@ -381,6 +381,13 @@ section { scroll-margin-top: 5rem; }
    바로 놓으면 입력 필드 경계가 안 보인다. */
 .onboarding-card { width: min(100%, 440px); text-align: left; }
 .onboarding-card .field-note { text-align: center; }
+/* Q2(월 생활비)는 세부 품목 입력 + 도넛이 나란히 서야 스크롤 없이
+   들어오는데, 440px 카드 폭에서는 이 둘(입력 목록 min-width 230px +
+   도넛 156px + 간격)이 겨우 못 들어가 세로로 쌓였다. 모바일은
+   min(100%, 640px)이 그대로 100%라 기존처럼 좁으면 자동으로 세로
+   배치가 유지된다 — 이 폭 자체가 데스크톱 전용 분기라 미디어 쿼리가
+   따로 필요 없다. */
+.onboarding-card.is-wide { width: min(100%, 640px); }
 .onboarding-nav { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; }
 
 .onboarding-progress-wrap {
@@ -426,7 +433,7 @@ section { scroll-margin-top: 5rem; }
 @media (max-width: 900px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- 카드뉴스 덱 (v8) ----------
-   내 물가·실질임금 진단·결론을 세로 스크롤 대신 카드 7장을 좌우로
+   내 물가·실질임금 진단·결론을 세로 스크롤 대신 카드 6장을 좌우로
    넘기며 보는 방식. 온보딩 위저드(.onboarding-step)가 이미 "한 화면에
    하나씩, 상단 진행바"를 검증해 둔 패턴이라 같은 시각 언어(스텝인
    애니메이션·진행 표시·카드 배경)를 재사용한다. */
@@ -488,6 +495,16 @@ section { scroll-margin-top: 5rem; }
     gap: 1.4rem; align-items: start;
   }
   .deck-split > * + * { margin-top: 0; }
+  /* .stat-grid는 보통 flex-wrap이라 카드 폭이 넓을 때 자연스럽게
+     여러 개가 한 줄에 들어가는데, .deck-split 한 칸(카드 5 기준 약
+     447px)처럼 좁은 폭에서는 .stat의 max-width(220px) 두 개 합이
+     칸 폭에 아슬아슬하게 걸쳐서 2개씩도 못 들어가고 하나씩만 세로로
+     쌓이는 경우가 있었다(카드 5 — 스탯이 최대 5개까지 나온다). 이런
+     좁은 칸에서는 flex 대신 고정 2열 grid로 확실히 2개씩 들어가게
+     한다. */
+  .deck-split .stat-grid.is-2col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: .7rem;
+  }
 }
 .deck-track {
   display: flex; height: 100%;
@@ -507,17 +524,9 @@ section { scroll-margin-top: 5rem; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; gap: 1rem; min-height: 100%;
 }
-/* 카드 1에만 "다음 카드 보기" 버튼이 있어서 카드 2부터는 점 인디케이터를
-   직접 눌러야만 다음으로 넘어갈 수 있었다는 버그 리포트 — 모든 카드
-   하단에 똑같이 둔다. display:block + margin:auto로 가운데 정렬하면
-   일반 블록 카드(위→아래로 쌓임)와 카드 1의 flex 가운데 정렬(is-cover)
-   양쪽에서 다 가운데로 온다. */
-.deck-next-btn { display: block; margin: 1.5rem auto 0; }
-.deck-card.is-cover .deck-next-btn { margin-top: 0; }
 /* 점 인디케이터·화살표·스와이프로도 이미 이동할 수 있는 보조
-   버튼(카드 1의 "다음 카드 보기", 카드 7의 목표/타임머신 진입 버튼)은
-   화면의 유일한 CTA처럼 크게 보일 필요가 없다 — 다른 텍스트 요소와
-   비슷한 비중으로 줄인다. */
+   버튼(카드 6의 목표/타임머신 진입 버튼 등)은 화면의 유일한 CTA처럼
+   크게 보일 필요가 없다 — 다른 텍스트 요소와 비슷한 비중으로 줄인다. */
 .home-start-btn.is-compact { font-size: .82rem; padding: .55rem 1.3rem; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1023,6 +1032,25 @@ footer a { color: var(--text-secondary); }
 .scroll-top-btn:hover { filter: brightness(1.08); }
 .scroll-top-btn:active { transform: translateY(1px); }
 .scroll-top-btn svg { width: 20px; height: 20px; }
+
+/* ---------- 처음부터 다시 입력하기 확인 다이얼로그 ----------
+   window.confirm() 대신 페이지 안 <dialog>를 쓴다 — 인앱 브라우저에서
+   네이티브 confirm()이 안 뜨거나 화면 밖으로 나가버리면 confirm()의
+   동기 실행 특성 때문에 사용자 눈엔 페이지가 완전히 멈춘 것처럼
+   보인다. <dialog>는 그냥 페이지 안 엘리먼트라 항상 그려지고 스타일도
+   디자인 시스템 그대로 맞춘다. */
+.restart-dialog {
+  border: 0; padding: 1.4rem 1.5rem; border-radius: var(--radius);
+  background: var(--surface-1); color: var(--text-primary);
+  box-shadow: var(--shadow); max-width: min(90vw, 22rem);
+}
+.restart-dialog .block-title { margin: 0 0 .4rem; }
+.restart-dialog .block-q { margin: 0; color: var(--text-secondary); }
+.restart-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.restart-dialog-actions {
+  display: flex; justify-content: flex-end; align-items: center;
+  gap: .6rem; margin-top: 1.2rem;
+}
 
 /* ---------- 로딩 / 에러 ---------- */
 .skeleton { color: var(--text-muted); font-size: .85rem; padding: 1.4rem 0; text-align: center; }

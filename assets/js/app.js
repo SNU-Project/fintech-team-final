@@ -571,8 +571,8 @@
   // 재생했다는 표시를 남기고 이후로는 완성된 문장을 바로 보여준다.
   // (v8 이전에는 스크롤로 카드에 처음 닿을 때 IntersectionObserver로
   // 트리거했는데, 카드뉴스 덱은 transform으로 카드를 넘기지 실제
-  // 스크롤이 아니라서 그 방식이 안 걸린다. CardDeck이 카드 7에 처음
-  // 도달하는 순간 이 로직을 직접 호출한다 — 아래 setupCardDeck 참고.)
+  // 스크롤이 아니라서 그 방식이 안 걸린다. CardDeck이 마지막 카드에
+  // 처음 도달하는 순간 이 로직을 직접 호출한다 — 아래 setupCardDeck 참고.)
   const FINAL_TYPED_KEY = "sr_finalConclusionTyped";
   function typeFinalConclusionOnce() {
     const body = $("#finalBody");
@@ -587,7 +587,7 @@
 
   // 목표 자산/타임머신은 카드뉴스 덱이 아니라 예전처럼 독립된 화면이다.
   // 버튼을 누르면 덱을 숨기고 그 화면을 보여주고, 그 화면 맨 위의
-  // "카드 리포트로 돌아가기"를 누르면 덱으로 복귀해 카드 7(결론)에
+  // "카드 리포트로 돌아가기"를 누르면 덱으로 복귀해 마지막 카드(결론)에
   // 이어서 보여준다. renderAll()이 이미 renderGoal()/renderTime()을
   // 항상 호출해 두므로 내용은 hidden 상태에서도 다 그려져 있다.
   function setupNextSteps() {
@@ -705,11 +705,6 @@
 
     prevBtn.addEventListener("click", () => goTo(index - 1));
     nextBtn.addEventListener("click", () => goTo(index + 1));
-    // 카드 1에만 있던 "다음 카드 보기" 버튼을 모든 카드(1~6) 하단에
-    // 똑같이 둔다 — 점 인디케이터를 직접 눌러야만 다음 카드로 갈 수
-    // 있어 발견하기 어렵다는 버그 리포트에 대응. 클래스 하나로 위임해서
-    // 카드가 늘어나도 개별 배선이 필요 없게 한다.
-    $$(".deck-next-btn").forEach((b) => b.addEventListener("click", () => goTo(index + 1)));
 
     document.addEventListener("keydown", (e) => {
       if (deckEl.hidden) return;
@@ -1031,22 +1026,49 @@
     });
 
     // ---- 요약 화면 ----
-    // "리포트 보기"(카드 1 → 카드 2)는 카드뉴스 덱 안(setupCardDeck의
-    // .deck-next-btn 델리게이션)에서 처리한다. "처음부터 다시
-    // 입력하기"는 카드 1·카드 7 양쪽, 그리고 헤더 로고 클릭에서도 같은
-    // 동작을 하도록 함수로 뽑아 여러 진입점이 공유한다(v9 — 카드뉴스로
-    // 바뀌면서 재입력 경로가 어느 카드에도 안 보인다는 버그 리포트에
+    // 카드 이동은 화살표·점 인디케이터·스와이프만으로 이루어진다(v12 —
+    // 카드마다 있던 "다음 카드 보기" 버튼은 이 셋과 중복이라 없앴다).
+    // "처음부터 다시 입력하기"는 카드 1·마지막 카드 양쪽, 그리고 헤더 로고
+    // 클릭에서도 같은 동작을 하도록 함수로 뽑아 여러 진입점이
+    // 공유한다(v9 — 카드뉴스로 바뀌면서 재입력 경로가 어느 카드에도
+    // 안 보인다는 버그 리포트에
     // 대응해 진입점을 늘렸다).
-    function triggerRestart() {
-      // 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라 한 번
-      // 더 확인한다.
-      if (!confirm("처음부터 다시 입력할까요? 지금까지 입력한 내용은 모두 사라져요.")) return;
+    function performRestart() {
       localStorage.removeItem(ONBOARD_KEY);
       setReportVisible(false);
       draft = freshDraft();
       $$("#onbPersonaGrid button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.persona === DEFAULT_PERSONA)));
       wizardView.hidden = false;
       showStep(0);
+    }
+
+    // 지금까지 입력한 값을 전부 날리는 되돌릴 수 없는 동작이라 한 번 더
+    // 확인한다. window.confirm()은 실행을 동기적으로 막는 네이티브
+    // API라, 카카오톡 등 인앱 브라우저에서 그 다이얼로그 자체를 못
+    // 띄우거나 화면 밖으로 보내버리면 사용자 눈엔 페이지가 완전히
+    // 멈춘 것처럼 보인다 — "처음부터 다시 입력하기 클릭 시 페이지
+    // 멈춤" 버그 리포트와 정확히 일치하는 증상이라, confirm() 대신
+    // 페이지 안 <dialog>로 바꿨다.
+    const restartDialog = $("#restartConfirmDialog");
+    function triggerRestart() {
+      if (restartDialog && typeof restartDialog.showModal === "function") {
+        restartDialog.showModal();
+      } else {
+        // <dialog>를 못 쓰는 아주 오래된 브라우저를 위한 최후의 대체.
+        if (confirm("처음부터 다시 입력할까요? 지금까지 입력한 내용은 모두 사라져요.")) performRestart();
+      }
+    }
+    if (restartDialog) {
+      $("#restartConfirmBtn").addEventListener("click", () => {
+        restartDialog.close();
+        performRestart();
+      });
+      $("#restartCancelBtn").addEventListener("click", () => restartDialog.close());
+      // 카드 안(배경이 아닌 곳)을 눌렀을 때는 안 닫히게, 진짜 바깥
+      // 배경을 눌렀을 때만 취소로 처리한다.
+      restartDialog.addEventListener("click", (e) => {
+        if (e.target === restartDialog) restartDialog.close();
+      });
     }
     $$(".deck-restart-link").forEach((b) => b.addEventListener("click", triggerRestart));
 
@@ -1206,11 +1228,30 @@
 
   // v11: 세부 품목별 금액을 접힌 텍스트 목록 대신 가로 막대그래프로
   // 기본 펼쳐서 보여준다 — 금액과 비중이 한눈에 비교되도록.
+  // v12: 가로 막대그래프는 비율감이 잘 안 느껴진다는 피드백 — 설문
+  // Q2에서 이미 쓰던 conic-gradient 도넛(onbSpendDonut)과 같은 방식을
+  // 재사용해 비율이 한눈에 비교되게 했다. 범례에 금액과 비중을 함께
+  // 표시한다.
   function renderSpendChart() {
-    const rows = SPEND_GROUPS.map((g) => ({
-      label: g.name, value: groupTotal(g), color: SPEND_GROUP_COLOR[g.id],
-    }));
-    hBarChart($("#spendChart"), rows);
+    const total = spendingTotal(state.spending);
+    let acc = 0;
+    const stops = SPEND_GROUPS.map((g) => {
+      const weight = total > 0 ? groupTotal(g) / total : 0;
+      const from = acc * 100, to = (acc + weight) * 100;
+      acc += weight;
+      return `${SPEND_GROUP_COLOR[g.id]} ${from.toFixed(2)}% ${to.toFixed(2)}%`;
+    });
+    $("#spendDonut").style.background =
+      total > 0 ? `conic-gradient(${stops.join(",")})` : "var(--surface-sunk)";
+    $("#spendDonutCenter").innerHTML =
+      `<div style="font-size:.7rem;color:var(--text-muted)">총 생활비</div>
+       <div style="font-size:1.3rem;font-weight:800">${man(total)}만원</div>`;
+    $("#spendLegend").innerHTML = SPEND_GROUPS.map((g) => {
+      const amount = groupTotal(g);
+      const weight = total > 0 ? (amount / total) * 100 : 0;
+      return `<span class="legend-item"><span class="legend-swatch" style="background:${SPEND_GROUP_COLOR[g.id]}"></span>
+        ${g.name} ${man(amount)}만원 (${weight.toFixed(0)}%)</span>`;
+    }).join("");
   }
 
   function syncSpendingFields(syncTotal = true) {
@@ -1308,7 +1349,6 @@
       $("#mineVerdict").textContent = "지출을 하나 이상 입력해 주세요.";
       $("#vsFigures").textContent = "—";
       $("#americanoCallout").innerHTML = "";
-      $("#contribSummary").hidden = true;
       $("#contribRank").innerHTML = "";
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
       return;
@@ -1329,8 +1369,14 @@
     // 공식 평균과 나란히 병기해서, 비교 기준이 문장 하나로 바로
     // 보이게 한다(diff의 부호와 무관하게 항상 실제 수치만 말하므로
     // "그래서 더/덜 올랐다"처럼 어긋날 수 있는 단정은 하지 않는다).
+    // v12: "얼마나 비싸게 살고 있나" 카드와 "범인" 카드를 하나로
+    // 합치면서, 예전에 범인 카드 쪽에서 따로 보여주던 "한 달에 약
+    // X만원 더/덜 나가요" 문장이 이 헤드라인과 같은 항목(1위)을 두 번
+    // 말하는 중복이 됐다 — 그 금액 정보만 이 문장에 흡수하고 별도
+    // 문단은 없앴다.
     const v = $("#mineVerdict");
     const cause = ranked[0];
+    const monthlyExtra = cause ? cause.amount * (cause.rate / 100) : 0;
     if (Math.abs(diff) < 0.05) {
       v.className = "verdict";
       v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 거의 같아요.`;
@@ -1339,7 +1385,7 @@
       v.innerHTML = cause
         ? `당신은 다른 사람들보다 <b>더 비싸게 살고 있어요!</b>
            가장 크게 영향을 준 <b>${cause.name}</b> 물가가 <b>${cause.rate.toFixed(1)}%</b>
-           올랐어요 (전체 평균 ${official.toFixed(1)}%).`
+           올랐어요 (전체 평균 ${official.toFixed(1)}%, 한 달에 약 ${man(Math.abs(monthlyExtra))}만원 더 나가요).`
         : `당신은 다른 사람들보다 <b>더 비싸게 살고 있어요!</b>`;
     } else {
       v.className = "verdict";
@@ -1373,19 +1419,6 @@
         <span class="rank-name">${g.name}</span>
       </li>`;
     $("#contribRank").innerHTML = ranked.map((g, i) => rankRow(g, i)).join("");
-
-    const summary = $("#contribSummary");
-    if (ranked.length) {
-      const first = ranked[0];
-      const monthlyExtra = first.amount * (first.rate / 100);
-      summary.hidden = false;
-      summary.innerHTML = `당신의 물가에서는 <b>${first.name}</b>${first.rate >= official
-        ? `${josa(first.name, "이", "가")} 가장 많이 올랐어요`
-        : `${josa(first.name, "은", "는")} 비중이 가장 커요`}
-        (한 달에 약 ${man(Math.abs(monthlyExtra))}만원 ${monthlyExtra >= 0 ? "더" : "덜"} 나가요)`;
-    } else {
-      summary.hidden = true;
-    }
 
     Charts.contributionChart($("#contribChart"),
       grouped.filter((g) => g.amount > 0).map((g) => ({
