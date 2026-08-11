@@ -381,6 +381,13 @@ section { scroll-margin-top: 5rem; }
    바로 놓으면 입력 필드 경계가 안 보인다. */
 .onboarding-card { width: min(100%, 440px); text-align: left; }
 .onboarding-card .field-note { text-align: center; }
+/* Q2(월 생활비)는 세부 품목 입력 + 도넛이 나란히 서야 스크롤 없이
+   들어오는데, 440px 카드 폭에서는 이 둘(입력 목록 min-width 230px +
+   도넛 156px + 간격)이 겨우 못 들어가 세로로 쌓였다. 모바일은
+   min(100%, 640px)이 그대로 100%라 기존처럼 좁으면 자동으로 세로
+   배치가 유지된다 — 이 폭 자체가 데스크톱 전용 분기라 미디어 쿼리가
+   따로 필요 없다. */
+.onboarding-card.is-wide { width: min(100%, 640px); }
 .onboarding-nav { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; }
 
 .onboarding-progress-wrap {
