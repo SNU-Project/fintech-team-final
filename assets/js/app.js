@@ -1228,11 +1228,30 @@
 
   // v11: 세부 품목별 금액을 접힌 텍스트 목록 대신 가로 막대그래프로
   // 기본 펼쳐서 보여준다 — 금액과 비중이 한눈에 비교되도록.
+  // v12: 가로 막대그래프는 비율감이 잘 안 느껴진다는 피드백 — 설문
+  // Q2에서 이미 쓰던 conic-gradient 도넛(onbSpendDonut)과 같은 방식을
+  // 재사용해 비율이 한눈에 비교되게 했다. 범례에 금액과 비중을 함께
+  // 표시한다.
   function renderSpendChart() {
-    const rows = SPEND_GROUPS.map((g) => ({
-      label: g.name, value: groupTotal(g), color: SPEND_GROUP_COLOR[g.id],
-    }));
-    hBarChart($("#spendChart"), rows);
+    const total = spendingTotal(state.spending);
+    let acc = 0;
+    const stops = SPEND_GROUPS.map((g) => {
+      const weight = total > 0 ? groupTotal(g) / total : 0;
+      const from = acc * 100, to = (acc + weight) * 100;
+      acc += weight;
+      return `${SPEND_GROUP_COLOR[g.id]} ${from.toFixed(2)}% ${to.toFixed(2)}%`;
+    });
+    $("#spendDonut").style.background =
+      total > 0 ? `conic-gradient(${stops.join(",")})` : "var(--surface-sunk)";
+    $("#spendDonutCenter").innerHTML =
+      `<div style="font-size:.7rem;color:var(--text-muted)">총 생활비</div>
+       <div style="font-size:1.3rem;font-weight:800">${man(total)}만원</div>`;
+    $("#spendLegend").innerHTML = SPEND_GROUPS.map((g) => {
+      const amount = groupTotal(g);
+      const weight = total > 0 ? (amount / total) * 100 : 0;
+      return `<span class="legend-item"><span class="legend-swatch" style="background:${SPEND_GROUP_COLOR[g.id]}"></span>
+        ${g.name} ${man(amount)}만원 (${weight.toFixed(0)}%)</span>`;
+    }).join("");
   }
 
   function syncSpendingFields(syncTotal = true) {
