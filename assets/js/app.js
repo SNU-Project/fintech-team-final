@@ -1839,6 +1839,16 @@
       <div class="stat"><span class="k">제안받은 인상액</span><span class="v">${man(offeredAmount)}만원</span>
         <span class="s">설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</span></div>`;
 
+    // 인쇄용 표 — 화면의 막대그래프(#negoChart)는 정적 인쇄물에서 축 없이
+    // 크기만으로는 세 값을 비교하기 어려워, 같은 값을 표로도 병기한다.
+    const negoTableBody = $("#negoPrintTable tbody");
+    if (negoTableBody) {
+      negoTableBody.innerHTML = `
+        <tr><td>물가 방어 최소 인상액</td><td class="num">${man(defendAmount)}만원</td><td>최소 기준선 (${state.inflation.toFixed(1)}%)</td></tr>
+        <tr><td>실질 +1% 목표 인상액</td><td class="num">${man(targetAmount)}만원</td><td>목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</td></tr>
+        <tr><td>제안받은 인상액</td><td class="num">${man(offeredAmount)}만원</td><td>설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</td></tr>`;
+    }
+
     const v = $("#negoVerdict");
     if (achieved) {
       v.className = "verdict";
@@ -2181,12 +2191,51 @@
   }
 
   /* ══════════════ 전체 렌더 ══════════════ */
+  // 인쇄(PDF) 문서 맨 위에만 보이는 제목·생성일·요약 한 줄 — 화면에는
+  // .print-only가 항상 숨긴다. 새 계산 없이 이미 화면에 있는 값만
+  // 다시 읽어서 문장으로 합친다.
+  function renderPrintMeta() {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일 생성`;
+
+    const reportMeta = $("#printMetaReport");
+    if (reportMeta) {
+      const persona = $("#personaLabel")?.textContent || "—";
+      const cur = Math.max(0, +$("#curSalary").value || 0);
+      const next = Math.max(0, +$("#nextSalary").value || 0);
+      reportMeta.textContent = cur > 0
+        ? `가구 유형: ${persona} · 현재 연봉 ${man(cur)}만원 · 내년 예상 연봉 ${man(next)}만원 · ${dateStr}`
+        : dateStr;
+    }
+
+    const goalMeta = $("#printMetaGoal");
+    if (goalMeta) {
+      const goal = Math.max(0, +$("#goalAmount").value || 0);
+      const { years, months } = readGoalDuration();
+      goalMeta.textContent = goal > 0
+        ? `목표 금액 ${man(goal)}만원 · 목표 기간 ${years}년 ${months}개월 · ${dateStr}`
+        : dateStr;
+    }
+
+    const timeMeta = $("#printMetaTime");
+    if (timeMeta) {
+      const amount = Math.max(0, +$("#investAmount").value || 0);
+      const assetNames = state.market
+        ? state.market.assets.filter((a) => state.picks.has(a.id)).map((a) => a.name).join(", ")
+        : "";
+      timeMeta.textContent = state.startMonth
+        ? `투자 시작 ${E.monthLabel(state.startMonth)} · 투자 금액 ${man(amount)}만원${assetNames ? ` · 비교 자산 ${assetNames}` : ""} · ${dateStr}`
+        : dateStr;
+    }
+  }
+
   function renderAll() {
     if (!state.market) return;
     renderMine();
     renderGap();
     renderGoal();
     renderTime();
+    renderPrintMeta();
   }
 
   document.addEventListener("DOMContentLoaded", boot);
