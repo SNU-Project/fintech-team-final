@@ -611,15 +611,105 @@
   // 없으므로, 같은 E.personalInflation/E.aggregateByGroup 호출을
   // 그대로 반복해 같은 값을 얻는다(카드3과 결론 카드가 다른 1위를
   // 말하면 안 되니까).
-  function topSpendingCause() {
+  function rankedSpendCauses() {
     const cats = state.cpi.categories || [];
-    if (!cats.length) return null;
+    if (!cats.length) return [];
     const result = E.personalInflation(state.spending, cats);
-    if (!result) return null;
-    const ranked = E.aggregateByGroup(result.contributions, SPEND_GROUPS)
+    if (!result) return [];
+    return E.aggregateByGroup(result.contributions, SPEND_GROUPS)
       .sort((a, b) => b.contribution - a.contribution)
       .filter((g) => g.amount > 0);
-    return ranked[0] || null;
+  }
+
+  // "유독 많이 오른" 항목 = 내 물가(가중평균) 자체보다 더 빨리 오르고
+  // 있는 항목만 후보로 삼는다. 카드3의 "범인" 랭킹(비중×상승률이 큰
+  // 순)은 비중만 커도 위로 올라올 수 있어서 다른 질문이다 — 비중이
+  // 크지만 자기 상승률은 평균보다 낮은 항목을 줄이면, 총지출이 줄면서
+  // 오히려 상승률이 더 높은 다른 항목의 비중이 커져 내 물가가
+  // 올라가는 역설이 생길 수 있다(실제로 이 필터 없이 구현했다가
+  // "식비 5% 절감 시 내 물가가 오히려 오른다"는 결과가 나와서 발견).
+  // "줄이면 실제로 개선되는" 항목만 후보로 쓰기 위해 rate >
+  // baselineRate로 거른다. 카드7의 케이스 B 문구, 시나리오 계산이
+  // 전부 이 정의를 공유.
+  function rankedAboveAverageCauses() {
+    const cats = state.cpi.categories || [];
+    if (!cats.length) return { baselineRate: null, list: [] };
+    const baseline = E.personalInflation(state.spending, cats);
+    if (!baseline) return { baselineRate: null, list: [] };
+    const list = rankedSpendCauses().filter((g) => g.rate > baseline.rate);
+    return { baselineRate: baseline.rate, list };
+  }
+
+  function topSpendingCause() {
+    return rankedAboveAverageCauses().list[0] || null;
+  }
+
+  // 시나리오 계산이 쓰는 "지출을 pct%만큼 줄인 가상의 spending 객체"
+  // 생성기. state.spending을 직접 건드리지 않고 복사본만 돌려준다.
+  function reduceGroupSpending(spending, groupId, pct) {
+    const group = SPEND_GROUPS.find((g) => g.id === groupId);
+    if (!group) return spending;
+    const adjusted = { ...spending };
+    group.members.forEach((id) => {
+      if (adjusted[id] != null) adjusted[id] = adjusted[id] * (1 - pct / 100);
+    });
+    return adjusted;
+  }
+
+  // 조언 수용 시나리오 — rankedAboveAverageCauses()가 고른 "줄이면
+  // 실제로 개선되는" 1·2위 카테고리를 SCENARIO_CUT_PCT만큼 줄였다고
+  // 가정하고, "내 물가" 계산(E.personalInflation)을 그 가상 지출로
+  // 다시 돌려 새 %를 구한다. 새 계산이 아니라 기존 계산을 다른
+  // 입력값으로 한 번 더 호출하는 것뿐이다.
+  const SCENARIO_CUT_PCT = { first: 10, second: 5 };
+  function buildSpendScenarios() {
+    const cats = state.cpi.categories || [];
+    if (!cats.length) return null;
+    const { baselineRate, list } = rankedAboveAverageCauses();
+    if (baselineRate == null) return null;
+    const first = list[0];
+    if (!first) return null;
+    const second = list[1];
+
+    const rateOf = (spending) => {
+      const r = E.personalInflation(spending, cats);
+      return r ? r.rate : baselineRate;
+    };
+
+    const scenarios = [
+      { label: `${first.name} ${SCENARIO_CUT_PCT.first}% 절감`, rate: rateOf(reduceGroupSpending(state.spending, first.id, SCENARIO_CUT_PCT.first)) },
+    ];
+    if (second) {
+      scenarios.push({ label: `${second.name} ${SCENARIO_CUT_PCT.second}% 절감`, rate: rateOf(reduceGroupSpending(state.spending, second.id, SCENARIO_CUT_PCT.second)) });
+      let both = reduceGroupSpending(state.spending, first.id, SCENARIO_CUT_PCT.first);
+      both = reduceGroupSpending(both, second.id, SCENARIO_CUT_PCT.second);
+      scenarios.push({ label: `${first.name}+${second.name} 둘 다 절감`, rate: rateOf(both) });
+    }
+
+    return { baselineRate, scenarios, first, second };
+  }
+
+  function renderScenarios() {
+    const card = $("#scenarioCard");
+    if (!card) return;
+    const s = buildSpendScenarios();
+    if (!s) { card.hidden = true; return; }
+    card.hidden = false;
+
+    const firstClause = `${s.first.name}${josa(s.first.name, "을", "를")} ${SCENARIO_CUT_PCT.first}%`;
+    const secondClause = s.second ? `, ${s.second.name}${josa(s.second.name, "을", "를")} ${SCENARIO_CUT_PCT.second}%` : "";
+    $("#scenarioNote").textContent =
+      `지금 지출에서 ${firstClause}${secondClause} 줄인다고 가정했을 때 내 물가가 어떻게 바뀌는지 시뮬레이션한 결과예요. 실제 절감 폭은 사람마다 다를 수 있어요.`;
+
+    // 10%대 절감이라도 카테고리 비중이 작으면 전체 평균은 0.1%p도 안
+    // 움직일 수 있다 — 1자리 반올림으로 뭉개면 세 시나리오가 다 같은
+    // 값으로 보여 "달라지는 게 없다"는 잘못된 인상을 준다. 소수 둘째
+    // 자리까지 보여줘서 작더라도 실제 차이를 그대로 드러낸다.
+    $("#scenarioGrid").innerHTML = s.scenarios.map((sc, i) => `
+      <div class="scenario-card">
+        <span class="scenario-label">${["①", "②", "③"][i] || ""} ${sc.label}</span>
+        <span class="scenario-rate">${s.baselineRate.toFixed(2)}%<span class="arrow">→</span><b>${sc.rate.toFixed(2)}%</b></span>
+      </div>`).join("");
   }
 
   // 리포트 맨 끝의 결론 — 4개 섹션 결과를 한데 모아 정리한다.
@@ -2401,6 +2491,7 @@
     renderGap();
     renderGoal();
     renderTime();
+    renderScenarios();
     renderPrintMeta();
   }
 

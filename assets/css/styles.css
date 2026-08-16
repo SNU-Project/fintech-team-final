@@ -1219,6 +1219,18 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 .tip-box ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .4rem; }
 .tip-box li { font-size: .85rem; color: var(--text-secondary); line-height: 1.5; }
 
+/* ---------- 조언 수용 시나리오 3가지 (v20 항목5) ---------- */
+.scenario-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: .7rem; margin-top: .3rem; }
+@media (max-width: 640px) { .scenario-grid { grid-template-columns: 1fr; } }
+.scenario-card {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: .9rem .95rem; text-align: center;
+}
+.scenario-card .scenario-label { display: block; font-size: .78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: .5rem; }
+.scenario-card .scenario-rate { display: block; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.scenario-card .scenario-rate b { color: var(--good-text); }
+.scenario-card .scenario-rate .arrow { color: var(--text-muted); font-weight: 400; margin: 0 .15rem; }
+
 /* ---------- PDF 다운로드 버튼 (v18) ---------- */
 /* 별도 라이브러리 없이 브라우저 네이티브 인쇄(window.print())를 쓴다 —
    사용자가 인쇄 대화상자에서 "대상: PDF로 저장"을 고르면 그게 곧
