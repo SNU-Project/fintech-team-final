@@ -411,118 +411,37 @@
     renderAll();
   }
 
-  // "연봉 성적표"에 쓸 100점 만점 점수 — "실질임금 진단"·"내 물가" 두
-  // 탭에서 이미 계산 중인 값만 모아서 E.salaryScore에 건네준다.
-  // 목표 자산·투자 성향은 사용자가 주관적으로 정하는 값이라 일부러
-  // 뺐다 — "연봉과 물가만 객관적으로 비교한다"는 취지를 지키기 위해서다.
-  function computeScoreInputs() {
-    const official = state.cpi.latest.yoy;
-    const rate = state.personalRate;
-    const diffPp = rate == null ? null : rate - official;
-
-    const cur = Math.max(0, +$("#curSalary").value || 0);
-    const next = Math.max(0, +$("#nextSalary").value || 0);
-    // 점수는 (명목 인상률−공식 물가)와 (개인 물가−공식 물가)를 따로
-    // 평가한다. 두 항목에서 같은 달의 공식 물가를 써야 평균낼 때 공식
-    // 물가가 정확히 상쇄되므로, 접속 뒤 더 최신인 전체 CPI와 섞지 않는다.
-    const realRatePct = cur > 0
-      ? E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: official }).realRatePct
-      : null;
-
-    return { realRatePct, diffPp };
-  }
-
-  // 등급 구간 — 링 안에 짧게 붙이고, 기준 자체는 "어떻게 계산했나요?"
-  // 펼침 영역에 공개한다(숨겨진 기준으로 평가받는 느낌을 주지 않기 위해).
-  // 알파벳 등급(S/A/B/C/D/F)은 상/중상/중/중하/하 5단계로 바꿨다.
-  const SCORE_GRADES = [
-    { min: 80, grade: "상", cls: "is-good" },
-    { min: 60, grade: "중상", cls: "is-good" },
-    { min: 40, grade: "중", cls: "is-warn" },
-    { min: 20, grade: "중하", cls: "is-bad" },
-    { min: 0,  grade: "하", cls: "is-bad" },
-  ];
-  function scoreBand(total) {
-    return SCORE_GRADES.find((g) => total >= g.min);
-  }
-
-  // 점수만 보면 좋은 건지 나쁜 건지 바로 와닿지 않는다는 피드백 — 새
-  // 기준을 따로 두지 않고, 이미 있는 등급의 cls(색상 그룹)를 그대로
-  // 재사용해 세 단계 톤으로만 묶는다.
-  const SCORE_TONE_BY_CLS = {
-    "is-good": "아직 괜찮아요 🙂",
-    "is-warn": "주의가 필요해요 ⚠️",
-    "is-bad": "위험해요 🚨",
-  };
-
-  // 점수·도넛·등급을 하나로, 세부 수치는 기본 접힌 "어떻게 계산했나요?"
-  // 안에만 둔다 — 같은 숫자가 화면에 3번(큰 텍스트/링/카드) 반복되던
-  // 걸 링 하나로 줄이고, 나머지는 궁금한 사람만 펼쳐보게 한다.
-  function renderScore() {
-    const data = E.salaryScore(computeScoreInputs());
-    const heroEl = $("#scoreHero");
-    const headline = $("#homeSummaryHeadline");
-    const previewEl = $("#scorePreviewConclusion");
-
-    // v20 항목3: 카드7에 있던 핵심 결론을 카드1(표지)로 당겨온다 —
-    // 연봉 입력이 있으면 buildGapVerdictLines()로 케이스 A/B 실제
-    // 수치 문장 + 갭 막대그래프를, 없으면 기존 체감 물가 일반 문구로
-    // 대체한다. 카드7의 결론 카드는 그대로 두고(조언·다음 행동까지
-    // 포함한 상세 버전), 카드1은 "한눈에 보는 요약"만 맡는다.
+  // v21: "연봉 성적표" 점수 위젯(링·등급·톤)을 없앴다 — 결론을 맨
+  // 앞으로 당기면서 점수가 결론과 같은 자리를 두고 경쟁하는 게
+  // 어색해졌고, 점수 자체도 실질임금·물가 두 신호를 다시 섞어 만든
+  // 부차적인 숫자라 결론 문장이 이미 하는 말을 한 번 더 반복하는
+  // 셈이었다. 카드1(결론부터)의 갭 막대그래프만 여기서 채운다 —
+  // 결론 문구(#finalBody)는 건드리지 않는다. 카드가 처음 화면에
+  // 나타날 때(카드덱이 열리며 index 0에 도달) typeFinalConclusionOnce()
+  // 가 타이핑 연출과 함께 채우는데, 여기서 매번 다시 쓰면 그 타이핑
+  // 도중에 덮어써 버릴 수 있다(예전엔 카드7/마지막 카드에서 쓰던
+  // 것과 같은 이유로 같은 원칙을 지킨다).
+  function renderFrontConclusion() {
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
     const gap = buildGapVerdictLines(cur, next);
     const gapChartBox = $("#homeGapChart");
+    if (!gapChartBox) return;
     if (gap) {
-      previewEl.hidden = false;
-      previewEl.textContent = gap.lines.join("\n");
-      if (gapChartBox) {
-        gapChartBox.hidden = false;
-        barChart(gapChartBox, [
-          { label: "내년 연봉", value: next, color: gap.d.beatsInflation ? "var(--good)" : "var(--series-1)" },
-          { label: "물가 유지선", value: gap.d.requiredSalary, color: "var(--critical)" },
-        ]);
-      }
+      gapChartBox.hidden = false;
+      barChart(gapChartBox, [
+        { label: "내년 연봉", value: next, color: gap.d.beatsInflation ? "var(--good)" : "var(--series-1)" },
+        { label: "물가 유지선", value: gap.d.requiredSalary, color: "var(--critical)" },
+      ]);
     } else {
-      const conclusionHeadline = buildConclusionHeadline();
-      previewEl.hidden = conclusionHeadline == null;
-      if (conclusionHeadline != null) previewEl.textContent = conclusionHeadline;
-      if (gapChartBox) gapChartBox.hidden = true;
+      gapChartBox.hidden = true;
     }
-
-    if (!data) {
-      heroEl.hidden = true;
-      headline.hidden = false;
-      headline.textContent = "정보를 더 입력하면 점수를 계산해드려요";
-      return;
-    }
-
-    headline.hidden = true;
-    const { total, items } = data;
-    const band = scoreBand(total);
-    const color = band.cls === "is-good" ? "var(--good)" : band.cls === "is-bad" ? "var(--critical)" : "var(--warning)";
-
-    heroEl.hidden = false;
-    $("#scoreNum").textContent = total;
-    $("#scoreRing").style.background = `conic-gradient(${color} ${total}%, var(--surface-sunk) 0)`;
-    $("#scoreRing").dataset.donutStops = JSON.stringify([{ color, from: 0, to: total }]);
-    $("#scoreGradeLine").textContent = band.grade;
-    $("#scoreGradeLine").className = `score-grade-line ${band.cls}`;
-    $("#scoreToneLine").textContent = SCORE_TONE_BY_CLS[band.cls];
-    $("#scoreToneLine").className = `score-tone-line ${band.cls}`;
-
-    $("#scoreDetailItems").innerHTML = items.map((it) =>
-      `<li><b>${it.label} ${it.score}점</b> · ${it.note}</li>`).join("");
-
-    // 점수 도입 전 쓰던 풀이 문단 — 접이식 안으로 옮겼으니 굳이 타이핑
-    // 연출 없이 바로 채운다(펼치기 전까지는 어차피 안 보인다).
-    $("#homeSummarySub").textContent = buildNarrative();
   }
 
   // 목표 기간을 "년"과 "개월" 두 필드로 나눠 받다 보니, 이 값을 쓰는
-  // renderGoal·buildNarrative·buildFinalConclusion 세 곳이 각자 따로
-  // 읽고 클램프하면 어긋나기 쉽다. 한 곳에서만 읽고 총 개월 수로
-  // 변환해 나머지는 이 결과만 쓰게 한다.
+  // renderGoal·renderPrintMeta 두 곳이 각자 따로 읽고 클램프하면
+  // 어긋나기 쉽다. 한 곳에서만 읽고 총 개월 수로 변환해 나머지는 이
+  // 결과만 쓰게 한다.
   function readGoalDuration() {
     const years = Math.max(0, Math.min(40, +$("#goalYears").value || 0));
     const extraMonths = Math.max(0, Math.min(11, +$("#goalMonths").value || 0));
@@ -540,35 +459,6 @@
   // 문장마다 줄을 바꿔서(\n) 반환한다 — 한 단락으로 흘려 쓰면 읽기
   // 힘들어서, 한 문장 = 한 줄로 끊어 가독성을 높인다. CSS의
   // white-space:pre-line이 이 줄바꿈을 그대로 살린다.
-  function buildNarrative() {
-    const official = state.cpi.latest.yoy;
-    const rate = state.personalRate;
-    if (rate == null) {
-      return "아직 지출 정보가 없어서 풀이를 시작할 수 없어요.\n리포트에서 월 생활비를 입력하면 여기서부터 다시 풀어드릴게요.";
-    }
-
-    const diff = rate - official;
-    const lines = [
-      Math.abs(diff) < 0.05
-        ? `당신의 체감 물가는 ${rate.toFixed(1)}%로, 공식 통계와 거의 같아요.`
-        : diff > 0
-          ? `당신의 체감 물가는 ${rate.toFixed(1)}%로, 공식 통계보다 ${diff.toFixed(1)}%p 높아요.`
-          : `당신의 체감 물가는 ${rate.toFixed(1)}%로, 공식 통계보다 ${Math.abs(diff).toFixed(1)}%p 낮아요.`,
-    ];
-
-    const cur = Math.max(0, +$("#curSalary").value || 0);
-    const next = Math.max(0, +$("#nextSalary").value || 0);
-    if (cur > 0) {
-      const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: diagnosticInflation() });
-      lines.push(d.beatsInflation
-        ? "다행히 내년 연봉은 물가를 이기고 있어서, 실질 소득이 조금씩 늘어나는 흐름이에요."
-        : `하지만 내년 연봉은 물가를 다 따라가지 못해서, 실질적으로는 연 ${man(d.gap)}만원만큼 뒷걸음질 치고 있어요.`);
-    }
-
-    lines.push("아래에서 하나씩 풀어드릴게요.");
-    return lines.join("\n");
-  }
-
   // 문장이 한 글자씩 나타나는 연출 — 결과를 "읽어주는" 느낌을 준다.
   // 요약 화면 문단과 마지막 결론 문단, 두 곳에서 동시에 쓰일 수 있어
   // 타이머를 변수 하나로 공유하면 한쪽이 다른 쪽을 끊어버릴 수 있다.
@@ -620,8 +510,9 @@
     typewriterTimers.set(el, { interval, watchdog, skip: finish });
   }
 
-  // 결론의 핵심 한 문장 — 점수 카드 아래 미리보기와 맨 끝 결론 카드
-  // 첫 줄이 같은 문장을 반복해서 계산하다 어긋나지 않도록 한 곳으로 모았다.
+  // 연봉을 아직 입력하지 않았을 때(cur <= 0)만 쓰는 대체 문구 —
+  // buildGapVerdictLines()가 null을 돌려주는 경우 buildFinalConclusion()
+  // 의 폴백으로 쓰인다.
   function buildConclusionHeadline() {
     const rate = diagnosticInflation();
     if (!Number.isFinite(rate)) return null;
@@ -652,8 +543,8 @@
   // 올라가는 역설이 생길 수 있다(실제로 이 필터 없이 구현했다가
   // "식비 5% 절감 시 내 물가가 오히려 오른다"는 결과가 나와서 발견).
   // "줄이면 실제로 개선되는" 항목만 후보로 쓰기 위해 rate >
-  // baselineRate로 거른다. 카드7의 케이스 B 문구, 시나리오 계산이
-  // 전부 이 정의를 공유.
+  // baselineRate로 거른다. 카드1 결론의 케이스 B 문구, 카드5 격차
+  // 팁, 시나리오 계산이 전부 이 정의를 공유.
   function rankedAboveAverageCauses() {
     const cats = state.cpi.categories || [];
     if (!cats.length) return { baselineRate: null, list: [] };
@@ -735,23 +626,16 @@
       </div>`).join("");
   }
 
-  // 리포트 맨 끝의 결론 — 4개 섹션 결과를 한데 모아 정리한다.
-  // 투자 권유로 읽히면 안 되므로 단정 대신 "~해볼 만해요" 같은 선택지
-  // 톤을 쓰고, 마지막 줄에서 참고자료라는 점을 다시 한 번 짚는다.
-  //
-  // 첫 줄은 연봉 입력이 있으면(cur > 0) 카드4("내 연봉 vs 물가")의 물가
-  // 유지선 계산(E.diagnose)을 그대로 재사용해 "방어하려면 얼마"/"이미
-  // 넘었다"처럼 실제 금액이 박힌 문장으로 바꾼다. 새 계산 로직이 아니라
-  // 카드4가 쓰는 것과 같은 값이라, 두 카드의 숫자가 어긋나지 않는다.
-  //
-  // 물가를 이기는 경우(beatsInflation)는 "괜찮다"에서 끝내지 않고, 그
-  // 여유분(카드4의 "연간 여유"와 같은 값)을 목표 자산에 보태보라는
-  // 제안과, 카드3의 1위 항목은 계속 지켜보라는 안내를 이어 붙인다.
-  // 카드1 요약(항목3)과 결론 카드(카드7)가 "물가를 이겼는가"를 똑같은
-  // 판정·문장으로 말해야 하므로, 핵심 1~2문장을 여기 한 곳에서만
-  // 만든다. 문장 두 개를 한 줄에 이어붙이면(예: "…넘었어요. 지금
-  // 페이스라면…") 화면 폭에 따라 "유독 많이 / 오른"처럼 의미 단위
-  // 중간에서 줄바꿈될 수 있어 — 문장 하나당 배열 원소 하나로 쪼갠다.
+  // 결론(카드1)의 핵심 1~2문장 — 연봉 입력이 있으면(cur > 0) 카드4
+  // ("내 연봉 vs 물가")의 물가 유지선 계산(E.diagnose)을 그대로
+  // 재사용해 "방어하려면 얼마"/"이미 넘었다"처럼 실제 금액이 박힌
+  // 문장으로 만든다. 새 계산 로직이 아니라 카드4가 쓰는 것과 같은
+  // 값이라, 두 카드의 숫자가 어긋나지 않는다. renderFrontConclusion()
+  // (갭 막대그래프)과 buildFinalConclusion()(전체 결론 문단)이 이
+  // 판정·문장을 공유한다. 문장 두 개를 한 줄에 이어붙이면(예: "…
+  // 넘었어요. 지금 페이스라면…") 화면 폭에 따라 "유독 많이 / 오른"
+  // 처럼 의미 단위 중간에서 줄바꿈될 수 있어 — 문장 하나당 배열
+  // 원소 하나로 쪼갠다.
   function buildGapVerdictLines(cur, next) {
     if (cur <= 0) return null;
     const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: diagnosticInflation() });
@@ -767,6 +651,12 @@
     return { d, lines };
   }
 
+  // 카드1(결론부터)의 #finalBody 전체 문단 — buildGapVerdictLines()의
+  // 핵심 1~2문장에 물가를 이기는 경우(beatsInflation)는 여유분(카드4의
+  // "연간 여유"와 같은 값)을 목표 자산에 보태보라는 제안과 카드3의
+  // 1위 항목은 계속 지켜보라는 안내를 이어 붙인다. 투자 권유로 읽히면
+  // 안 되므로 단정 대신 "~해볼 만해요" 같은 선택지 톤을 쓰고, 마지막
+  // 줄에서 참고자료라는 점을 다시 한 번 짚는다.
   function buildFinalConclusion() {
     const headline = buildConclusionHeadline();
     if (headline == null) {
@@ -799,8 +689,9 @@
   // 재생했다는 표시를 남기고 이후로는 완성된 문장을 바로 보여준다.
   // (v8 이전에는 스크롤로 카드에 처음 닿을 때 IntersectionObserver로
   // 트리거했는데, 카드뉴스 덱은 transform으로 카드를 넘기지 실제
-  // 스크롤이 아니라서 그 방식이 안 걸린다. CardDeck이 마지막 카드에
-  // 처음 도달하는 순간 이 로직을 직접 호출한다 — 아래 setupCardDeck 참고.)
+  // 스크롤이 아니라서 그 방식이 안 걸린다. CardDeck이 카드1(결론부터,
+  // v21부터 index 0)에 처음 도달하는 순간 이 로직을 직접 호출한다 —
+  // 아래 setupCardDeck 참고.)
   const FINAL_TYPED_KEY = "sr_finalConclusionTyped";
   function typeFinalConclusionOnce() {
     const body = $("#finalBody");
@@ -833,9 +724,10 @@
 
   // 목표 자산/타임머신은 카드뉴스 덱이 아니라 예전처럼 독립된 화면이다.
   // 버튼을 누르면 덱을 숨기고 그 화면을 보여주고, 그 화면 맨 위의
-  // "카드 리포트로 돌아가기"를 누르면 덱으로 복귀해 마지막 카드(결론)에
-  // 이어서 보여준다. renderAll()이 이미 renderGoal()/renderTime()을
-  // 항상 호출해 두므로 내용은 hidden 상태에서도 다 그려져 있다.
+  // "카드 리포트로 돌아가기"를 누르면 덱으로 복귀해 마지막 카드
+  // (시나리오, 이 버튼들이 있던 카드)에 이어서 보여준다.
+  // renderAll()이 이미 renderGoal()/renderTime()을 항상 호출해 두므로
+  // 내용은 hidden 상태에서도 다 그려져 있다.
   function setupNextSteps() {
     function openStandalone(id) {
       $("#deck").hidden = true;
@@ -921,7 +813,7 @@
 
   /* ══════════════ 카드뉴스 덱 (v8) ══════════════
      카드 내용은 전혀 모르는 범용 네비게이션 엔진 — .deck-card 엘리먼트
-     목록만 다룬다. renderMine()/renderGap()/renderScore()는 전부
+     목록만 다룬다. renderMine()/renderGap()/renderFrontConclusion()는 전부
      $("#id")로 엘리먼트를 찾아 쓰는 구조라 이 함수와 무관하게 그대로
      동작한다(어느 카드가 감싸든 상관없다).
 
@@ -954,7 +846,18 @@
     const liveRegion = $("#deckLiveRegion");
     const FINAL_INDEX = cards.length - 1;
     let index = 0;
-    let finalTyped = false;
+    // v21: 결론이 카드1(index 0)로 옮겨오면서, "처음 도달했을 때 한 번
+    // 타이핑"의 기준 카드도 마지막에서 첫 카드로 바뀌었다. 초기값은
+    // true(=이미 탔음)로 시작해야 한다 — setupCardDeck() 맨 끝의
+    // syncUI() 최초 호출이 index=0인 채로 무조건 한 번 실행되는데,
+    // 그 시점엔 온보딩이 끝나지 않아 #curSalary/#nextSalary가 아직
+    // HTML 기본값(3600/3750)이다. false로 시작하면 그 기본값으로
+    // 결론이 미리 타이핑되어 버렸다가, 실제 온보딩 완료 후
+    // CardDeck.open()이 다시 열어도 이미 "탔다"는 오해로 그 결과가
+    // 화면에 남는 버그가 생긴다(실제로 겪고 나서 고쳤다). true로 시작해
+    // 이 최초 syncUI()는 건너뛰고, CardDeck.open()이 매번 명시적으로
+    // false로 되돌린 뒤에만 진짜로 타이핑되게 한다.
+    let frontTyped = true;
 
     cards.forEach((card, i) => {
       const dot = document.createElement("button");
@@ -1000,8 +903,8 @@
       prevBtn.disabled = index === 0;
       nextBtn.disabled = index === FINAL_INDEX;
       liveRegion.textContent = `카드 ${index + 1} / ${cards.length}`;
-      if (index === FINAL_INDEX && !finalTyped) {
-        finalTyped = true;
+      if (index === 0 && !frontTyped) {
+        frontTyped = true;
         typeFinalConclusionOnce();
       }
       // 카드가 화면에 나타날 때(스와이프/화살표/점/키보드 전환 전부
@@ -1115,14 +1018,14 @@
     CardDeck.open = function () {
       index = 0;
       // "처음부터 다시 입력하기"로 재입력한 뒤 다시 열리는 경우를 포함해,
-      // 덱이 새로 열릴 때마다 "마지막 카드에 처음 도달했다"는 상태를
-      // 다시 무장한다. 이걸 안 하면 재입력 전 한 번이라도 결론 카드를
-      // 봤을 경우 finalTyped가 true로 남아 있어서, 재입력 후 다시
-      // 마지막 카드에 가도 typeFinalConclusionOnce()가 아예 호출되지
-      // 않고 #finalBody에 이전 입력값 기준 문구가 그대로 남는 버그가
-      // 있었다(세션 재사용 시에만 재현 — 새로고침하면 finalTyped 자체가
-      // 초기화돼 안 보였다).
-      finalTyped = false;
+      // 덱이 새로 열릴 때마다 "카드1(결론부터)에 처음 도달했다"는 상태를
+      // 다시 무장한다. 이걸 안 하면 재입력 전에 카드1을 한 번이라도 본
+      // 경우 frontTyped가 true로 남아 있어서, 재입력 후 다시 카드1에
+      // 가도(카드덱은 항상 index 0으로 열린다) typeFinalConclusionOnce()가
+      // 아예 호출되지 않고 #finalBody에 이전 입력값 기준 문구가 그대로
+      // 남는 버그가 있었다(세션 재사용 시에만 재현 — 새로고침하면
+      // frontTyped 자체가 초기화돼 안 보였다).
+      frontTyped = false;
       syncUI();
       syncViewportHeight();
       // 열리는 시점엔 폰트·티커 실시간 값 등이 아직 자리를 잡는 중일 수
@@ -1265,9 +1168,9 @@
     }
 
     function renderSummary() {
-      renderScore();
+      renderFrontConclusion();
       // 설문이 끝나고 포트폴리오가 준비된 뒤에야 리포트 카드뉴스 덱이
-      // 의미가 생기므로 그때 한꺼번에 드러내고, 항상 카드 1(표지)부터
+      // 의미가 생기므로 그때 한꺼번에 드러내고, 항상 카드 1(결론부터)로
       // 보여준다.
       setReportVisible(true);
       CardDeck.open();

@@ -131,10 +131,14 @@
        물가"가 스탯 5개까지 기본 펼침이 되며 "인상률 상세 지표" 카드로
        나뉘어 6장→7장, v14에서 막대그래프 3개를 없애고 생긴 여유로
        "인상률 상세 지표"를 다시 합치는 대신 "10년 추이" 토글을 별도
-       카드로 뺐다 — 결과적으로 7장 그대로 유지). id는 전부 예전
-       그대로 유지했다 —
-       renderMine()/renderGap()/renderScore() 등은 전부 $("#id")로
-       엘리먼트를 찾아 쓰는 구조라, 어느 카드가 감싸든 그대로 동작한다.
+       카드로 뺐다 — 결과적으로 7장 그대로 유지. v21에서 점수 위젯을
+       없애고 카드7에 있던 결론을 카드1로 당겨왔다 — 카드1은 이제
+       "결론부터", 카드7은 "실천하면 어떻게 달라지는지"(시나리오)로
+       마무리한다. 카드 수는 여전히 7장). id는 전부 예전 그대로
+       유지했다 —
+       renderMine()/renderGap()/renderFrontConclusion() 등은 전부
+       $("#id")로 엘리먼트를 찾아 쓰는 구조라, 어느 카드가 감싸든
+       그대로 동작한다.
        설문 도중에는 숨겨 둔다 — 아직 안 끝난 설문 밑에 결과가 미리
        보이면 안 된다. 설문을 마치면(또는 재방문자면) JS가 드러낸다. -->
   <section class="deck" id="deck" hidden>
@@ -154,39 +158,16 @@
       <div class="deck-viewport" id="deckViewport">
         <div class="deck-track" id="deckTrack">
 
-          <!-- 카드 1 · 표지 -->
+          <!-- 카드 1 · 결론부터 (v21: 점수 위젯을 없애고, 카드7에 있던
+               결론을 맨 앞으로 당겨왔다 — buildFinalConclusion()이 그대로
+               #finalBody를 채우고, 카드 진입 시(카드덱이 열리자마자,
+               index 0) 타이핑 연출도 여기서 재생된다.) -->
           <section class="deck-card is-cover" id="card-1">
-            <p class="kicker" id="homeSummaryKicker">당신의 연봉 성적표</p>
-            <!-- 점수를 계산할 정보가 아직 없을 때만 보이는 안내문 (점수가 있으면 hidden) -->
-            <h1 id="homeSummaryHeadline" hidden>—</h1>
-            <div class="score-hero" id="scoreHero" hidden>
-              <div class="score-ring-wrap">
-                <div class="score-ring" id="scoreRing"></div>
-                <div class="score-ring-center">
-                  <span class="score-num"><span id="scoreNum">—</span>점</span>
-                  <span class="score-grade-line" id="scoreGradeLine">—</span>
-                </div>
-              </div>
-              <p class="score-tone-line" id="scoreToneLine">—</p>
-              <details class="score-detail-toggle">
-                <summary>어떻게 계산했나요?</summary>
-                <div class="score-detail-body">
-                  <p class="score-note">이 점수는 목표나 투자 성향과 무관하게, 당신의 연봉과 물가만 비교한 결과예요. 투자 조언이 아니에요.</p>
-                  <ul class="score-detail-items" id="scoreDetailItems"></ul>
-                  <p class="score-detail-heading">등급 기준</p>
-                  <ul class="score-grade-list">
-                    <li>80점 이상 — 상</li>
-                    <li>60~79점 — 중상</li>
-                    <li>40~59점 — 중</li>
-                    <li>20~39점 — 중하</li>
-                    <li>19점 이하 — 하</li>
-                  </ul>
-                  <p class="score-detail-narrative" id="homeSummarySub">—</p>
-                </div>
-              </details>
-            </div>
+            <p class="kicker">먼저 결론부터 말하면</p>
+            <h1 class="report-heading" id="finalHeadline">당신을 위한 결론</h1>
             <div class="chart-box is-compact-bar home-gap-chart" id="homeGapChart" hidden></div>
-            <p class="score-preview-conclusion" id="scorePreviewConclusion" hidden>—</p>
+            <p class="final-body" id="finalBody"></p>
+            <button class="home-start-btn is-compact pdf-download-btn" id="downloadReportBtn" type="button">PDF로 다운받기</button>
             <button class="onboarding-back deck-restart-link" type="button">처음부터 다시 입력하기</button>
           </section>
 
@@ -342,16 +323,12 @@
             </div>
           </section>
 
-          <!-- 카드 7 · 결론 + 더 보기 -->
+          <!-- 카드 7 · 그래서 어떻게 달라질까 + 더 보기 (v21: 결론
+               텍스트는 카드1로 옮겼다 — 리포트를 다 보고 난 마지막
+               카드는 "실천하면 이렇게 달라진다"는 시나리오로 마무리한다.) -->
           <section class="deck-card" id="card-7">
-            <div class="card final-card">
-              <p class="kicker">마지막으로 정리하면</p>
-              <h2 class="report-heading" id="finalHeadline">당신을 위한 결론</h2>
-              <p class="final-body" id="finalBody"></p>
-              <button class="home-start-btn is-compact pdf-download-btn" id="downloadReportBtn" type="button">PDF로 다운받기</button>
-            </div>
-
             <div class="card" id="scenarioCard" hidden>
+              <p class="kicker">마지막으로</p>
               <h3 class="block-title">이렇게 실천하면 어떻게 달라질까</h3>
               <p class="block-q" id="scenarioNote">—</p>
               <div class="scenario-grid" id="scenarioGrid"></div>
@@ -378,9 +355,9 @@
       <button class="deck-arrow deck-arrow-next" id="deckNextBtn" type="button" aria-label="다음 카드">›</button>
     </div>
 
-    <!-- 카드 덱 전체 아래로 옮겼다(v20) — 점수·결론이 먼저 보이고,
-         시세는 다 보고 난 뒤 참고하는 보조 정보로. setReportVisible이
-         hidden을 같이 켠다. -->
+    <!-- 카드 덱 전체 아래로 옮겼다(v20) — 결론이 먼저 보이고, 시세는
+         다 보고 난 뒤 참고하는 보조 정보로. setReportVisible이 hidden을
+         같이 켠다. -->
     <div class="ticker" id="ticker" aria-label="시장 지표" hidden>
       <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:5.6em"></span></span>
       <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:6.4em"></span></span>
