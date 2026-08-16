@@ -56,6 +56,7 @@
       const rect = el("rect", {
         x, y, width: barW, height: h, rx: 7, fill: b.color,
       });
+      rect.dataset.anim = "bar-y";
       bindTip(rect, `<b>${b.label}</b><br>${fmtMan(b.value)}만원`);
       svg.appendChild(rect);
 
@@ -98,6 +99,8 @@
         x: padL, y, width: trackW, height: 21, rx: 6, fill: "var(--surface-sunk)",
       }));
       const bar = el("rect", { x: padL, y, width: w, height: 21, rx: 6, fill: r.color });
+      bar.dataset.anim = "bar-x";
+      bar.dataset.animOrigin = "left";
       bindTip(bar, `<b>${r.label}</b><br>${fmtMan(r.value)}${unit}${r.note ? "<br>" + r.note : ""}`);
       svg.appendChild(bar);
 
@@ -172,11 +175,15 @@
     series.forEach((s) => {
       if (!s.points.length) return;
       const d = s.points.map((p, i) => `${i ? "L" : "M"}${sx(p.x).toFixed(2)},${sy(p.y).toFixed(2)}`).join(" ");
-      svg.appendChild(el("path", {
+      const path = el("path", {
         d, fill: "none", stroke: s.color, "stroke-width": s.dashed ? 1.6 : 2.2,
-        "stroke-dasharray": s.dashed ? "5 4" : null,
         "stroke-linejoin": "round", "stroke-linecap": "round",
-      }));
+      });
+      // 점선(목표/유지선 등 보조 지표)은 그려지는 연출 없이 바로 보여준다
+      // — dashoffset 애니메이션과 점선 자체의 dasharray가 서로 간섭한다.
+      if (s.dashed) path.setAttribute("stroke-dasharray", "5 4");
+      else path.dataset.anim = "line";
+      svg.appendChild(path);
 
       // 마지막 점 강조
       const last = s.points[s.points.length - 1];
@@ -262,6 +269,8 @@
         fill: positive ? r.color : "var(--series-1)",
         opacity: r.weight > 0 ? 1 : 0.25,
       });
+      bar.dataset.anim = "bar-x";
+      bar.dataset.animOrigin = positive ? "left" : "right";
       bindTip(bar,
         `<b>${r.name}</b><br>` +
         (r.examples ? `<span class="tip-ex">${r.examples}</span><br>` : "") +

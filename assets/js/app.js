@@ -483,6 +483,7 @@
     heroEl.hidden = false;
     $("#scoreNum").textContent = total;
     $("#scoreRing").style.background = `conic-gradient(${color} ${total}%, var(--surface-sunk) 0)`;
+    $("#scoreRing").dataset.donutStops = JSON.stringify([{ color, from: 0, to: total }]);
     $("#scoreGradeLine").textContent = band.grade;
     $("#scoreGradeLine").className = `score-grade-line ${band.cls}`;
     $("#scoreToneLine").textContent = SCORE_TONE_BY_CLS[band.cls];
@@ -966,6 +967,11 @@
         finalTyped = true;
         typeFinalConclusionOnce();
       }
+      // 카드가 화면에 나타날 때(스와이프/화살표/점/키보드 전환 전부
+      // goTo → syncUI를 거친다)마다 그 카드 안의 그래프·숫자가 짧게
+      // 채워지는 연출을 다시 재생한다 — 미리 다 그려진 채로 넘어오지
+      // 않게. window.Animate가 없으면(로드 실패 등) 조용히 건너뛴다.
+      if (window.Animate) window.Animate.playCardEntrance(cards[index]);
     }
 
     function goTo(i, opts = {}) {
@@ -1527,14 +1533,17 @@
   function renderSpendChart() {
     const total = spendingTotal(state.spending);
     let acc = 0;
-    const stops = SPEND_GROUPS.map((g) => {
+    const stopObjs = SPEND_GROUPS.map((g) => {
       const weight = total > 0 ? groupTotal(g) / total : 0;
       const from = acc * 100, to = (acc + weight) * 100;
       acc += weight;
-      return `${SPEND_GROUP_COLOR[g.id]} ${from.toFixed(2)}% ${to.toFixed(2)}%`;
+      return { color: SPEND_GROUP_COLOR[g.id], from, to };
     });
-    $("#spendDonut").style.background =
-      total > 0 ? `conic-gradient(${stops.join(",")})` : "var(--surface-sunk)";
+    $("#spendDonut").style.background = total > 0
+      ? `conic-gradient(${stopObjs.map((s) => `${s.color} ${s.from.toFixed(2)}% ${s.to.toFixed(2)}%`).join(",")})`
+      : "var(--surface-sunk)";
+    if (total > 0) $("#spendDonut").dataset.donutStops = JSON.stringify(stopObjs);
+    else delete $("#spendDonut").dataset.donutStops;
     $("#spendDonutCenter").innerHTML =
       `<div style="font-size:.7rem;color:var(--text-muted)">총 생활비</div>
        <div style="font-size:1.3rem;font-weight:800">${man(total)}만원</div>`;
