@@ -1669,6 +1669,47 @@
         이게 내 물가입니다. ${verdict}</p>`;
   }
 
+  // v20 항목6: "내 물가" 카드에 공식 물가의 과거 흐름 + 추세 예측선을
+  // 덧붙인다. 실제 값(state.cpi.yoy, 10년치)은 그대로 실선으로 다
+  // 보여주고, 예측은 최근 3년 추세(E.forecastLinear)만 따로 점선으로
+  // 이어 붙인다 — 10년 전체로 추세를 맞추면 코로나 시기 등 지금과
+  // 다른 물가 국면이 섞여 최근 흐름을 제대로 반영하지 못한다.
+  function renderInflationForecast() {
+    const card = $("#inflationForecastCard");
+    if (!card) return;
+    if (!state.cpi || !state.cpi.yoy) { card.hidden = true; return; }
+    const result = E.forecastLinear(state.cpi.yoy, { historyMonths: 36, forecastMonths: 12 });
+    if (!result) { card.hidden = true; return; }
+    card.hidden = false;
+
+    const allMonths = Object.keys(state.cpi.yoy).sort();
+    const historyPoints = allMonths.map((m, i) => ({ x: i, y: state.cpi.yoy[m], meta: E.monthLabel(m) }));
+    const lastIdx = historyPoints.length - 1;
+    const forecastPoints = [
+      { x: lastIdx, y: historyPoints[lastIdx].y, meta: historyPoints[lastIdx].meta },
+      ...result.forecast.map((f, i) => ({ x: lastIdx + 1 + i, y: f.value, meta: `${E.monthLabel(f.month)} (예측)` })),
+    ];
+
+    const xLabels = [];
+    allMonths.forEach((m, i) => { if (m.endsWith("-01")) xLabels.push({ at: i, text: m.slice(0, 4) }); });
+    result.forecast.forEach((f, i) => {
+      if (f.month.endsWith("-01")) xLabels.push({ at: lastIdx + 1 + i, text: f.month.slice(0, 4) });
+    });
+
+    lineChart($("#forecastChart"), {
+      series: [
+        { id: "history", label: "실제 물가상승률", color: "var(--brand)", points: historyPoints },
+        { id: "forecast", label: "예측(최근 3년 추세)", color: "var(--warning)", dashed: true, points: forecastPoints },
+      ],
+      xLabels,
+      yFormat: (v) => `${v.toFixed(1)}%`,
+    });
+
+    $("#forecastLegend").innerHTML =
+      `<span class="legend-item"><span class="legend-swatch" style="background:var(--brand)"></span>실제 물가상승률</span>
+       <span class="legend-item"><span class="legend-swatch" style="background:var(--warning)"></span>예측 · 최근 3년 추세선 (실제와 다를 수 있음)</span>`;
+  }
+
   function renderMine() {
     const cats = state.cpi.categories || [];
     if (!cats.length) return;
@@ -2540,6 +2581,7 @@
   function renderAll() {
     if (!state.market) return;
     renderMine();
+    renderInflationForecast();
     renderGap();
     renderGoal();
     renderTime();

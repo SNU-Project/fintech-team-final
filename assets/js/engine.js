@@ -402,11 +402,44 @@
     return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`;
   };
 
+  /* ---------- 물가 추이 예측 (단순 선형회귀) ----------
+     "ML"이라는 표현에 얽매이지 않고, 검증 가능한 가장 단순한 통계
+     방법(최소제곱 선형추세)을 쓴다 — 최근 historyMonths개월의 실제
+     YoY 물가상승률에 직선을 적합해 forecastMonths개월을 연장한다.
+     정밀 예측이 아니라 "지금 추세가 이어지면"이라는 참고용 추세선이라
+     화면에도 반드시 "예측치" 안내를 병기해야 한다. */
+  function forecastLinear(monthlySeries, { historyMonths = 36, forecastMonths = 12 } = {}) {
+    const months = Object.keys(monthlySeries).sort();
+    const recent = months.slice(-historyMonths);
+    const n = recent.length;
+    if (n < 2) return null;
+
+    const xs = recent.map((_, i) => i);
+    const ys = recent.map((m) => monthlySeries[m]);
+    const sumX = xs.reduce((a, b) => a + b, 0);
+    const sumY = ys.reduce((a, b) => a + b, 0);
+    const sumXY = xs.reduce((s, x, i) => s + x * ys[i], 0);
+    const sumXX = xs.reduce((s, x) => s + x * x, 0);
+    const denom = n * sumXX - sumX * sumX;
+    if (denom === 0) return null;
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / n;
+
+    const history = recent.map((m, i) => ({ month: m, value: ys[i] }));
+    const forecast = [];
+    let cursor = recent[n - 1];
+    for (let k = 1; k <= forecastMonths; k++) {
+      cursor = addMonths(cursor, 1);
+      forecast.push({ month: cursor, value: slope * (n - 1 + k) + intercept });
+    }
+    return { history, forecast, slope };
+  }
+
   global.Engine = {
     diagnose, negotiate, project, requiredMonthly, monthsToGoal,
     backtest, backtestWindow, inflationPath, planOf, customPlan, badYear,
     portfolioVolatility,
     personalInflation, personalIndexPath, aggregateByGroup, salaryScore,
-    monthToNum, monthLabel, addMonths,
+    monthToNum, monthLabel, addMonths, forecastLinear,
   };
 })(window);
