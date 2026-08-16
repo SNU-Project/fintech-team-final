@@ -284,6 +284,10 @@ section { scroll-margin-top: 5rem; }
 .next-step-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: .6rem; }
 .next-step-actions .home-start-btn { margin-top: 0; }
 
+/* PDF 다운로드는 카드7 맨 마지막(재입력 링크 바로 위)에 둔다 — 리포트를
+   다 보고 난 뒤의 마무리 동작이라는 자리를 그대로 지킨다. */
+.pdf-download-wrap { display: flex; justify-content: center; margin-top: 1.1rem; }
+
 .onboarding-back {
   appearance: none; border: 0; background: none; cursor: pointer; font: inherit;
   color: var(--text-muted); font-size: .83rem; padding: .5rem;
@@ -1249,7 +1253,7 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
      화살표, 되돌아가기/재입력 링크, PDF 버튼 자신 등. */
   .no-print, .topbar, .ticker, .deck-dots, .deck-arrow, .deck-back-btn,
   .next-step-actions, .home-summary-links, .pdf-download-btn,
-  .scroll-top-btn, #restartConfirmDialog, #tooltip {
+  .pdf-download-wrap, .scroll-top-btn, #restartConfirmDialog, #tooltip {
     display: none !important;
   }
 
