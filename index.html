@@ -514,30 +514,36 @@
     </div>
     <div class="bento">
 
-      <div class="card bento-input">
-        <div class="section-head">
-          <div><h2>그때 샀다면?</h2><p>시작 시점과 금액을 고르세요.</p></div>
+      <!-- v20 항목9: 입력을 바꾸면 옆 그래프가 바로 갱신되므로, 데스크톱
+           에서는 나란히 놓아 스크롤 없이 입력→결과를 바로 볼 수 있게
+           한다(.deck-split — 카드뉴스 덱에서 쓰던 2단 유틸리티를 재사용).
+           모바일(861px 미만)은 기존처럼 세로로 쌓인다. -->
+      <div class="deck-split">
+        <div class="card bento-input">
+          <div class="section-head">
+            <div><h2>그때 샀다면?</h2><p>시작 시점과 금액을 고르세요.</p></div>
+          </div>
+
+          <label class="field">투자 시작 시점
+            <span class="input-wrap"><input type="month" id="startMonth"><span></span></span>
+          </label>
+          <label class="field">투자 금액
+            <span class="input-wrap"><input type="number" id="investAmount" min="0" step="100" value="1000" inputmode="numeric"><span>만원</span></span>
+          </label>
+
+          <div class="field" style="margin-bottom:.3rem">비교할 자산</div>
+          <div class="asset-picks" id="assetPicks"></div>
+          <p class="field-note">완료된 달은 월말 종가, 최신 진행 월은 수집 시점 가격을 씁니다. 해외 자산은 원/달러 환율로 환산한 원화 기준입니다.</p>
+          <p class="field-note skeleton-bar" id="btcLiveNote">—</p>
         </div>
 
-        <label class="field">투자 시작 시점
-          <span class="input-wrap"><input type="month" id="startMonth"><span></span></span>
-        </label>
-        <label class="field">투자 금액
-          <span class="input-wrap"><input type="number" id="investAmount" min="0" step="100" value="1000" inputmode="numeric"><span>만원</span></span>
-        </label>
-
-        <div class="field" style="margin-bottom:.3rem">비교할 자산</div>
-        <div class="asset-picks" id="assetPicks"></div>
-        <p class="field-note">완료된 달은 월말 종가, 최신 진행 월은 수집 시점 가격을 씁니다. 해외 자산은 원/달러 환율로 환산한 원화 기준입니다.</p>
-        <p class="field-note skeleton-bar" id="btcLiveNote">—</p>
-      </div>
-
-      <div class="card bento-main">
-        <h3 class="block-title">자산별 성장 경로</h3>
-        <p class="block-q">회색 점선은 같은 기간 소비자물가입니다. 이 선 아래면 물가를 못 이긴 것입니다.</p>
-        <div class="chart-box" id="timeChart"></div>
-        <div class="legend" id="timeLegend"></div>
-        <span class="src-note" id="timeSrc">—</span>
+        <div class="card bento-main">
+          <h3 class="block-title">자산별 성장 경로</h3>
+          <p class="block-q">회색 점선은 같은 기간 소비자물가입니다. 이 선 아래면 물가를 못 이긴 것입니다.</p>
+          <div class="chart-box" id="timeChart"></div>
+          <div class="legend" id="timeLegend"></div>
+          <span class="src-note" id="timeSrc">—</span>
+        </div>
       </div>
 
       <div class="card bento-full">
