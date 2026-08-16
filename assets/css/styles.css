@@ -246,92 +246,19 @@ section { scroll-margin-top: 5rem; }
 .home-hero h1 em { font-style: normal; color: var(--brand); }
 .home-hero .lede { font-size: clamp(.95rem, 2vw, 1.1rem); color: var(--text-secondary); margin: 0; max-width: 32rem; }
 .home-hero .kicker { margin: 0; }
-/* "당신의 연봉 성적표"는 이 화면의 제목 역할을 하는데도 다른 자잘한
-   kicker(Q1·내 물가 같은 문항 안내)와 같은 톤이라 존재감이 없었다.
-   이 화면 전용으로 더 크고 진하게, 브랜드색을 줘서 확실히 눈에 띄게
-   한다(다른 화면의 .kicker는 손대지 않는다). */
-#homeSummaryKicker {
+/* 카드1(결론부터)의 kicker는 이 리포트의 첫인상 역할을 하는데도 다른
+   자잘한 kicker(Q1·내 물가 같은 문항 안내, 카드7의 "마지막으로")와
+   같은 톤이면 존재감이 없다. 카드1 전용으로 더 크고 진하게, 브랜드색을
+   줘서 확실히 눈에 띄게 한다(다른 카드의 .kicker는 손대지 않는다). */
+#card-1 > .kicker {
   margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--brand); letter-spacing: -.01em;
 }
 
-/* ---------- 연봉 성적표 점수 ----------
-   "실질임금 진단"·"내 물가" 두 계산만 100점 만점 하나로 묶어 보여준다
-   (목표 자산·투자 성향은 주관적인 값이라 일부러 뺐다). 링은 포트폴리오
-   도넛(.donut)과 같은 mask 기법을 재사용한다 — 가운데 구멍은 실제로
-   뚫는 게 아니라 radial-gradient mask로 가려서 만든다(이미 이
-   코드베이스에서 검증된 패턴).
+/* v21: 카드1에 결론이 그대로 들어오면서 갭 막대그래프만 필요해졌다
+   (점수 링·등급·풀이 문단은 삭제 — 안 쓰이는 채로 남겨두지 않는다). */
+.home-gap-chart { margin-top: 1rem; }
+.home-gap-chart[hidden] { display: none; }
 
-   세부 수치("실질임금 성장 64점" 등)와 기존 물가 풀이 문단은 기본
-   접힌 "어떻게 계산했나요?" 안에서만 보여준다 — 링 아래에 다시
-   요약 줄로 반복하면 같은 숫자가 또 겹친다. */
-.score-hero { display: flex; flex-direction: column; align-items: center; gap: .6rem; margin-top: .3rem; }
-.score-hero[hidden] { display: none; }
-
-/* 맨 아래 결론 카드의 핵심 문장을 점수 카드 바로 아래 미리 보여준다 —
-   전체를 스크롤해야만 결론을 볼 수 있던 문제를 줄인다. 문장 전체는
-   buildFinalConclusion과 첫 줄을 공유하니(buildConclusionHeadline),
-   여기 문구를 고치면 맨 아래 결론도 같이 바뀐다. */
-.score-preview-conclusion {
-  max-width: 26rem; margin: .5rem auto 0; padding: .7rem 1.1rem;
-  background: var(--surface-2); border-radius: var(--radius-sm);
-  font-size: .86rem; font-weight: 600; line-height: 1.6;
-  text-align: center; color: var(--text-primary); word-break: keep-all;
-  /* 문장이 두 줄로 넘어갈 때 한쪽 줄만 유독 짧아지는 등 줄바꿈이
-     들쭉날쭉해 보인다는 피드백 — text-wrap:balance는 줄 길이를 최대한
-     고르게 맞춰준다(미지원 브라우저에서는 기본 자동 줄바꿈으로 안전하게
-     대체). 숫자(체감 물가 %)가 사람마다 달라 문장 길이가 매번 바뀌므로
-     특정 지점에 <br>을 박아두는 대신 이 방식이 항상 맞는다. */
-  text-wrap: balance;
-}
-.score-preview-conclusion[hidden] { display: none; }
-.score-ring-wrap { width: 168px; height: 168px; position: relative; margin-top: .3rem; }
-.score-ring {
-  position: absolute; inset: 0; border-radius: 50%;
-  -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%);
-          mask: radial-gradient(circle, transparent 62%, #000 63%);
-}
-.score-ring-center {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: .05rem;
-}
-.score-num { font-size: 2.5rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-primary); line-height: 1; }
-.score-grade-line { font-size: .82rem; font-weight: 700; margin-top: .15rem; }
-.score-grade-line.is-good { color: var(--good-text); }
-.score-grade-line.is-warn { color: var(--warning-text); }
-.score-grade-line.is-bad  { color: var(--critical-text); }
-
-/* 점수만으로는 좋고 나쁨이 바로 와닿지 않는다는 피드백 — 등급 아래
-   한 줄 평을 덧붙인다. 색은 등급 링과 같은 cls를 재사용해 톤을 맞춘다. */
-.score-tone-line { font-size: .92rem; font-weight: 700; margin: 0; }
-.score-tone-line.is-good { color: var(--good-text); }
-.score-tone-line.is-warn { color: var(--warning-text); }
-.score-tone-line.is-bad  { color: var(--critical-text); }
-
-/* "어떻게 계산했나요?" 펼침 — 기본 닫힘. 다른 <details> 펼침과 같은
-   시각 언어(요약은 브랜드색, 목록은 왼쪽 정렬)를 쓴다. */
-.score-detail-toggle { font-size: .8rem; }
-.score-detail-toggle summary { cursor: pointer; font-weight: 600; color: var(--brand); text-align: center; }
-.score-detail-body {
-  margin-top: .6rem; padding: .9rem 1rem; border-radius: var(--radius-sm);
-  background: var(--surface-2); text-align: left; max-width: 30rem;
-}
-.score-note { margin: 0; font-size: .76rem; color: var(--text-muted); word-break: keep-all; }
-.score-detail-items { margin: .6rem 0 0; padding-left: 1.1rem; }
-.score-detail-items li { margin: .2rem 0; font-size: .78rem; color: var(--text-secondary); word-break: keep-all; }
-.score-detail-items b { color: var(--text-primary); }
-.score-detail-heading { margin: .8rem 0 0; font-size: .74rem; font-weight: 700; color: var(--text-muted); }
-.score-grade-list { margin: .3rem 0 0; padding-left: 1.1rem; font-size: .76rem; color: var(--text-secondary); }
-.score-grade-list li { margin: .12rem 0; }
-.score-detail-narrative {
-  margin: .8rem 0 0; padding-top: .7rem; border-top: 1px solid var(--border);
-  font-size: .82rem; line-height: 1.6; white-space: pre-line; word-break: keep-all;
-}
-
-/* #homeSummarySub(점수 도입 전 쓰던 물가 풀이 문단)는 이제 접이식
-   "어떻게 계산했나요?" 안으로 옮겨져 .score-detail-narrative 스타일을
-   그대로 쓴다 — 예전엔 히어로 전체 폭을 쓰는 가운데 정렬 헤드라인급
-   문단이었지만, 지금은 좁은 카드 안에 왼쪽 정렬로 들어가는 보조
-   설명이라 전용 규칙이 필요 없다. */
 @media (min-width: 641px) {
   .final-body { white-space: pre; max-width: none; }
 }
@@ -356,6 +283,10 @@ section { scroll-margin-top: 5rem; }
 
 .next-step-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: .6rem; }
 .next-step-actions .home-start-btn { margin-top: 0; }
+
+/* PDF 다운로드는 카드7 맨 마지막(재입력 링크 바로 위)에 둔다 — 리포트를
+   다 보고 난 뒤의 마무리 동작이라는 자리를 그대로 지킨다. */
+.pdf-download-wrap { display: flex; justify-content: center; margin-top: 1.1rem; }
 
 .onboarding-back {
   appearance: none; border: 0; background: none; cursor: pointer; font: inherit;
@@ -441,6 +372,35 @@ section { scroll-margin-top: 5rem; }
    애니메이션·진행 표시·카드 배경)를 재사용한다. */
 .deck { padding: .3rem 0 1rem; }
 .deck[hidden] { display: none; }
+
+/* ---------- 한눈에 보기 토글 (v20 항목8) ---------- */
+.deck-toolbar { display: flex; justify-content: flex-end; max-width: 1000px; margin: 0 auto .5rem; padding-inline: .2rem; }
+.deck-view-toggle {
+  appearance: none; cursor: pointer; font: inherit;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary);
+  border-radius: 999px; padding: .35rem .9rem; font-size: .78rem; font-weight: 600;
+}
+.deck-view-toggle:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.deck-view-toggle[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+/* 카드뉴스(스와이프) 대신 카드 전부를 세로로 이어 붙여 스크롤 한 번에
+   다 보여준다 — 인쇄용 @media print 블록이 이미 만들어 둔 "덱을
+   문서처럼 펼치는" 레이아웃을 화면에서도 토글로 쓸 수 있게 재사용한다.
+   점 인디케이터·화살표는 스와이프 전용이라 이 모드에서는 의미가
+   없어 숨긴다. */
+.deck.is-full-view .deck-dots,
+.deck.is-full-view .deck-arrow { display: none; }
+.deck.is-full-view .deck-shell { display: block; }
+.deck.is-full-view .deck-viewport {
+  width: auto; max-width: 640px; height: auto; min-height: 0; overflow: visible; margin-inline: auto;
+}
+.deck.is-full-view .deck-track { display: block; transform: none !important; transition: none !important; }
+.deck.is-full-view .deck-card {
+  flex: none; width: auto; height: auto; overflow: visible;
+  padding: 0 0 1.4rem;
+}
+.deck.is-full-view .deck-card + .deck-card { border-top: 1px dashed var(--border-strong); padding-top: 1.4rem; }
+.deck.is-full-view .deck-card.is-cover { min-height: 0; }
 
 .deck-dots { display: flex; justify-content: center; align-items: center; gap: .45rem; margin-bottom: .9rem; }
 .deck-dot {
@@ -893,21 +853,17 @@ input[readonly] { -moz-appearance: textfield; }
 }
 .spend-total b { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 
-/* ---------- 마지막 결론 카드 ---------- */
-.final-card {
-  text-align: center; padding: 2.4rem 1.6rem;
-  border-color: color-mix(in srgb, var(--brand) 28%, var(--border));
-  background: linear-gradient(135deg, var(--surface-2), var(--brand-soft));
-}
-.final-card .kicker { color: var(--brand); font-weight: 700; }
-.final-card .report-heading { margin: 0 0 1.2rem; }
+/* ---------- 결론 문단 (카드1) ----------
+   v21 전에는 .final-card라는 그라디언트 박스 안에 감싸 카드7 맨
+   아래에 있었다 — 카드1로 옮기면서 카드1이 이미 .is-cover로 가운데
+   정렬·여백을 처리하므로 별도 박스 스타일은 없앴다(그라디언트
+   배경·전용 kicker 색 등 죽은 채로 남겨두지 않는다). */
 .final-body {
   max-width: 34rem; margin: 0 auto; text-align: center;
   font-size: 1rem; line-height: 1.8; color: var(--text-secondary); white-space: pre-line;
   min-height: 6em;
   word-break: keep-all;
 }
-.final-card .pdf-download-btn { margin-top: 1.4rem; }
 
 /* ---------- 차트 ---------- */
 .chart-box { margin-top: .3rem; overflow-x: auto; }
@@ -1207,6 +1163,30 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 .calc-detail summary::marker { color: var(--brand); }
 .calc-detail[open] summary { margin-bottom: .5rem; }
 
+/* ---------- 카테고리별 절약 팁 (v20) ----------
+   카드3(범인)·카드7(격차 추이)·시나리오 카드가 공유하는 팁 라이브러리의
+   화면 표현. 조언 톤이라 경고(critical/warning)가 아니라 브랜드 톤으로
+   구분한다. */
+.tip-box {
+  background: var(--brand-soft); border: 1px solid color-mix(in srgb, var(--brand) 30%, var(--border));
+  border-radius: var(--radius-sm); padding: .9rem 1.1rem; margin: .7rem 0;
+}
+.tip-box .tip-title { margin: 0 0 .5rem; font-size: .82rem; font-weight: 700; color: var(--brand); }
+.tip-box ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .4rem; }
+.tip-box li { font-size: .85rem; color: var(--text-secondary); line-height: 1.5; }
+
+/* ---------- 조언 수용 시나리오 3가지 (v20 항목5) ---------- */
+.scenario-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: .7rem; margin-top: .3rem; }
+@media (max-width: 640px) { .scenario-grid { grid-template-columns: 1fr; } }
+.scenario-card {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: .9rem .95rem; text-align: center;
+}
+.scenario-card .scenario-label { display: block; font-size: .78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: .5rem; }
+.scenario-card .scenario-rate { display: block; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.scenario-card .scenario-rate b { color: var(--good-text); }
+.scenario-card .scenario-rate .arrow { color: var(--text-muted); font-weight: 400; margin: 0 .15rem; }
+
 /* ---------- PDF 다운로드 버튼 (v18) ---------- */
 /* 별도 라이브러리 없이 브라우저 네이티브 인쇄(window.print())를 쓴다 —
    사용자가 인쇄 대화상자에서 "대상: PDF로 저장"을 고르면 그게 곧
@@ -1259,10 +1239,10 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
     --critical:       #d03b3b !important;
     --critical-text:  #b32626 !important;
     --shadow:         none !important;
-    /* 화면용 카드 상자의 그림자·둥근 모서리를 눌러서, .card/.stat/
-       .final-card 등 var(--radius[-sm])를 쓰는 모든 상자가 인쇄에서는
-       각진 문서 구획으로 보이게 한다(클래스를 일일이 나열할 필요 없이
-       토큰 하나로 전부 적용된다). */
+    /* 화면용 카드 상자의 그림자·둥근 모서리를 눌러서, .card/.stat 등
+       var(--radius[-sm])를 쓰는 모든 상자가 인쇄에서는 각진 문서
+       구획으로 보이게 한다(클래스를 일일이 나열할 필요 없이 토큰
+       하나로 전부 적용된다). */
     --radius:         0 !important;
     --radius-sm:      0 !important;
   }
@@ -1273,13 +1253,9 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
      화살표, 되돌아가기/재입력 링크, PDF 버튼 자신 등. */
   .no-print, .topbar, .ticker, .deck-dots, .deck-arrow, .deck-back-btn,
   .next-step-actions, .home-summary-links, .pdf-download-btn,
-  .scroll-top-btn, #restartConfirmDialog, #tooltip {
+  .pdf-download-wrap, .scroll-top-btn, #restartConfirmDialog, #tooltip {
     display: none !important;
   }
-
-  /* 결론 카드의 브랜드 그라디언트 배경은 화면 전용 장식이라, 인쇄에서는
-     다른 섹션과 같은 흰 배경으로 맞춘다. */
-  .final-card { background: #fff !important; border-color: var(--border) !important; }
 
   /* 문서 맨 위에만 붙는 제목·생성일·요약 한 줄 — JS(renderPrintMeta)가
      내용을 채운다. 화면에서는 .print-only가 항상 숨긴다. */

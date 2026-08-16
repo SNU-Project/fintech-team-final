@@ -341,52 +341,6 @@
     };
   }
 
-  /* ---------- 7. 연봉 성적 (종합 점수) ----------
-     "실질임금 진단"과 "내 물가" 탭에서 이미 계산 중인 두 신호(실질임금
-     성장·물가 방어)만 0~100점으로 정규화해 평균한다. 새 숫자를 만들어
-     내는 게 아니라 있는 계산 결과를 다시 묶는 것뿐이다.
-
-     목표 자산·투자 성향은 일부러 뺐다 — 목표 금액이나 위험 성향은
-     사용자가 주관적으로 정하는 값이라, "연봉과 물가만 객관적으로
-     비교한다"는 이 점수의 취지와 맞지 않는다.
-
-     값이 없는 항목(연봉 미입력 등)은 평균에서 빼고 남은 항목만 쓴다.
-     하나도 없으면 null — 화면에서 점수 대신 안내 문구를 보여준다.
-
-     반올림은 각 항목을 clamp한 원값(raw)으로 평균을 낸 뒤 최종
-     합계에만 한 번 적용한다 — 항목별로 먼저 반올림하면 오차가
-     누적된다. item.score(반올림 값)는 세부 카드에 보여주기 위한
-     표시용일 뿐 합계 계산에는 쓰지 않는다. */
-  function salaryScore({ realRatePct, diffPp }) {
-    const clamp = (n) => Math.min(100, Math.max(0, n));
-    const items = [];
-
-    // 실질 인상률 0%(명목 인상이 물가만큼만)를 중간(50점)으로 두고,
-    // 1%p마다 10점씩 움직인다(±5%p에서 0점/100점).
-    if (Number.isFinite(realRatePct)) {
-      const raw = clamp(50 + realRatePct * 10);
-      items.push({
-        key: "wage", label: "실질임금 성장", raw, score: Math.round(raw),
-        note: `실질 인상률 ${realRatePct >= 0 ? "+" : ""}${realRatePct.toFixed(1)}%`,
-      });
-    }
-
-    // 내 물가가 공식 물가와 같으면 중간(50점), 1%p 낮을(유리) 때마다
-    // 10점씩 오르고 높을(불리) 때마다 10점씩 내려간다(±5%p에서 만점/0점).
-    if (Number.isFinite(diffPp)) {
-      const raw = clamp(50 - diffPp * 10);
-      items.push({
-        key: "inflation", label: "물가 방어", raw, score: Math.round(raw),
-        note: diffPp <= 0
-          ? `내 물가가 공식보다 ${Math.abs(diffPp).toFixed(1)}%p 낮음`
-          : `내 물가가 공식보다 ${diffPp.toFixed(1)}%p 높음`,
-      });
-    }
-
-    if (!items.length) return null;
-    const total = Math.round(items.reduce((sum, i) => sum + i.raw, 0) / items.length);
-    return { total, items };
-  }
 
   /* ---------- 유틸 ---------- */
   const monthToNum = (m) => {
@@ -402,11 +356,44 @@
     return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`;
   };
 
+  /* ---------- 물가 추이 예측 (단순 선형회귀) ----------
+     "ML"이라는 표현에 얽매이지 않고, 검증 가능한 가장 단순한 통계
+     방법(최소제곱 선형추세)을 쓴다 — 최근 historyMonths개월의 실제
+     YoY 물가상승률에 직선을 적합해 forecastMonths개월을 연장한다.
+     정밀 예측이 아니라 "지금 추세가 이어지면"이라는 참고용 추세선이라
+     화면에도 반드시 "예측치" 안내를 병기해야 한다. */
+  function forecastLinear(monthlySeries, { historyMonths = 36, forecastMonths = 12 } = {}) {
+    const months = Object.keys(monthlySeries).sort();
+    const recent = months.slice(-historyMonths);
+    const n = recent.length;
+    if (n < 2) return null;
+
+    const xs = recent.map((_, i) => i);
+    const ys = recent.map((m) => monthlySeries[m]);
+    const sumX = xs.reduce((a, b) => a + b, 0);
+    const sumY = ys.reduce((a, b) => a + b, 0);
+    const sumXY = xs.reduce((s, x, i) => s + x * ys[i], 0);
+    const sumXX = xs.reduce((s, x) => s + x * x, 0);
+    const denom = n * sumXX - sumX * sumX;
+    if (denom === 0) return null;
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / n;
+
+    const history = recent.map((m, i) => ({ month: m, value: ys[i] }));
+    const forecast = [];
+    let cursor = recent[n - 1];
+    for (let k = 1; k <= forecastMonths; k++) {
+      cursor = addMonths(cursor, 1);
+      forecast.push({ month: cursor, value: slope * (n - 1 + k) + intercept });
+    }
+    return { history, forecast, slope };
+  }
+
   global.Engine = {
     diagnose, negotiate, project, requiredMonthly, monthsToGoal,
     backtest, backtestWindow, inflationPath, planOf, customPlan, badYear,
     portfolioVolatility,
-    personalInflation, personalIndexPath, aggregateByGroup, salaryScore,
-    monthToNum, monthLabel, addMonths,
+    personalInflation, personalIndexPath, aggregateByGroup,
+    monthToNum, monthLabel, addMonths, forecastLinear,
   };
 })(window);

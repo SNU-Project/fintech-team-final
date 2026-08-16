@@ -131,16 +131,23 @@
        물가"가 스탯 5개까지 기본 펼침이 되며 "인상률 상세 지표" 카드로
        나뉘어 6장→7장, v14에서 막대그래프 3개를 없애고 생긴 여유로
        "인상률 상세 지표"를 다시 합치는 대신 "10년 추이" 토글을 별도
-       카드로 뺐다 — 결과적으로 7장 그대로 유지). id는 전부 예전
-       그대로 유지했다 —
-       renderMine()/renderGap()/renderScore() 등은 전부 $("#id")로
-       엘리먼트를 찾아 쓰는 구조라, 어느 카드가 감싸든 그대로 동작한다.
+       카드로 뺐다 — 결과적으로 7장 그대로 유지. v21에서 점수 위젯을
+       없애고 카드7에 있던 결론을 카드1로 당겨왔다 — 카드1은 이제
+       "결론부터", 카드7은 "실천하면 어떻게 달라지는지"(시나리오)로
+       마무리한다. 카드 수는 여전히 7장). id는 전부 예전 그대로
+       유지했다 —
+       renderMine()/renderGap()/renderFrontConclusion() 등은 전부
+       $("#id")로 엘리먼트를 찾아 쓰는 구조라, 어느 카드가 감싸든
+       그대로 동작한다.
        설문 도중에는 숨겨 둔다 — 아직 안 끝난 설문 밑에 결과가 미리
        보이면 안 된다. 설문을 마치면(또는 재방문자면) JS가 드러낸다. -->
   <section class="deck" id="deck" hidden>
     <div class="print-doc-header print-only">
       <p class="print-doc-title">연봉 성적표</p>
       <p class="print-doc-meta" id="printMetaReport"></p>
+    </div>
+    <div class="deck-toolbar no-print">
+      <button class="deck-view-toggle" id="deckViewToggle" type="button" aria-pressed="false">한눈에 보기</button>
     </div>
     <div class="deck-dots" id="deckDots" role="tablist" aria-label="카드 진행"></div>
     <p class="visually-hidden" id="deckLiveRegion" aria-live="polite"></p>
@@ -151,38 +158,15 @@
       <div class="deck-viewport" id="deckViewport">
         <div class="deck-track" id="deckTrack">
 
-          <!-- 카드 1 · 표지 -->
+          <!-- 카드 1 · 결론부터 (v21: 점수 위젯을 없애고, 카드7에 있던
+               결론을 맨 앞으로 당겨왔다 — buildFinalConclusion()이 그대로
+               #finalBody를 채우고, 카드 진입 시(카드덱이 열리자마자,
+               index 0) 타이핑 연출도 여기서 재생된다.) -->
           <section class="deck-card is-cover" id="card-1">
-            <p class="kicker" id="homeSummaryKicker">당신의 연봉 성적표</p>
-            <!-- 점수를 계산할 정보가 아직 없을 때만 보이는 안내문 (점수가 있으면 hidden) -->
-            <h1 id="homeSummaryHeadline" hidden>—</h1>
-            <div class="score-hero" id="scoreHero" hidden>
-              <div class="score-ring-wrap">
-                <div class="score-ring" id="scoreRing"></div>
-                <div class="score-ring-center">
-                  <span class="score-num"><span id="scoreNum">—</span>점</span>
-                  <span class="score-grade-line" id="scoreGradeLine">—</span>
-                </div>
-              </div>
-              <p class="score-tone-line" id="scoreToneLine">—</p>
-              <details class="score-detail-toggle">
-                <summary>어떻게 계산했나요?</summary>
-                <div class="score-detail-body">
-                  <p class="score-note">이 점수는 목표나 투자 성향과 무관하게, 당신의 연봉과 물가만 비교한 결과예요. 투자 조언이 아니에요.</p>
-                  <ul class="score-detail-items" id="scoreDetailItems"></ul>
-                  <p class="score-detail-heading">등급 기준</p>
-                  <ul class="score-grade-list">
-                    <li>80점 이상 — 상</li>
-                    <li>60~79점 — 중상</li>
-                    <li>40~59점 — 중</li>
-                    <li>20~39점 — 중하</li>
-                    <li>19점 이하 — 하</li>
-                  </ul>
-                  <p class="score-detail-narrative" id="homeSummarySub">—</p>
-                </div>
-              </details>
-            </div>
-            <p class="score-preview-conclusion" id="scorePreviewConclusion" hidden>—</p>
+            <p class="kicker">먼저 결론부터 말하면</p>
+            <h1 class="report-heading" id="finalHeadline">당신을 위한 결론</h1>
+            <div class="chart-box is-compact-bar home-gap-chart" id="homeGapChart" hidden></div>
+            <p class="final-body" id="finalBody"></p>
             <button class="onboarding-back deck-restart-link" type="button">처음부터 다시 입력하기</button>
           </section>
 
@@ -220,6 +204,13 @@
                 </div>
               </div>
             </div>
+
+            <div class="card" id="inflationForecastCard" hidden>
+              <h3 class="block-title">공식 물가, 앞으로는 어떻게 될까</h3>
+              <p class="block-q">최근 흐름에 직선을 맞춰 앞으로 1년을 연장한 <b>추세선</b>입니다. 예측치이며 실제와 다를 수 있어요.</p>
+              <div class="chart-box" id="forecastChart"></div>
+              <div class="legend" id="forecastLegend"></div>
+            </div>
           </section>
 
           <!-- 카드 3 · 얼마나 비싸게 살고 있나 (구 카드3 "얼마나 비싸게
@@ -248,6 +239,7 @@
             <div class="card bento-contrib">
               <h3 class="block-title">내 물가를 밀어올린 범인</h3>
               <ol class="contrib-rank" id="contribRank"></ol>
+              <div id="mineTips"></div>
               <details class="calc-detail">
                 <summary>상세 계산 보기</summary>
                 <p class="block-q">막대 = 지출 비중 × 그 품목의 물가상승률. 다 더하면 내 물가입니다.</p>
@@ -310,6 +302,7 @@
               <p class="verdict" id="trendVerdict">—</p>
               <div class="chart-box" id="trendChart"></div>
               <div class="legend" id="trendLegend"></div>
+              <div id="trendTips"></div>
             </div>
           </section>
 
@@ -329,13 +322,15 @@
             </div>
           </section>
 
-          <!-- 카드 7 · 결론 + 더 보기 -->
+          <!-- 카드 7 · 그래서 어떻게 달라질까 + 더 보기 (v21: 결론
+               텍스트는 카드1로 옮겼다 — 리포트를 다 보고 난 마지막
+               카드는 "실천하면 이렇게 달라진다"는 시나리오로 마무리한다.) -->
           <section class="deck-card" id="card-7">
-            <div class="card final-card">
-              <p class="kicker">마지막으로 정리하면</p>
-              <h2 class="report-heading" id="finalHeadline">당신을 위한 결론</h2>
-              <p class="final-body" id="finalBody"></p>
-              <button class="home-start-btn is-compact pdf-download-btn" id="downloadReportBtn" type="button">PDF로 다운받기</button>
+            <div class="card" id="scenarioCard" hidden>
+              <p class="kicker">마지막으로</p>
+              <h3 class="block-title">이렇게 실천하면 어떻게 달라질까</h3>
+              <p class="block-q" id="scenarioNote">—</p>
+              <div class="scenario-grid" id="scenarioGrid"></div>
             </div>
 
             <div class="card no-print">
@@ -346,6 +341,10 @@
                 <button class="home-start-btn is-compact" id="revealGoalBtn" type="button">목표 자산 계획하기 →</button>
                 <button class="home-start-btn is-compact" id="revealTimeBtn" type="button">자산 타임머신 →</button>
               </div>
+            </div>
+
+            <div class="pdf-download-wrap">
+              <button class="home-start-btn is-compact pdf-download-btn" id="downloadReportBtn" type="button">PDF로 다운받기</button>
             </div>
 
             <div class="home-summary-links">
@@ -359,9 +358,9 @@
       <button class="deck-arrow deck-arrow-next" id="deckNextBtn" type="button" aria-label="다음 카드">›</button>
     </div>
 
-    <!-- 카드 덱 전체 아래로 옮겼다(v20) — 점수·결론이 먼저 보이고,
-         시세는 다 보고 난 뒤 참고하는 보조 정보로. setReportVisible이
-         hidden을 같이 켠다. -->
+    <!-- 카드 덱 전체 아래로 옮겼다(v20) — 결론이 먼저 보이고, 시세는
+         다 보고 난 뒤 참고하는 보조 정보로. setReportVisible이 hidden을
+         같이 켠다. -->
     <div class="ticker" id="ticker" aria-label="시장 지표" hidden>
       <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:5.6em"></span></span>
       <span class="tick skeleton-tick" aria-hidden="true"><span class="skeleton-bar" style="width:6.4em"></span></span>
@@ -495,30 +494,36 @@
     </div>
     <div class="bento">
 
-      <div class="card bento-input">
-        <div class="section-head">
-          <div><h2>그때 샀다면?</h2><p>시작 시점과 금액을 고르세요.</p></div>
+      <!-- v20 항목9: 입력을 바꾸면 옆 그래프가 바로 갱신되므로, 데스크톱
+           에서는 나란히 놓아 스크롤 없이 입력→결과를 바로 볼 수 있게
+           한다(.deck-split — 카드뉴스 덱에서 쓰던 2단 유틸리티를 재사용).
+           모바일(861px 미만)은 기존처럼 세로로 쌓인다. -->
+      <div class="deck-split">
+        <div class="card bento-input">
+          <div class="section-head">
+            <div><h2>그때 샀다면?</h2><p>시작 시점과 금액을 고르세요.</p></div>
+          </div>
+
+          <label class="field">투자 시작 시점
+            <span class="input-wrap"><input type="month" id="startMonth"><span></span></span>
+          </label>
+          <label class="field">투자 금액
+            <span class="input-wrap"><input type="number" id="investAmount" min="0" step="100" value="1000" inputmode="numeric"><span>만원</span></span>
+          </label>
+
+          <div class="field" style="margin-bottom:.3rem">비교할 자산</div>
+          <div class="asset-picks" id="assetPicks"></div>
+          <p class="field-note">완료된 달은 월말 종가, 최신 진행 월은 수집 시점 가격을 씁니다. 해외 자산은 원/달러 환율로 환산한 원화 기준입니다.</p>
+          <p class="field-note skeleton-bar" id="btcLiveNote">—</p>
         </div>
 
-        <label class="field">투자 시작 시점
-          <span class="input-wrap"><input type="month" id="startMonth"><span></span></span>
-        </label>
-        <label class="field">투자 금액
-          <span class="input-wrap"><input type="number" id="investAmount" min="0" step="100" value="1000" inputmode="numeric"><span>만원</span></span>
-        </label>
-
-        <div class="field" style="margin-bottom:.3rem">비교할 자산</div>
-        <div class="asset-picks" id="assetPicks"></div>
-        <p class="field-note">완료된 달은 월말 종가, 최신 진행 월은 수집 시점 가격을 씁니다. 해외 자산은 원/달러 환율로 환산한 원화 기준입니다.</p>
-        <p class="field-note skeleton-bar" id="btcLiveNote">—</p>
-      </div>
-
-      <div class="card bento-main">
-        <h3 class="block-title">자산별 성장 경로</h3>
-        <p class="block-q">회색 점선은 같은 기간 소비자물가입니다. 이 선 아래면 물가를 못 이긴 것입니다.</p>
-        <div class="chart-box" id="timeChart"></div>
-        <div class="legend" id="timeLegend"></div>
-        <span class="src-note" id="timeSrc">—</span>
+        <div class="card bento-main">
+          <h3 class="block-title">자산별 성장 경로</h3>
+          <p class="block-q">회색 점선은 같은 기간 소비자물가입니다. 이 선 아래면 물가를 못 이긴 것입니다.</p>
+          <div class="chart-box" id="timeChart"></div>
+          <div class="legend" id="timeLegend"></div>
+          <span class="src-note" id="timeSrc">—</span>
+        </div>
       </div>
 
       <div class="card bento-full">
@@ -604,6 +609,7 @@
   </div>
 </dialog>
 
+<script src="assets/js/animate.js"></script>
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/engine.js"></script>
 <script src="assets/js/live.js"></script>
