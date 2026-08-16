@@ -464,9 +464,31 @@
     const headline = $("#homeSummaryHeadline");
     const previewEl = $("#scorePreviewConclusion");
 
-    const conclusionHeadline = buildConclusionHeadline();
-    previewEl.hidden = conclusionHeadline == null;
-    if (conclusionHeadline != null) previewEl.textContent = conclusionHeadline;
+    // v20 항목3: 카드7에 있던 핵심 결론을 카드1(표지)로 당겨온다 —
+    // 연봉 입력이 있으면 buildGapVerdictLines()로 케이스 A/B 실제
+    // 수치 문장 + 갭 막대그래프를, 없으면 기존 체감 물가 일반 문구로
+    // 대체한다. 카드7의 결론 카드는 그대로 두고(조언·다음 행동까지
+    // 포함한 상세 버전), 카드1은 "한눈에 보는 요약"만 맡는다.
+    const cur = Math.max(0, +$("#curSalary").value || 0);
+    const next = Math.max(0, +$("#nextSalary").value || 0);
+    const gap = buildGapVerdictLines(cur, next);
+    const gapChartBox = $("#homeGapChart");
+    if (gap) {
+      previewEl.hidden = false;
+      previewEl.textContent = gap.lines.join("\n");
+      if (gapChartBox) {
+        gapChartBox.hidden = false;
+        barChart(gapChartBox, [
+          { label: "내년 연봉", value: next, color: gap.d.beatsInflation ? "var(--good)" : "var(--series-1)" },
+          { label: "물가 유지선", value: gap.d.requiredSalary, color: "var(--critical)" },
+        ]);
+      }
+    } else {
+      const conclusionHeadline = buildConclusionHeadline();
+      previewEl.hidden = conclusionHeadline == null;
+      if (conclusionHeadline != null) previewEl.textContent = conclusionHeadline;
+      if (gapChartBox) gapChartBox.hidden = true;
+    }
 
     if (!data) {
       heroEl.hidden = true;
@@ -725,6 +747,26 @@
   // 물가를 이기는 경우(beatsInflation)는 "괜찮다"에서 끝내지 않고, 그
   // 여유분(카드4의 "연간 여유"와 같은 값)을 목표 자산에 보태보라는
   // 제안과, 카드3의 1위 항목은 계속 지켜보라는 안내를 이어 붙인다.
+  // 카드1 요약(항목3)과 결론 카드(카드7)가 "물가를 이겼는가"를 똑같은
+  // 판정·문장으로 말해야 하므로, 핵심 1~2문장을 여기 한 곳에서만
+  // 만든다. 문장 두 개를 한 줄에 이어붙이면(예: "…넘었어요. 지금
+  // 페이스라면…") 화면 폭에 따라 "유독 많이 / 오른"처럼 의미 단위
+  // 중간에서 줄바꿈될 수 있어 — 문장 하나당 배열 원소 하나로 쪼갠다.
+  function buildGapVerdictLines(cur, next) {
+    if (cur <= 0) return null;
+    const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: diagnosticInflation() });
+    const lines = d.beatsInflation
+      ? [
+          `내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요.`,
+          "지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.",
+        ]
+      : [
+          `물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요.`,
+          "그 차이는 투자나 협상으로 메워야 해요.",
+        ];
+    return { d, lines };
+  }
+
   function buildFinalConclusion() {
     const headline = buildConclusionHeadline();
     if (headline == null) {
@@ -733,24 +775,16 @@
 
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
+    const gap = buildGapVerdictLines(cur, next);
 
-    // 문장 두 개를 한 줄에 이어붙이면(예: "…넘었어요. 지금 페이스라면…")
-    // 화면 폭에 따라 줄바꿈이 "유독 많이 / 오른"처럼 의미 단위 중간에서
-    // 끊길 수 있다 — 문장 하나당 줄 하나(lines.push 하나)로 쪼개서,
-    // white-space:pre-line이 자동 줄바꿈보다 먼저 문장 경계에서 끊게 한다.
     const lines = [];
-    if (cur > 0) {
-      const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: diagnosticInflation() });
-      if (d.beatsInflation) {
-        lines.push(`내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요.`);
-        lines.push("지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.");
+    if (gap) {
+      lines.push(...gap.lines);
+      if (gap.d.beatsInflation) {
         const cause = topSpendingCause();
-        const surplus = man(-d.gap);
+        const surplus = man(-gap.d.gap);
         lines.push(`여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요?`);
         if (cause) lines.push(`다만 ${cause.name}처럼 유독 많이 오른 항목은 계속 지켜보는 게 좋아요.`);
-      } else {
-        lines.push(`물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요.`);
-        lines.push("그 차이는 투자나 협상으로 메워야 해요.");
       }
     } else {
       lines.push(headline);

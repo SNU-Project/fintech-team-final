@@ -282,7 +282,13 @@ section { scroll-margin-top: 5rem; }
      대체). 숫자(체감 물가 %)가 사람마다 달라 문장 길이가 매번 바뀌므로
      특정 지점에 <br>을 박아두는 대신 이 방식이 항상 맞는다. */
   text-wrap: balance;
+  /* v20 항목3: 연봉 입력이 있으면 buildGapVerdictLines()가 문장 두 개를
+     \n으로 이어붙여 넣는다 — 그대로 두면 공백처럼 붕괴되니 줄바꿈을
+     살린다(결론 카드 .final-body와 같은 처리). */
+  white-space: pre-line;
 }
+.home-gap-chart { margin-top: 1rem; }
+.home-gap-chart[hidden] { display: none; }
 .score-preview-conclusion[hidden] { display: none; }
 .score-ring-wrap { width: 168px; height: 168px; position: relative; margin-top: .3rem; }
 .score-ring {
