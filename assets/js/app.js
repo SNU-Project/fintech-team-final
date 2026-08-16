@@ -977,6 +977,9 @@
     // 어긋나지 않게 한다.
     function syncViewportHeight() {
       if (deckEl.hidden) return;
+      // 한눈에 보기 모드는 뷰포트 높이가 auto(카드 전체가 이어붙는
+      // 길이)라 카드 한 장 기준 고정 높이를 강제하면 안 된다.
+      if (deckEl.classList.contains("is-full-view")) return;
       const top = viewport.getBoundingClientRect().top;
       const available = window.innerHeight - top - 16;
       viewport.style.height = `${Math.max(360, Math.round(available))}px`;
@@ -1020,7 +1023,7 @@
     nextBtn.addEventListener("click", () => goTo(index + 1));
 
     document.addEventListener("keydown", (e) => {
-      if (deckEl.hidden) return;
+      if (deckEl.hidden || deckEl.classList.contains("is-full-view")) return;
       const tag = document.activeElement && document.activeElement.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "ArrowRight") goTo(index + 1);
@@ -1031,6 +1034,9 @@
     let dragging = false, axis = null, startX = 0, startY = 0, deltaX = 0, moved = false;
 
     viewport.addEventListener("pointerdown", (e) => {
+      // 한눈에 보기 모드는 세로 스크롤 문서다 — 좌우 스와이프로 카드
+      // 넘기는 제스처 자체를 시작하지 않는다.
+      if (deckEl.classList.contains("is-full-view")) return;
       if (e.pointerType === "mouse" && e.button !== 0) return;
       // 버튼/토글/입력 위에서 시작한 제스처는 스와이프로 가로채지 않는다.
       // setPointerCapture를 걸면 그 뒤에 오는 호환 click 이벤트까지
@@ -1077,6 +1083,7 @@
     viewport.addEventListener("pointercancel", endDrag);
 
     viewport.addEventListener("click", (e) => {
+      if (deckEl.classList.contains("is-full-view")) return; // 좌우 절반 탭 이동도 카드뉴스 전용
       if (moved) { moved = false; return; } // 드래그 직후의 클릭은 탭 이동으로 취급하지 않는다
       if (e.target.closest("a, button, summary, input, label")) return; // 실제 컨트롤은 원래 동작대로
       const rect = viewport.getBoundingClientRect();
@@ -1091,6 +1098,9 @@
     // 항상 활성 카드의 scrollTop으로 델타를 직접 적용하고 preventDefault해서
     // "카드 한 장 = 화면 한 장" 밖으로 스크롤이 새지 않게 막는다.
     viewport.addEventListener("wheel", (e) => {
+      // 한눈에 보기 모드는 카드가 실제 문서 흐름으로 이어붙어 있어
+      // 일반 페이지 스크롤이 맞다 — 활성 카드 하나로 가두면 안 된다.
+      if (deckEl.classList.contains("is-full-view")) return;
       e.preventDefault();
       cards[index].scrollTop += e.deltaY;
     }, { passive: false });
@@ -1123,6 +1133,48 @@
     CardDeck.goToLast = function () {
       goTo(FINAL_INDEX, { skipHistory: true });
     };
+
+    // v20 항목8 — 스와이프 카드뉴스 대신 스크롤 한 번으로 카드 전체를
+    // 다 볼 수 있는 "한눈에 보기" 토글. CSS(.deck.is-full-view)가 인쇄용
+    // 레이아웃을 화면에도 재사용해 카드를 세로로 펼치고, 여기서는 진입
+    // 애니메이션 트리거 방식만 바꾼다 — 카드뉴스에서는 goTo가, 여기서는
+    // 스크롤로 카드가 뷰포트에 들어오는 순간(IntersectionObserver)이
+    // 트리거다.
+    const viewToggle = $("#deckViewToggle");
+    let fullViewObserver = null;
+    function enterFullView() {
+      deckEl.classList.add("is-full-view");
+      viewToggle.textContent = "카드뉴스로 보기";
+      viewToggle.setAttribute("aria-pressed", "true");
+      viewport.style.height = "";
+
+      const animated = new WeakSet();
+      fullViewObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting || animated.has(entry.target)) return;
+          animated.add(entry.target);
+          if (window.Animate) window.Animate.playCardEntrance(entry.target);
+        });
+      }, { rootMargin: "0px 0px -15% 0px", threshold: 0.15 });
+      cards.forEach((c) => fullViewObserver.observe(c));
+    }
+    function exitFullView() {
+      deckEl.classList.remove("is-full-view");
+      viewToggle.textContent = "한눈에 보기";
+      viewToggle.setAttribute("aria-pressed", "false");
+      if (fullViewObserver) { fullViewObserver.disconnect(); fullViewObserver = null; }
+      syncViewportHeight();
+      // 스크롤하다 넘어왔을 수 있으니, 카드뉴스로 돌아오면 지금 인덱스
+      // 카드가 화면 맨 위에 오도록 다시 맞춘다.
+      syncUI();
+      deckEl.scrollIntoView({ behavior: "auto", block: "start" });
+    }
+    if (viewToggle) {
+      viewToggle.addEventListener("click", () => {
+        if (deckEl.classList.contains("is-full-view")) exitFullView();
+        else enterFullView();
+      });
+    }
 
     syncUI();
   }

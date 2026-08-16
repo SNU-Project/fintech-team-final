@@ -448,6 +448,35 @@ section { scroll-margin-top: 5rem; }
 .deck { padding: .3rem 0 1rem; }
 .deck[hidden] { display: none; }
 
+/* ---------- 한눈에 보기 토글 (v20 항목8) ---------- */
+.deck-toolbar { display: flex; justify-content: flex-end; max-width: 1000px; margin: 0 auto .5rem; padding-inline: .2rem; }
+.deck-view-toggle {
+  appearance: none; cursor: pointer; font: inherit;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary);
+  border-radius: 999px; padding: .35rem .9rem; font-size: .78rem; font-weight: 600;
+}
+.deck-view-toggle:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.deck-view-toggle[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+/* 카드뉴스(스와이프) 대신 카드 전부를 세로로 이어 붙여 스크롤 한 번에
+   다 보여준다 — 인쇄용 @media print 블록이 이미 만들어 둔 "덱을
+   문서처럼 펼치는" 레이아웃을 화면에서도 토글로 쓸 수 있게 재사용한다.
+   점 인디케이터·화살표는 스와이프 전용이라 이 모드에서는 의미가
+   없어 숨긴다. */
+.deck.is-full-view .deck-dots,
+.deck.is-full-view .deck-arrow { display: none; }
+.deck.is-full-view .deck-shell { display: block; }
+.deck.is-full-view .deck-viewport {
+  width: auto; max-width: 640px; height: auto; min-height: 0; overflow: visible; margin-inline: auto;
+}
+.deck.is-full-view .deck-track { display: block; transform: none !important; transition: none !important; }
+.deck.is-full-view .deck-card {
+  flex: none; width: auto; height: auto; overflow: visible;
+  padding: 0 0 1.4rem;
+}
+.deck.is-full-view .deck-card + .deck-card { border-top: 1px dashed var(--border-strong); padding-top: 1.4rem; }
+.deck.is-full-view .deck-card.is-cover { min-height: 0; }
+
 .deck-dots { display: flex; justify-content: center; align-items: center; gap: .45rem; margin-bottom: .9rem; }
 .deck-dot {
   appearance: none; padding: 0; cursor: pointer;
