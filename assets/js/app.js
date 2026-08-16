@@ -1857,10 +1857,19 @@
       v.className = "verdict";
       v.innerHTML = `인상률이 물가를 앞서고 있어 격차가 <b>벌어지지 않습니다.</b>
         10년 뒤에는 오히려 <b>${man(-endGap)}만원</b> 앞섭니다.`;
+      $("#trendTips").innerHTML = "";
     } else {
       v.className = "verdict bad";
       v.innerHTML = `지금 조건이 유지되면 10년 뒤 격차는 <b>연 ${man(endGap)}만원</b>까지 벌어집니다.
         매년 <b>${(inflationPct - d.nominalRatePct).toFixed(1)}포인트</b>씩 밀리는 게 복리로 쌓인 결과입니다.`;
+      // 격차가 벌어지는 쪽일 때만 "그럼 어떻게 줄이나"가 의미 있다 —
+      // 카드3·시나리오 계산과 같은 팁 라이브러리·판별 기준
+      // (SPEND_TIPS, rankedAboveAverageCauses 기반 topSpendingCause)을
+      // 그대로 재사용한다.
+      const cause = topSpendingCause();
+      $("#trendTips").innerHTML = cause
+        ? tipBoxHtml(cause.id, cause.name, `이 격차를 줄이려면 — ${cause.name} 지출부터 살펴보세요`)
+        : "";
     }
   }
 
