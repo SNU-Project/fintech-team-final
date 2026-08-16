@@ -63,6 +63,45 @@
     "g-play": "var(--series-4)", "g-etc": "var(--series-5)",
   };
 
+  // 카테고리별 절약 팁 — 카드3("범인")·시나리오 계산(카드7)·격차 추이
+  // 카드(항목 5·7)가 전부 이 하나의 데이터를 공유한다. 문구에는 "월
+  // OO원 절약" 같은 구체 금액을 넣지 않는다 — 사람마다 실제 절감액이
+  // 다른데 하나의 숫자로 단정하면 그 자체가 지어낸 값이 된다. 대신
+  // 실제 계산이 필요한 "그래서 얼마나 좋아지나"는 시나리오 계산
+  // (buildSpendScenario)이 사용자의 진짜 지출로 다시 계산해 답한다.
+  const SPEND_TIPS = {
+    "g-move": [
+      "알뜰 요금제로 바꾸면 통신비 부담을 크게 줄일 수 있어요.",
+      "대중교통 정기권이나 환승 할인을 챙기면 교통비가 줄어요.",
+    ],
+    "g-food": [
+      "배달 대신 집밥 비중을 늘리면 식비가 눈에 띄게 줄어요.",
+      "장보기 주기를 조정하면 식재료 낭비를 줄일 수 있어요.",
+    ],
+    "g-home": [
+      "관리비 고지서에서 절감 가능한 항목을 점검해보세요.",
+      "생활용품은 정기배송·구독 서비스 가격을 비교해보세요.",
+    ],
+    "g-play": [
+      "안 쓰는 구독 서비스를 정리해보세요.",
+      "시즌 할인이나 멤버십 혜택을 챙겨보세요.",
+    ],
+    "g-etc": [
+      "보험 등 정기 지출을 한 번씩 재점검해보세요.",
+      "약국보다 저렴한 상비약 코너나 온라인몰을 비교해보세요.",
+    ],
+  };
+
+  function tipBoxHtml(groupId, groupName, title) {
+    const tips = SPEND_TIPS[groupId];
+    if (!tips) return "";
+    return `
+      <div class="tip-box">
+        <p class="tip-title">${title || `${groupName} 지출, 이렇게 줄여보세요`}</p>
+        <ul>${tips.map((t) => `<li>${t}</li>`).join("")}</ul>
+      </div>`;
+  }
+
   const spendingTotal = (spending) =>
     Object.values(spending).reduce((sum, value) => sum + (Number(value) || 0), 0);
 
@@ -1514,6 +1553,7 @@
       $("#myRateBig").textContent = "—";
       $("#myRateDiff").textContent = "—";
       $("#contribRank").innerHTML = "";
+      $("#mineTips").innerHTML = "";
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
       $("#contribMath").innerHTML = "";
       $("#mineSrc").textContent = "";
@@ -1581,6 +1621,7 @@
         <span class="rank-name">${g.name}</span>
       </li>`;
     $("#contribRank").innerHTML = ranked.map((g, i) => rankRow(g, i)).join("");
+    $("#mineTips").innerHTML = cause ? tipBoxHtml(cause.id, cause.name) : "";
 
     Charts.contributionChart($("#contribChart"),
       grouped.filter((g) => g.amount > 0).map((g) => ({

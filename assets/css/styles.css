@@ -1207,6 +1207,18 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 .calc-detail summary::marker { color: var(--brand); }
 .calc-detail[open] summary { margin-bottom: .5rem; }
 
+/* ---------- 카테고리별 절약 팁 (v20) ----------
+   카드3(범인)·카드7(격차 추이)·시나리오 카드가 공유하는 팁 라이브러리의
+   화면 표현. 조언 톤이라 경고(critical/warning)가 아니라 브랜드 톤으로
+   구분한다. */
+.tip-box {
+  background: var(--brand-soft); border: 1px solid color-mix(in srgb, var(--brand) 30%, var(--border));
+  border-radius: var(--radius-sm); padding: .9rem 1.1rem; margin: .7rem 0;
+}
+.tip-box .tip-title { margin: 0 0 .5rem; font-size: .82rem; font-weight: 700; color: var(--brand); }
+.tip-box ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .4rem; }
+.tip-box li { font-size: .85rem; color: var(--text-secondary); line-height: 1.5; }
+
 /* ---------- PDF 다운로드 버튼 (v18) ---------- */
 /* 별도 라이브러리 없이 브라우저 네이티브 인쇄(window.print())를 쓴다 —
    사용자가 인쇄 대화상자에서 "대상: PDF로 저장"을 고르면 그게 곧
