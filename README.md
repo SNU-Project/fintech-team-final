@@ -1,4 +1,4 @@
-# 샐러리갭 (SalaryGap)
+# 연봉닥터 (Salary Doctor)
 
 > 연봉은 올랐는데, 왜 더 빠듯할까요?
 
@@ -253,7 +253,7 @@ python3 pipeline/fetch_data.py && python3 pipeline/transform.py
 [`docs/fork-guide.md`](docs/fork-guide.md)를 보세요.
 **Vercel 프로젝트와 Gemini 키는 따라오지 않아** 각자 새로 설정해야 합니다.
 
-&copy; 2026 샐러리갭 팀. 모든 권리 보유.
+&copy; 2026 연봉닥터 팀. 모든 권리 보유.
 
 ---
 
