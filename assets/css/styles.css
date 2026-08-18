@@ -394,6 +394,9 @@ section { scroll-margin-top: 5rem; }
    패딩값만큼 안쪽으로 당겨야 한다(#panel-goal은 우측 패딩이 0이라
    그대로 둔다). */
 .deck-card .home-steps-report { right: 1.2rem; }
+/* 온보딩 문항 화면(#homeOnboarding)의 우측 패딩은 1rem(.home-hero)이라
+   카드와는 다른 값으로 맞춰야 한다. */
+#homeOnboarding .home-steps-report { right: 1rem; }
 .home-steps-report ~ .report-heading,
 .home-steps-report + .card {
   padding-right: 11.5rem;
@@ -477,8 +480,14 @@ section { scroll-margin-top: 5rem; }
 .home-summary-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .3rem 1rem; margin-top: 1.1rem; }
 
 /* 문항 하나가 화면 하나 — 답이 바뀔 때마다 살짝 밀려 들어오게 해서
-   "설문" 대신 "경험"처럼 느껴지게 한다. */
-@keyframes stepIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+   "설문" 대신 "경험"처럼 느껴지게 한다. transform이 아니라 margin-top을
+   쓰는 이유: transform은 값이 none이 아닌 동안(애니메이션 재생 중)
+   해당 요소를 absolute 자손의 containing block으로 만들어버린다.
+   .onboarding-step 안의 .home-steps-report 배지(top:0 right:1rem,
+   #homeOnboarding 기준)가 애니메이션 재생 중 잠깐 #homeOnboarding
+   대신 .onboarding-step을 기준으로 튀어, 재생되는 동안 h2 제목 위에
+   겹쳐 보이는 버그가 있었다. */
+@keyframes stepIn { from { opacity: 0; margin-top: 10px; } to { opacity: 1; margin-top: 0; } }
 .onboarding-step {
   display: flex; flex-direction: column; align-items: center; gap: 1.1rem;
   animation: stepIn .35s ease;
