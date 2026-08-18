@@ -1168,12 +1168,27 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 .mix-desc-col { font-size: .74rem; color: var(--text-muted); }
 .mix-foot { margin: .35rem 0 0; }
 
+/* v32: 이 토글(비중 직접 조정)은 "상세 계산 보기" 같은 얕은 부연
+   토글과 달리 실제로 값을 바꾸는 핵심 조작 진입점인데, 그동안
+   ▶ 표시 하나만 있는 작은 텍스트 링크라 있는지도 모르고 지나치기
+   쉬웠다. 다른 disclosure류(.calc-detail, .spend-details 등)는
+   의도적으로 얕게 남겨두고, 이 토글만 배경·테두리가 있는 초록
+   버튼 + 아이콘으로 위계를 분명히 다르게 준다. */
 .mix-tuner { margin-bottom: 1rem; }
 .mix-tuner summary {
-  cursor: pointer; font-size: .82rem; font-weight: 600;
-  color: var(--text-secondary); padding: .45rem 0; user-select: none;
+  display: inline-flex; align-items: center; gap: .5rem;
+  cursor: pointer; font-size: .88rem; font-weight: 700;
+  color: var(--brand); background: var(--brand-soft);
+  border: 1.5px solid var(--brand); border-radius: 999px;
+  padding: .68rem 1.2rem; min-height: 2.75rem; box-sizing: border-box;
+  user-select: none; list-style: none; transition: background-color .15s;
 }
-.mix-tuner summary::marker { color: var(--brand); }
+.mix-tuner summary::-webkit-details-marker { display: none; }
+.mix-tuner summary::marker { content: ""; }
+.mix-tuner summary:hover { background: color-mix(in srgb, var(--brand) 16%, var(--brand-soft)); }
+.mix-tuner-icon { width: 17px; height: 17px; flex: 0 0 auto; }
+.mix-tuner-chevron { width: 14px; height: 14px; flex: 0 0 auto; margin-left: -.15rem; transition: transform .2s; }
+.mix-tuner[open] .mix-tuner-chevron { transform: rotate(180deg); }
 .mix-reset {
   appearance: none; border: 1px solid var(--border-strong); background: var(--surface-1);
   color: var(--text-secondary); font-family: inherit; font-size: .78rem;
