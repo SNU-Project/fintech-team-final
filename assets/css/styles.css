@@ -709,9 +709,21 @@ input[readonly] { -moz-appearance: textfield; }
   padding: .8rem .9rem;
   display: flex; flex-direction: column;
   flex: 1 1 150px; max-width: 220px;
+  container-type: inline-size;
 }
 .stat .k { font-size: .74rem; color: var(--text-muted); display: block; margin-bottom: .3rem; }
-.stat .v { font-size: clamp(1.7rem, 3.2vw, 2.15rem); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; display: block; }
+/* v26: "내년 연봉으로 실제 살 수 있는 만큼" 같이 자릿수가 큰 값
+   ("3,643만원")은 다른 카드보다 글자 수가 많은데 폭은 같은
+   .stat-grid 아래서 정해져서, 고정 크기(vw 기준)로는 이 카드만
+   두 줄로 줄바꿈됐다. 뷰포트가 아니라 이 박스 자신의 실제 너비를
+   기준으로 글자 크기가 줄어들게(cqw, container-type:inline-size
+   필요) 바꿔, 어떤 값이 와도 박스 폭에 맞춰 자동으로 줄어들며 항상
+   한 줄을 유지한다 — 카드 개수·값 자릿수가 바뀌어도 다시 손댈
+   필요가 없다. white-space:nowrap으로 줄바꿈 자체를 막아둔다. */
+.stat .v {
+  font-size: clamp(1.3rem, 17cqw, 2.15rem); font-weight: 800; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; display: block; white-space: nowrap;
+}
 .stat .s { font-size: .72rem; color: var(--text-muted); margin-top: auto; padding-top: .3rem; }
 .stat.is-good .v { color: var(--good-text); }
 .stat.is-warn .v { color: var(--warning-text); }
