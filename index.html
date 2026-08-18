@@ -175,10 +175,12 @@
                index 0) 타이핑 연출도 여기서 재생된다.) -->
           <section class="deck-card is-cover" id="card-1">
             <div class="mascot-wrap is-large" id="homeMascot"></div>
-            <p class="kicker">먼저 결론부터 말하면</p>
-            <h1 class="report-heading" id="finalHeadline">당신을 위한 결론</h1>
+            <p class="kicker">진단을 마쳤어요</p>
+            <h1 class="report-heading rx-heading"><span class="rx-mark" aria-hidden="true">Rx</span>처방전</h1>
             <div class="chart-box is-compact-bar home-gap-chart" id="homeGapChart" hidden></div>
-            <p class="final-body" id="finalBody"></p>
+            <div class="prescription-box">
+              <p class="final-body" id="finalBody"></p>
+            </div>
             <button class="onboarding-back deck-restart-link" type="button">처음부터 다시 입력하기</button>
           </section>
 
@@ -249,7 +251,7 @@
               <p class="verdict" id="mineVerdict">—</p>
             </div>
             <div class="card bento-contrib">
-              <h3 class="block-title">내 물가를 밀어올린 범인</h3>
+              <h3 class="block-title">내 물가를 밀어올린 원인</h3>
               <ol class="contrib-rank" id="contribRank"></ol>
               <div id="mineTips"></div>
               <details class="calc-detail">
@@ -291,7 +293,7 @@
               </div>
 
               <div class="card bento-main">
-                <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
+                <h3 class="block-title">내 연봉, 물가를 잘 따라가고 있을까?</h3>
                 <p class="verdict" id="gapVerdict">—</p>
               </div>
             </div>
@@ -323,7 +325,7 @@
             <h2 class="report-heading">그래서 얼마 더 받아야 하나</h2>
             <div class="card bento-half-b">
               <h3 class="block-title">연봉 협상 가이드</h3>
-              <p class="block-q">물가를 방어하려면 최소 얼마를 올려야 하는지, 세 금액을 나란히 비교합니다.</p>
+              <p class="block-q">물가를 따라잡으려면 최소 얼마를 올려야 하는지, 세 금액을 나란히 비교합니다.</p>
               <div class="chart-box is-compact-bar" id="negoChart"></div>
               <div class="stat-grid" id="negoStats"></div>
               <table class="print-only print-only-table" id="negoPrintTable">

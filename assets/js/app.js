@@ -527,7 +527,7 @@
     const rate = diagnosticInflation();
     if (!Number.isFinite(rate)) return null;
     const label = Number.isFinite(state.personalRate) ? "체감 물가" : "공식 물가";
-    return `${label} ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`;
+    return `${label} ${rate.toFixed(1)}%를 따라잡으려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`;
   }
 
   // 카드3("얼마나 비싸게 살고 있나")의 "범인" 랭킹 1위를 그대로 다시
@@ -660,12 +660,12 @@
     const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: diagnosticInflation() });
     const lines = d.beatsInflation
       ? [
-          `내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요.`,
-          "지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.",
+          `내년 예상 연봉(${man(next)}만원)은 물가 유지선(${man(d.requiredSalary)}만원)을 잘 넘고 있어요.`,
+          "지금 페이스라면 괜찮아요 — 실질 소득이 잘 지켜지고 있어요.",
         ]
       : [
-          `물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요.`,
-          "그 차이는 투자나 협상으로 메워야 해요.",
+          `물가를 따라잡으려면 연봉을 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)까지는 처방해드릴게요.`,
+          "그 차이는 투자나 협상으로 채워보세요.",
         ];
     return { d, lines };
   }
@@ -693,13 +693,13 @@
         const cause = topSpendingCause();
         const surplus = man(-gap.d.gap);
         lines.push(`여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요?`);
-        if (cause) lines.push(`다만 ${cause.name}처럼 유독 많이 오른 항목은 계속 지켜보는 게 좋아요.`);
+        if (cause) lines.push(`다만 ${cause.name}처럼 유독 많이 오른 항목은 계속 살펴보는 게 좋아요.`);
       }
     } else {
       lines.push(headline);
     }
 
-    lines.push("과거 데이터는 참고 자료일 뿐, 결정은 늘 본인의 몫입니다.");
+    lines.push("이 처방은 참고 자료일 뿐, 최종 결정은 늘 본인의 몫입니다.");
     return lines.join("\n");
   }
 
@@ -2088,7 +2088,7 @@
     // 재사용해 나란히 놓고, "제안받은 인상액" 막대 색으로 목표
     // 달성 여부를 바로 보여준다(과거 "차이 — 달성" 카드가 하던 역할).
     barChart($("#negoChart"), [
-      { label: "물가 방어 최소", value: defendAmount, color: "var(--baseline)" },
+      { label: "물가 관리 최소", value: defendAmount, color: "var(--baseline)" },
       { label: "실질 +1% 목표", value: targetAmount, color: "var(--brand)" },
       {
         label: "제안받은 인상액", value: offeredAmount,
@@ -2098,7 +2098,7 @@
     ]);
 
     $("#negoStats").innerHTML = `
-      <div class="stat"><span class="k">물가 방어 최소 인상액</span><span class="v">${man(defendAmount)}만원</span>
+      <div class="stat"><span class="k">물가 관리 최소 인상액</span><span class="v">${man(defendAmount)}만원</span>
         <span class="s">최소 기준선 (${inflationPct.toFixed(1)}%)</span></div>
       <div class="stat"><span class="k">실질 +1% 목표 인상액</span><span class="v">${man(targetAmount)}만원</span>
         <span class="s">목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</span></div>
@@ -2110,7 +2110,7 @@
     const negoTableBody = $("#negoPrintTable tbody");
     if (negoTableBody) {
       negoTableBody.innerHTML = `
-        <tr><td>물가 방어 최소 인상액</td><td class="num">${man(defendAmount)}만원</td><td>최소 기준선 (${inflationPct.toFixed(1)}%)</td></tr>
+        <tr><td>물가 관리 최소 인상액</td><td class="num">${man(defendAmount)}만원</td><td>최소 기준선 (${inflationPct.toFixed(1)}%)</td></tr>
         <tr><td>실질 +1% 목표 인상액</td><td class="num">${man(targetAmount)}만원</td><td>목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</td></tr>
         <tr><td>제안받은 인상액</td><td class="num">${man(offeredAmount)}만원</td><td>설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</td></tr>`;
     }
@@ -2122,7 +2122,7 @@
     } else {
       v.className = "verdict warn";
       v.innerHTML = `협상 테이블에서 말할 숫자는 <b>${man(targetAmount)}만원</b>(연봉 ${man(n.targetSalary)}만원, ${n.targetRatePct.toFixed(1)}%)입니다.
-        물가 방어분 ${man(defendAmount)}만원에 실질 인상 1%를 더한 값이고, 현재 제안과는 ${man(n.shortfallAmount)}만원 차이입니다.`;
+        물가 관리분 ${man(defendAmount)}만원에 실질 인상 1%를 더한 값이고, 현재 제안과는 ${man(n.shortfallAmount)}만원 차이입니다.`;
     }
   }
 
