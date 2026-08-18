@@ -355,6 +355,13 @@ section { scroll-margin-top: 5rem; }
 /* 배지가 얹히는 카드/패널 쪽에서 위치 기준점을 잡고, 첫 제목이 배지와
    겹치지 않도록 오른쪽에 배지 폭만큼 여유를 둔다. */
 .deck-card, #panel-goal { position: relative; }
+/* absolute 배지의 containing block은 .deck-card의 패딩 박스라 right:0이
+   패딩(1.2rem)을 무시하고 카드 바깥쪽 테두리에 딱 붙어버린다 — 그 결과
+   배지 우측 끝이 아래 흰 배경(연봉 협상 가이드 등)의 우측 끝보다 더
+   오른쪽으로 튀어나와 보였다. 카드 콘텐츠와 같은 선에 맞추려면 그
+   패딩값만큼 안쪽으로 당겨야 한다(#panel-goal은 우측 패딩이 0이라
+   그대로 둔다). */
+.deck-card .home-steps-report { right: 1.2rem; }
 .home-steps-report ~ .report-heading,
 .home-steps-report + .card {
   padding-right: 11.5rem;
