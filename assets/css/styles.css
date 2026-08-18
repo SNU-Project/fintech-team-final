@@ -259,6 +259,21 @@ section { scroll-margin-top: 5rem; }
 .home-gap-chart { margin-top: 1rem; }
 .home-gap-chart[hidden] { display: none; }
 
+/* ---------- 마스코트 캐릭터 (v22) ----------
+   실제 일러스트 전까지 쓰는 자리표시자 SVG(mascot.js) + 말풍선.
+   is-large는 카드1(진단 결과를 알려주는 자리)에서 세로로 크게,
+   is-small.is-inline은 카드7(처방전 마무리 인사)에서 옆으로 작게 쓴다. */
+.mascot-wrap { display: flex; flex-direction: column; align-items: center; gap: .6rem; }
+.mascot-wrap.is-inline { flex-direction: row; justify-content: center; gap: .8rem; margin-top: 1rem; }
+.mascot-wrap.is-small .mascot-svg { width: 56px; height: 56px; }
+.mascot-svg { display: block; }
+.mascot-bubble {
+  margin: 0; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: .5rem 1.15rem; font-size: .84rem; font-weight: 700;
+  color: var(--text-primary); word-break: keep-all; text-align: center;
+}
+.mascot-wrap.is-small .mascot-bubble { font-size: .8rem; padding: .45rem 1rem; }
+
 @media (min-width: 641px) {
   .final-body { white-space: pre; max-width: none; }
 }

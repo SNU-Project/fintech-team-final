@@ -437,6 +437,15 @@
     } else {
       gapChartBox.hidden = true;
     }
+
+    // 진단 결과에 맞춰 마스코트 표정을 고른다 — 물가를 이기면 밝은
+    // 표정(good), 못 이겨도 걱정스러운 표정이 아니라 안심시키는
+    // 표정(reassure)을 쓴다("경고보다 소견"이라는 톤 방향과 맞춘다).
+    const mascotBox = $("#homeMascot");
+    if (mascotBox && window.Mascot) {
+      const pose = !gap ? "greet" : gap.d.beatsInflation ? "good" : "reassure";
+      mascotBox.innerHTML = Mascot.svg(pose, { size: 108 }) + Mascot.bubbleHtml(pose);
+    }
   }
 
   // 목표 기간을 "년"과 "개월" 두 필드로 나눠 받다 보니, 이 값을 쓰는
@@ -625,6 +634,15 @@
         <span class="scenario-label">${["①", "②", "③"][i] || ""} ${sc.label}</span>
         <span class="scenario-rate">${s.baselineRate.toFixed(2)}%<span class="arrow">→</span><b>${sc.rate.toFixed(2)}%</b></span>
       </div>`).join("");
+
+    // 리포트 마지막 카드의 마무리 인사 — 케이스 A/B와 무관하게 항상
+    // 같은 따뜻한 톤(good)을 쓴다. 여기는 "처방전을 잘 챙기라"는
+    // 마무리라, 진단 결과에 따라 표정을 바꾸는 카드1과는 역할이 다르다.
+    const scenarioMascotBox = $("#scenarioMascot");
+    if (scenarioMascotBox && window.Mascot) {
+      scenarioMascotBox.innerHTML = Mascot.svg("good", { size: 56 }) +
+        Mascot.bubbleHtml("good", "처방전 잘 챙기시고, 오늘도 건강한 재정 되세요!");
+    }
   }
 
   // 결론(카드1)의 핵심 1~2문장 — 연봉 입력이 있으면(cur > 0) 카드4
