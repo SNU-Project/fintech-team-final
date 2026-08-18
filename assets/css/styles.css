@@ -382,14 +382,6 @@ section { scroll-margin-top: 5rem; }
 .home-steps.is-compact > li:not(:last-child)::after {
   right: -.44rem; border-top-width: 7px; border-bottom-width: 7px; border-left-width: 6px;
 }
-/* 온보딩 Q1~Q3: 진행 아이콘 배지와 "Q1 · 내 물가" 문항 안내를 각각
-   따로 쌓으면 세로 공간을 두 줄이나 차지한다. 한 화면에 문항 하나만
-   보여주는 온보딩 특성상 그 공간이 아쉬워서, 한 줄에 나란히 놓는다. */
-.onboarding-step-head {
-  display: flex; align-items: center; justify-content: center;
-  gap: .7rem; flex-wrap: wrap;
-}
-.onboarding-step-head .kicker { margin: 0; }
 /* 리포트 카드/패널 버전 — 본문 위에 얹기보다, 카드 우측 상단 구석에
    가로로 붙여서 "지금 이 카드가 어느 단계인지"를 보여주는 배지 역할을
    하게 한다. */
