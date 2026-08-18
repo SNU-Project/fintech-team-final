@@ -1685,7 +1685,7 @@
 
     $("#forecastLegend").innerHTML =
       `<span class="legend-item"><span class="legend-swatch" style="background:var(--brand)"></span>실제 물가상승률</span>
-       <span class="legend-item"><span class="legend-swatch" style="background:var(--warning)"></span>예측 · 최근 3년 추세선 (실제와 다를 수 있음)</span>`;
+       <span class="legend-item"><span class="legend-swatch" style="background:var(--warning)"></span>예측 · 최근 3년으로 계산 (실제와 다를 수 있음)</span>`;
   }
 
   function renderMine() {
