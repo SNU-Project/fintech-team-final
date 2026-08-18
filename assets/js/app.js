@@ -316,8 +316,9 @@
      설문 아래로 결과가 미리 보이면 안 된다. 설문을 마치면(또는
      재방문자면) 한꺼번에 드러낸다. 한 번 마치면 localStorage에 저장해
      재방문 시 다시 묻지 않는다. */
-  // 서비스명은 "연봉 성적표"로 바뀌었지만 키는 그대로 둔다 — 이미 저장된
-  // 기존 사용자의 값과의 연결이 끊기기만 할 뿐 바꿔서 얻는 게 없다.
+  // 서비스명은 "연봉 성적표" → "연봉닥터"(v22)로 두 번 바뀌었지만 키는
+  // 그대로 둔다 — 이미 저장된 기존 사용자의 값과의 연결이 끊기기만
+  // 할 뿐 바꿔서 얻는 게 없다.
   const ONBOARD_KEY = "salarygap-profile";
   const TOTAL_STEPS = 3;
 
@@ -431,10 +432,19 @@
       gapChartBox.hidden = false;
       barChart(gapChartBox, [
         { label: "내년 연봉", value: next, color: gap.d.beatsInflation ? "var(--good)" : "var(--series-1)" },
-        { label: "물가 유지선", value: gap.d.requiredSalary, color: "var(--critical)" },
+        { label: "물가 유지선", value: gap.d.requiredSalary, color: "var(--reference)" },
       ]);
     } else {
       gapChartBox.hidden = true;
+    }
+
+    // 진단 결과에 맞춰 마스코트 표정을 고른다 — 물가를 이기면 밝은
+    // 표정(good), 못 이겨도 걱정스러운 표정이 아니라 안심시키는
+    // 표정(reassure)을 쓴다("경고보다 소견"이라는 톤 방향과 맞춘다).
+    const mascotBox = $("#homeMascot");
+    if (mascotBox && window.Mascot) {
+      const pose = !gap ? "greet" : gap.d.beatsInflation ? "good" : "reassure";
+      mascotBox.innerHTML = Mascot.svg(pose, { size: 108 }) + Mascot.bubbleHtml(pose);
     }
   }
 
@@ -517,7 +527,7 @@
     const rate = diagnosticInflation();
     if (!Number.isFinite(rate)) return null;
     const label = Number.isFinite(state.personalRate) ? "체감 물가" : "공식 물가";
-    return `${label} ${rate.toFixed(1)}%를 방어하려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`;
+    return `${label} ${rate.toFixed(1)}%를 따라잡으려면 연봉을 그만큼 올려받거나, 그만큼 수익을 내야 해요.`;
   }
 
   // 카드3("얼마나 비싸게 살고 있나")의 "범인" 랭킹 1위를 그대로 다시
@@ -624,6 +634,15 @@
         <span class="scenario-label">${["①", "②", "③"][i] || ""} ${sc.label}</span>
         <span class="scenario-rate">${s.baselineRate.toFixed(2)}%<span class="arrow">→</span><b>${sc.rate.toFixed(2)}%</b></span>
       </div>`).join("");
+
+    // 리포트 마지막 카드의 마무리 인사 — 케이스 A/B와 무관하게 항상
+    // 같은 따뜻한 톤(good)을 쓴다. 여기는 "처방전을 잘 챙기라"는
+    // 마무리라, 진단 결과에 따라 표정을 바꾸는 카드1과는 역할이 다르다.
+    const scenarioMascotBox = $("#scenarioMascot");
+    if (scenarioMascotBox && window.Mascot) {
+      scenarioMascotBox.innerHTML = Mascot.svg("good", { size: 56 }) +
+        Mascot.bubbleHtml("good", "처방전 잘 챙기시고, 오늘도 건강한 재정 되세요!");
+    }
   }
 
   // 결론(카드1)의 핵심 1~2문장 — 연봉 입력이 있으면(cur > 0) 카드4
@@ -641,12 +660,12 @@
     const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: diagnosticInflation() });
     const lines = d.beatsInflation
       ? [
-          `내년 예상 연봉(${man(next)}만원)은 이미 물가 유지선(${man(d.requiredSalary)}만원)을 넘었어요.`,
-          "지금 페이스라면 괜찮아요 — 실질 소득이 지켜지고 있어요.",
+          `내년 예상 연봉(${man(next)}만원)은 물가 유지선(${man(d.requiredSalary)}만원)을 잘 넘고 있어요.`,
+          "지금 페이스라면 괜찮아요 — 실질 소득이 잘 지켜지고 있어요.",
         ]
       : [
-          `물가 유지선을 지키려면 연봉이 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)은 되어야 해요.`,
-          "그 차이는 투자나 협상으로 메워야 해요.",
+          `물가를 따라잡으려면 연봉을 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)까지는 처방해드릴게요.`,
+          "그 차이는 투자나 협상으로 채워보세요.",
         ];
     return { d, lines };
   }
@@ -674,13 +693,13 @@
         const cause = topSpendingCause();
         const surplus = man(-gap.d.gap);
         lines.push(`여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요?`);
-        if (cause) lines.push(`다만 ${cause.name}처럼 유독 많이 오른 항목은 계속 지켜보는 게 좋아요.`);
+        if (cause) lines.push(`다만 ${cause.name}처럼 유독 많이 오른 항목은 계속 살펴보는 게 좋아요.`);
       }
     } else {
       lines.push(headline);
     }
 
-    lines.push("과거 데이터는 참고 자료일 뿐, 결정은 늘 본인의 몫입니다.");
+    lines.push("이 처방은 참고 자료일 뿐, 최종 결정은 늘 본인의 몫입니다.");
     return lines.join("\n");
   }
 
@@ -789,7 +808,7 @@
       // 목표·기간·타임머신 입력은 renderAll()을 거치지 않고 자기 화면만
       // 다시 그릴 수 있으므로, 인쇄 버튼을 누른 바로 그 시점의 값으로
       // 문서 헤더를 한 번 더 만든다.
-      if (filenameBase === "연봉성적표") refreshFinalConclusionIfStarted(true);
+      if (filenameBase === "연봉닥터") refreshFinalConclusionIfStarted(true);
       renderPrintMeta();
       document.title = `${filenameBase}_${dateStr}`;
       window.print();
@@ -801,7 +820,7 @@
 
   function setupPdfDownload() {
     const targets = [
-      ["#downloadReportBtn", "연봉성적표"],
+      ["#downloadReportBtn", "연봉닥터"],
       ["#downloadGoalBtn", "목표자산계획"],
       ["#downloadTimeBtn", "자산타임머신"],
     ];
@@ -1880,7 +1899,7 @@
     lineChart($("#trendChart"), {
       series: [
         { id: "nominal", label: "내 연봉", color: "var(--series-1)", points: nominal },
-        { id: "required", label: "물가 유지선", color: "var(--critical)", dashed: true, points: required },
+        { id: "required", label: "물가 유지선", color: "var(--reference)", dashed: true, points: required },
       ],
       xLabels: labels,
       yFormat: (v) => `${man(v / 1000) / 10}억`,
@@ -1888,7 +1907,7 @@
 
     $("#trendLegend").innerHTML =
       `<span class="legend-item"><span class="legend-swatch" style="background:var(--series-1)"></span>내 연봉 (인상률 ${(raise * 100).toFixed(1)}%)</span>
-       <span class="legend-item"><span class="legend-swatch" style="background:var(--critical)"></span>물가 유지선 (${inflationPct.toFixed(1)}%)</span>`;
+       <span class="legend-item"><span class="legend-swatch" style="background:var(--reference)"></span>물가 유지선 (${inflationPct.toFixed(1)}%)</span>`;
 
     const endGap = required[YEARS].y - nominal[YEARS].y;
     const v = $("#trendVerdict");
@@ -2069,7 +2088,7 @@
     // 재사용해 나란히 놓고, "제안받은 인상액" 막대 색으로 목표
     // 달성 여부를 바로 보여준다(과거 "차이 — 달성" 카드가 하던 역할).
     barChart($("#negoChart"), [
-      { label: "물가 방어 최소", value: defendAmount, color: "var(--baseline)" },
+      { label: "물가 관리 최소", value: defendAmount, color: "var(--baseline)" },
       { label: "실질 +1% 목표", value: targetAmount, color: "var(--brand)" },
       {
         label: "제안받은 인상액", value: offeredAmount,
@@ -2079,7 +2098,7 @@
     ]);
 
     $("#negoStats").innerHTML = `
-      <div class="stat"><span class="k">물가 방어 최소 인상액</span><span class="v">${man(defendAmount)}만원</span>
+      <div class="stat"><span class="k">물가 관리 최소 인상액</span><span class="v">${man(defendAmount)}만원</span>
         <span class="s">최소 기준선 (${inflationPct.toFixed(1)}%)</span></div>
       <div class="stat"><span class="k">실질 +1% 목표 인상액</span><span class="v">${man(targetAmount)}만원</span>
         <span class="s">목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</span></div>
@@ -2091,7 +2110,7 @@
     const negoTableBody = $("#negoPrintTable tbody");
     if (negoTableBody) {
       negoTableBody.innerHTML = `
-        <tr><td>물가 방어 최소 인상액</td><td class="num">${man(defendAmount)}만원</td><td>최소 기준선 (${inflationPct.toFixed(1)}%)</td></tr>
+        <tr><td>물가 관리 최소 인상액</td><td class="num">${man(defendAmount)}만원</td><td>최소 기준선 (${inflationPct.toFixed(1)}%)</td></tr>
         <tr><td>실질 +1% 목표 인상액</td><td class="num">${man(targetAmount)}만원</td><td>목표 연봉 ${man(n.targetSalary)}만원 (${n.targetRatePct.toFixed(1)}%)</td></tr>
         <tr><td>제안받은 인상액</td><td class="num">${man(offeredAmount)}만원</td><td>설문에서 입력한 내년 연봉 기준 (${d.nominalRatePct.toFixed(1)}%)</td></tr>`;
     }
@@ -2103,7 +2122,7 @@
     } else {
       v.className = "verdict warn";
       v.innerHTML = `협상 테이블에서 말할 숫자는 <b>${man(targetAmount)}만원</b>(연봉 ${man(n.targetSalary)}만원, ${n.targetRatePct.toFixed(1)}%)입니다.
-        물가 방어분 ${man(defendAmount)}만원에 실질 인상 1%를 더한 값이고, 현재 제안과는 ${man(n.shortfallAmount)}만원 차이입니다.`;
+        물가 관리분 ${man(defendAmount)}만원에 실질 인상 1%를 더한 값이고, 현재 제안과는 ${man(n.shortfallAmount)}만원 차이입니다.`;
     }
   }
 
