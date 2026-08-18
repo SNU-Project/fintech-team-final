@@ -316,8 +316,9 @@
      설문 아래로 결과가 미리 보이면 안 된다. 설문을 마치면(또는
      재방문자면) 한꺼번에 드러낸다. 한 번 마치면 localStorage에 저장해
      재방문 시 다시 묻지 않는다. */
-  // 서비스명은 "연봉 성적표"로 바뀌었지만 키는 그대로 둔다 — 이미 저장된
-  // 기존 사용자의 값과의 연결이 끊기기만 할 뿐 바꿔서 얻는 게 없다.
+  // 서비스명은 "연봉 성적표" → "연봉닥터"(v22)로 두 번 바뀌었지만 키는
+  // 그대로 둔다 — 이미 저장된 기존 사용자의 값과의 연결이 끊기기만
+  // 할 뿐 바꿔서 얻는 게 없다.
   const ONBOARD_KEY = "salarygap-profile";
   const TOTAL_STEPS = 3;
 
@@ -789,7 +790,7 @@
       // 목표·기간·타임머신 입력은 renderAll()을 거치지 않고 자기 화면만
       // 다시 그릴 수 있으므로, 인쇄 버튼을 누른 바로 그 시점의 값으로
       // 문서 헤더를 한 번 더 만든다.
-      if (filenameBase === "연봉성적표") refreshFinalConclusionIfStarted(true);
+      if (filenameBase === "연봉닥터") refreshFinalConclusionIfStarted(true);
       renderPrintMeta();
       document.title = `${filenameBase}_${dateStr}`;
       window.print();
@@ -801,7 +802,7 @@
 
   function setupPdfDownload() {
     const targets = [
-      ["#downloadReportBtn", "연봉성적표"],
+      ["#downloadReportBtn", "연봉닥터"],
       ["#downloadGoalBtn", "목표자산계획"],
       ["#downloadTimeBtn", "자산타임머신"],
     ];
