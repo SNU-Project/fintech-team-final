@@ -30,19 +30,34 @@ body {
   --border:         rgba(11, 11, 11, .10);
   --border-strong:  rgba(11, 11, 11, .18);
 
-  --brand:          #24745a;
-  --brand-soft:     #e6f0ea;
+  /* v33: 초록 계열 브랜드 컬러를 파란 계열(토스 블루 계통)로 전면
+     전환했다 — "닥터/처방전" 컨셉과 어울리는 청량한 병원/의료 톤을
+     원한다는 요청. --brand=#2563EB는 흰 텍스트 대비 5.17:1로 AA를
+     여유 있게 통과한다(#3182F6 원안은 white-on-bg 기준 3.7:1로
+     소형 텍스트 AA에는 부족해 한 단계 더 짙게 조정). */
+  --brand:          #2563eb;
+  --brand-soft:     #e5eefc;
   --accent:         #b76442;
 
-  --series-1:       #2a78d6;  /* 저축·예금 */
-  --series-2:       #eb6834;  /* 투자      */
-  --series-3:       #1baf7a;  /* 부수입    */
-  --series-4:       #eda100;  /* 자기계발  */
-  --series-5:       #8d6fb0;  /* 실물      */
-  --series-6:       #d64550;  /* 암호자산  */
+  /* 도넛(지출 5항목)·자산 타임머신(6종목)이 함께 쓰는 다색 팔레트 —
+     하나의 색으로 통일할 수 없는 자리라 "블루 패밀리"(네이비→블루→
+     스카이블루→틸→그레이블루) + 보조색 1개(인디고, 6번째 항목용)로
+     재구성했다. 원색 빨강/노랑처럼 완전히 동떨어진 색은 쓰지 않았다. */
+  --series-1:       #1e3a8a;  /* 저축·예금 — 네이비 */
+  --series-2:       #2563eb;  /* 투자      — 블루(브랜드와 동일 축) */
+  --series-3:       #0ea5e9;  /* 부수입    — 스카이블루 */
+  --series-4:       #14b8a6;  /* 자기계발  — 틸 */
+  --series-5:       #64748b;  /* 실물      — 그레이블루 */
+  --series-6:       #6366f1;  /* 암호자산  — 인디고(보조색) */
 
-  --good:           #0ca30c;
-  --good-text:      #056b05;
+  /* good도 브랜드와 마찬가지로 파란 계열로 옮겼다 — 이 서비스는
+     "초록=성공"이 아니라 브랜드 컬러 자체가 곧 긍정 신호였어서,
+     good만 초록으로 남기면 브랜드와 어긋나 보인다. brand(indigo
+     쪽 블루)와는 다른 축(사이언 쪽 블루)을 써서 그 둘은 여전히
+     구분된다. good-text(#075985)는 흰 배경 대비 7.57:1로 AA를
+     넉넉히 통과한다. */
+  --good:           #0284c7;
+  --good-text:      #075985;
   /* v22 "닥터" 컨셉: 경고색을 덜 자극적인 톤으로 낮췄다(원색 빨강/
      쨍한 주황 → 차분한 러스트/앰버) — 유효성 검사 오류처럼 진짜
      "주의"가 필요한 곳에서도 위협적으로 느껴지지 않게 한다. */
@@ -75,18 +90,18 @@ body {
     --border:         rgba(255,255,255,.11);
     --border-strong:  rgba(255,255,255,.2);
 
-    --brand:          #4fae8b;
-    --brand-soft:     #17322a;
+    --brand:          #5b8def;
+    --brand-soft:     #16283d;
     --accent:         #d9825f;
 
-    --series-1:       #4b95e8;
-    --series-2:       #f07d4f;
-    --series-3:       #2cc98e;
-    --series-4:       #d9a72c;
-    --series-5:       #a98bc9;
-    --series-6:       #e5646e;
+    --series-1:       #4c6fdc;
+    --series-2:       #5b8def;
+    --series-3:       #38bdf8;
+    --series-4:       #2dd4bf;
+    --series-5:       #94a3b8;
+    --series-6:       #818cf8;
 
-    --good-text:      #34c034;
+    --good-text:      #7dd3fc;
     --warning-text:   #e0a94f;
     --critical-text:  #d97e68;
     --reference:      #7fa6bf;
@@ -107,16 +122,16 @@ body {
   --baseline:       #3a3a37;
   --border:         rgba(255,255,255,.11);
   --border-strong:  rgba(255,255,255,.2);
-  --brand:          #4fae8b;
-  --brand-soft:     #17322a;
+  --brand:          #5b8def;
+  --brand-soft:     #16283d;
   --accent:         #d9825f;
-  --series-1:       #4b95e8;
-  --series-2:       #f07d4f;
-  --series-3:       #2cc98e;
-  --series-4:       #d9a72c;
-  --series-5:       #a98bc9;
-  --series-6:       #e5646e;
-  --good-text:      #34c034;
+  --series-1:       #4c6fdc;
+  --series-2:       #5b8def;
+  --series-3:       #38bdf8;
+  --series-4:       #2dd4bf;
+  --series-5:       #94a3b8;
+  --series-6:       #818cf8;
+  --good-text:      #7dd3fc;
   --warning-text:   #e0a94f;
   --critical-text:  #d97e68;
   --reference:      #7fa6bf;
@@ -1302,17 +1317,17 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
     --baseline:       #c3c2b7 !important;
     --border:         rgba(11, 11, 11, .10) !important;
     --border-strong:  rgba(11, 11, 11, .18) !important;
-    --brand:          #24745a !important;
-    --brand-soft:     #e6f0ea !important;
+    --brand:          #2563eb !important;
+    --brand-soft:     #e5eefc !important;
     --accent:         #b76442 !important;
-    --series-1:       #2a78d6 !important;
-    --series-2:       #eb6834 !important;
-    --series-3:       #1baf7a !important;
-    --series-4:       #eda100 !important;
-    --series-5:       #8d6fb0 !important;
-    --series-6:       #d64550 !important;
-    --good:           #0ca30c !important;
-    --good-text:      #056b05 !important;
+    --series-1:       #1e3a8a !important;
+    --series-2:       #2563eb !important;
+    --series-3:       #0ea5e9 !important;
+    --series-4:       #14b8a6 !important;
+    --series-5:       #64748b !important;
+    --series-6:       #6366f1 !important;
+    --good:           #0284c7 !important;
+    --good-text:      #075985 !important;
     --warning:        #e8a23d !important;
     --warning-text:   #92661f !important;
     --critical:       #c1594a !important;
