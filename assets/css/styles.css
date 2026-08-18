@@ -315,19 +315,33 @@ section { scroll-margin-top: 5rem; }
   .home-steps { gap: .9rem; }
 }
 /* 인트로 화면은 칩이 순서대로 색깔이 켜지는 연출 자체가 흐름을
-   보여주므로, 칩 사이의 화살표 촉까지 있으면 오히려 산만하다. */
-.home-steps-intro > li::before,
-.home-steps-intro > li::after {
+   보여주므로, 칩 사이의 화살표 촉까지 있으면 오히려 산만하다.
+   :not(:last-child)까지 똑같이 넣어야 하는 이유: 원래 규칙(위)과
+   클래스 개수가 같아야 명시도가 동점이 되고, 그래야 나중에 나온 이
+   규칙이 이긴다 — .home-steps-intro > li::before만 쓰면 명시도가
+   낮아 원래 규칙에 밀려 화살표가 계속 보이는 버그가 있었다. */
+.home-steps-intro > li:not(:last-child)::before,
+.home-steps-intro > li:not(:last-child)::after {
   content: none;
 }
 
-/* 현재 어느 단계인지 강조하는 상태 — 해당 칩만 브랜드색으로 켜고
-   나머지는 옅게 죽인다. */
-.home-steps > li.is-active {
-  border-color: var(--brand); background: var(--brand-soft);
-  box-shadow: 0 0 0 2px var(--brand-soft);
+/* 현재 어느 단계인지 강조하는 상태 — 인트로 연출과 통일해 진찰=핑크,
+   진단=파랑, 처방=초록을 온보딩 문항·리포트 카드·목표 패널 전체에
+   똑같이 적용한다. 칩 순서가 항상 진찰→진단→처방으로 고정이라
+   nth-child로 색을 정한다(디자인 토큰이 아닌 이 배지 전용 색이라
+   하드코딩). 나머지 칩은 옅게 죽인다. */
+.home-steps > li:nth-child(1).is-active {
+  border-color: #ec4899; background: #fce7f3; box-shadow: 0 0 0 2px #fce7f3;
 }
-.home-steps > li.is-active .home-steps-label { color: var(--brand); }
+.home-steps > li:nth-child(1).is-active .home-steps-label { color: #ec4899; }
+.home-steps > li:nth-child(2).is-active {
+  border-color: #3b82f6; background: #dbeafe; box-shadow: 0 0 0 2px #dbeafe;
+}
+.home-steps > li:nth-child(2).is-active .home-steps-label { color: #3b82f6; }
+.home-steps > li:nth-child(3).is-active {
+  border-color: #22c55e; background: #dcfce7; box-shadow: 0 0 0 2px #dcfce7;
+}
+.home-steps > li:nth-child(3).is-active .home-steps-label { color: #22c55e; }
 .home-steps > li:not(.is-active) { opacity: .55; }
 
 /* 첫 화면(인트로)의 진찰·진단·처방 칩은 아직 아무 단계도 진행 전이라
