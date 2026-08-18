@@ -902,7 +902,13 @@ input[readonly] { -moz-appearance: textfield; }
 }
 
 /* ---------- 차트 ---------- */
-.chart-box { margin-top: .3rem; overflow-x: auto; }
+/* flex-shrink:0 — 카드1(.deck-card.is-cover)처럼 세로 flex 컬럼 안에서
+   쓰일 때, overflow-x:auto가 있는 요소는 flexbox의 "콘텐츠 기준 자동
+   최소 크기" 보호를 받지 못해 형제 요소들과 세로 공간을 다투다가
+   높이가 0으로 눌려버리는 문제가 있었다(모바일처럼 뷰포트가 낮아
+   카드 내용이 다 안 들어갈 때 재현 — 축·막대·값 라벨이 전부 통째로
+   사라져 보였다). 이 차트만은 절대 눌리지 않게 고정한다. */
+.chart-box { margin-top: .3rem; overflow-x: auto; flex-shrink: 0; }
 .chart-box svg { display: block; width: 100%; height: auto; min-width: 300px; }
 /* 막대 3개짜리 비교 차트처럼 세로:가로 비율이 낮은 차트는 카드
    전체 폭으로 늘어나면 그만큼 세로로도 길어진다(v13 — 카드 4의
