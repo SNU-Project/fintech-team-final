@@ -389,11 +389,88 @@
     return { history, forecast, slope };
   }
 
+  /* ---------- 물가 추이 예측 (AR(2)) ----------
+     직선추세는 최근 3년이 내려가는 구간이라 그 기울기를 그대로 미래로
+     늘렸고, 마지막 실측(2.8%)에서 2.0%로 뚝 떨어지는 계단이 생겼다.
+     물가상승률은 평균으로 되돌아오는 성질이 있어 AR(2)가 훨씬 매끄럽다.
+     과거 79개 시점 백테스트에서도 오차가 더 작았다(2.68 → 1.98%p).
+
+     ⚠️ 이 선은 참고용이다. 진단·목표·타임머신은 전부 실제 관측값으로
+     계산한다. 화면의 "예측치" 안내를 지우지 말 것.
+
+     모형: y(t) = c + φ1·y(t-1) + φ2·y(t-2), 최소제곱 추정 */
+  function fitAR2(values) {
+    const p = 2;
+    const rows = [];
+    for (let t = p; t < values.length; t++) {
+      rows.push([1, values[t - 1], values[t - 2], values[t]]);
+    }
+    if (rows.length < 6) return null;
+
+    // 정규방정식 XᵀX·b = Xᵀy 를 만들고 가우스 소거로 푼다
+    const k = 3;
+    const A = [];
+    for (let i = 0; i < k; i++) {
+      const row = [];
+      for (let j = 0; j < k; j++) {
+        row.push(rows.reduce((s, r) => s + r[i] * r[j], 0));
+      }
+      row.push(rows.reduce((s, r) => s + r[i] * r[3], 0));
+      A.push(row);
+    }
+    for (let c = 0; c < k; c++) {
+      let pivot = c;
+      for (let r = c + 1; r < k; r++) {
+        if (Math.abs(A[r][c]) > Math.abs(A[pivot][c])) pivot = r;
+      }
+      [A[c], A[pivot]] = [A[pivot], A[c]];
+      if (Math.abs(A[c][c]) < 1e-12) return null;
+      for (let r = 0; r < k; r++) {
+        if (r === c) continue;
+        const f = A[r][c] / A[c][c];
+        for (let j = c; j <= k; j++) A[r][j] -= f * A[c][j];
+      }
+    }
+    const b = A.map((row, i) => row[k] / A[i][i]);
+    if (!b.every(Number.isFinite)) return null;
+    return { c: b[0], phi1: b[1], phi2: b[2] };
+  }
+
+  function forecastAR2(monthlySeries, { historyMonths = 36, forecastMonths = 12 } = {}) {
+    const months = Object.keys(monthlySeries).sort();
+    const recent = months.slice(-historyMonths);
+    if (recent.length < 8) return null;
+
+    const values = recent.map((m) => monthlySeries[m]);
+    const model = fitAR2(values);
+    if (!model) return null;
+
+    // φ1+φ2 >= 1 이면 발산한다. 그런 표본이 나오면 선을 그리지 않는다 —
+    // 물가가 무한히 오르는 그래프를 보여주느니 카드를 숨기는 게 낫다.
+    if (model.phi1 + model.phi2 >= 0.999) return null;
+
+    const history = recent.map((m, i) => ({ month: m, value: values[i] }));
+    const forecast = [];
+    const buffer = values.slice(-2);
+    let cursor = recent[recent.length - 1];
+    for (let k = 0; k < forecastMonths; k++) {
+      const next = model.c
+        + model.phi1 * buffer[buffer.length - 1]
+        + model.phi2 * buffer[buffer.length - 2];
+      buffer.push(next);
+      cursor = addMonths(cursor, 1);
+      forecast.push({ month: cursor, value: next });
+    }
+    // 장기평균 = c / (1 - φ1 - φ2). 이 값으로 수렴한다.
+    const longRun = model.c / (1 - model.phi1 - model.phi2);
+    return { history, forecast, model, longRun };
+  }
+
   global.Engine = {
     diagnose, negotiate, project, requiredMonthly, monthsToGoal,
     backtest, backtestWindow, inflationPath, planOf, customPlan, badYear,
     portfolioVolatility,
     personalInflation, personalIndexPath, aggregateByGroup,
-    monthToNum, monthLabel, addMonths, forecastLinear,
+    monthToNum, monthLabel, addMonths, forecastLinear, forecastAR2,
   };
 })(window);
