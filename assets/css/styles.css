@@ -328,6 +328,19 @@ section { scroll-margin-top: 5rem; }
 .home-steps-report + .card {
   padding-right: 11.5rem;
 }
+/* 모바일 좁은 폭에서는 고정폭 여백(11.5rem)이 짧은 헤딩 텍스트의 줄바꿈을
+   망가뜨린다(예: "목표 자산 모으기"가 어색하게 꺾여 줄바꿈됨). 절대배치
+   배지를 다시 문서 흐름 안으로 되돌려 헤딩 위에 중앙 정렬로 얹고,
+   오른쪽 여백도 함께 되돌린다. */
+@media (max-width: 480px) {
+  .home-steps-report {
+    position: static; justify-content: center; margin: 0 0 .8rem;
+  }
+  .home-steps-report ~ .report-heading,
+  .home-steps-report + .card {
+    padding-right: 0;
+  }
+}
 /* 카드7만 h2.report-heading이 없어서(결론 카드로 옮기며 v21에서 뺐다)
    본문 시작 높이가 다른 카드보다 위로 붙어 보인다. 스와이프로 카드를
    넘길 때 내용 위치가 들쭉날쭉하지 않도록, 다른 카드의 헤딩 한 줄
