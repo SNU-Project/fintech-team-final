@@ -929,6 +929,13 @@ input[readonly] { -moz-appearance: textfield; }
    더 키울 수 있게 됐다. */
 .contrib-label { font-size: 13px; }
 .contrib-value { font-size: 12.5px; font-weight: 800; }
+/* barChart() 전용(카드1 갭 그래프·카드6 협상 가이드) — 막대 위 값이
+   이 그래프에서 가장 중요한 정보인데 기본 .bar-value(11px)로는 너무
+   작아 안 보인다는 피드백. contrib-*와 같은 이유로 .bar-value/
+   .axis-text를 공유하는 다른 차트(hBarChart, lineChart)까지 같이
+   커지지 않게 전용 클래스로 분리했다. */
+.gap-value { font-size: 20px; }
+.gap-axis-label { font-size: 15px; fill: var(--text-secondary); }
 
 .legend { display: flex; flex-wrap: wrap; gap: .5rem .95rem; margin-top: .7rem; font-size: .78rem; color: var(--text-secondary); }
 .legend-item { display: inline-flex; align-items: center; gap: .35rem; }
