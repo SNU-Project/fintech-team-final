@@ -196,6 +196,10 @@
   /* ══════════════ 부팅 ══════════════ */
   async function boot() {
     initTheme();
+    const introMascotBox = $("#introMascot");
+    if (introMascotBox && window.Mascot) {
+      introMascotBox.innerHTML = Mascot.svg("greet", { size: 88 }) + Mascot.bubbleHtml("greet");
+    }
     try {
       const [market, cpi, meta] = await Promise.all([
         fetch("data/market.json").then((r) => r.json()),
