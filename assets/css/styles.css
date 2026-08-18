@@ -324,6 +324,32 @@ section { scroll-margin-top: 5rem; }
 .home-steps > li.is-active .home-steps-label { color: var(--brand); }
 .home-steps > li:not(.is-active) { opacity: .55; }
 
+/* 첫 화면(인트로)의 진찰·진단·처방 칩은 아직 아무 단계도 진행 전이라
+   is-active를 안 쓴다 — 대신 화면 진입 직후 하나씩 순서대로 밝아지며
+   "검사→진단→처방" 흐름을 3초 안에 각인시킨다. 평소의 단일 브랜드색
+   대신 이 연출에서만 핑크·파랑·초록 3색을 써서 세 단계가 뚜렷이
+   구분되게 했다(디자인 토큰이 아닌 이 연출 전용 색이라 하드코딩). */
+.home-steps-intro > li:nth-child(1) { animation: heroStepPink .5s ease .5s both; }
+.home-steps-intro > li:nth-child(2) { animation: heroStepBlue .5s ease 1.1s both; }
+.home-steps-intro > li:nth-child(3) { animation: heroStepGreen .5s ease 1.7s both; }
+@keyframes heroStepPink {
+  0% { opacity: .55; border-color: var(--border); background: transparent; box-shadow: none; }
+  100% { opacity: 1; border-color: #ec4899; background: #fce7f3; box-shadow: 0 0 0 2px #fce7f3; }
+}
+@keyframes heroStepBlue {
+  0% { opacity: .55; border-color: var(--border); background: transparent; box-shadow: none; }
+  100% { opacity: 1; border-color: #3b82f6; background: #dbeafe; box-shadow: 0 0 0 2px #dbeafe; }
+}
+@keyframes heroStepGreen {
+  0% { opacity: .55; border-color: var(--border); background: transparent; box-shadow: none; }
+  100% { opacity: 1; border-color: #22c55e; background: #dcfce7; box-shadow: 0 0 0 2px #dcfce7; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-steps-intro > li:nth-child(1) { animation: none; opacity: 1; border-color: #ec4899; background: #fce7f3; box-shadow: 0 0 0 2px #fce7f3; }
+  .home-steps-intro > li:nth-child(2) { animation: none; opacity: 1; border-color: #3b82f6; background: #dbeafe; box-shadow: 0 0 0 2px #dbeafe; }
+  .home-steps-intro > li:nth-child(3) { animation: none; opacity: 1; border-color: #22c55e; background: #dcfce7; box-shadow: 0 0 0 2px #dcfce7; }
+}
+
 /* 설문 카드 위처럼 좁은 자리에 쓰는 축소판 — 아이콘/여백/화살표 촉을
    전부 한 단계씩 줄인다. */
 .home-steps.is-compact { gap: .7rem; margin: 0 0 .3rem; }
