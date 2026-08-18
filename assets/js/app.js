@@ -1656,7 +1656,7 @@
     const card = $("#inflationForecastCard");
     if (!card) return;
     if (!state.cpi || !state.cpi.yoy) { card.hidden = true; return; }
-    const result = E.forecastLinear(state.cpi.yoy, { historyMonths: 36, forecastMonths: 12 });
+    const result = E.forecastAR2(state.cpi.yoy, { historyMonths: 36, forecastMonths: 12 });
     if (!result) { card.hidden = true; return; }
     card.hidden = false;
 
