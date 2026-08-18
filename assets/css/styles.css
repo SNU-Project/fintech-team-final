@@ -291,6 +291,12 @@ section { scroll-margin-top: 5rem; }
 @media (max-width: 480px) {
   .home-steps { gap: .9rem; }
 }
+/* 인트로 화면은 칩이 순서대로 색깔이 켜지는 연출 자체가 흐름을
+   보여주므로, 칩 사이의 화살표 촉까지 있으면 오히려 산만하다. */
+.home-steps-intro > li::before,
+.home-steps-intro > li::after {
+  content: none;
+}
 
 /* 현재 어느 단계인지 강조하는 상태 — 설문(Q1~Q3)은 전부 "검사" 단계라
    해당 칩만 브랜드색으로 켜고 나머지는 옅게 죽인다. */
