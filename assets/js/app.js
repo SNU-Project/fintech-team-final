@@ -432,7 +432,7 @@
       gapChartBox.hidden = false;
       barChart(gapChartBox, [
         { label: "내년 연봉", value: next, color: gap.d.beatsInflation ? "var(--good)" : "var(--series-1)" },
-        { label: "물가 유지선", value: gap.d.requiredSalary, color: "var(--critical)" },
+        { label: "물가 유지선", value: gap.d.requiredSalary, color: "var(--reference)" },
       ]);
     } else {
       gapChartBox.hidden = true;
@@ -1899,7 +1899,7 @@
     lineChart($("#trendChart"), {
       series: [
         { id: "nominal", label: "내 연봉", color: "var(--series-1)", points: nominal },
-        { id: "required", label: "물가 유지선", color: "var(--critical)", dashed: true, points: required },
+        { id: "required", label: "물가 유지선", color: "var(--reference)", dashed: true, points: required },
       ],
       xLabels: labels,
       yFormat: (v) => `${man(v / 1000) / 10}억`,
@@ -1907,7 +1907,7 @@
 
     $("#trendLegend").innerHTML =
       `<span class="legend-item"><span class="legend-swatch" style="background:var(--series-1)"></span>내 연봉 (인상률 ${(raise * 100).toFixed(1)}%)</span>
-       <span class="legend-item"><span class="legend-swatch" style="background:var(--critical)"></span>물가 유지선 (${inflationPct.toFixed(1)}%)</span>`;
+       <span class="legend-item"><span class="legend-swatch" style="background:var(--reference)"></span>물가 유지선 (${inflationPct.toFixed(1)}%)</span>`;
 
     const endGap = required[YEARS].y - nominal[YEARS].y;
     const v = $("#trendVerdict");

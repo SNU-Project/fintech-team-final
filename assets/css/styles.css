@@ -43,10 +43,16 @@ body {
 
   --good:           #0ca30c;
   --good-text:      #056b05;
-  --warning:        #fab219;
-  --warning-text:   #8a5a00;
-  --critical:       #d03b3b;
-  --critical-text:  #b32626;
+  /* v22 "닥터" 컨셉: 경고색을 덜 자극적인 톤으로 낮췄다(원색 빨강/
+     쨍한 주황 → 차분한 러스트/앰버) — 유효성 검사 오류처럼 진짜
+     "주의"가 필요한 곳에서도 위협적으로 느껴지지 않게 한다. */
+  --warning:        #e8a23d;
+  --warning-text:   #92661f;
+  --critical:       #c1594a;
+  --critical-text:  #a3452f;
+  /* "물가 유지선"처럼 나쁜 소식이 아니라 그냥 기준선을 나타내는
+     자리에 쓴다 — critical(빨강)을 쓰면 "이겨야 할 상대"처럼 보인다. */
+  --reference:      #5c7f97;
 
   --radius:         22px;
   --radius-sm:      14px;
@@ -81,8 +87,9 @@ body {
     --series-6:       #e5646e;
 
     --good-text:      #34c034;
-    --warning-text:   #f0b93c;
-    --critical-text:  #ef6b6b;
+    --warning-text:   #e0a94f;
+    --critical-text:  #d97e68;
+    --reference:      #7fa6bf;
     --shadow:         0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
   }
 }
@@ -110,8 +117,9 @@ body {
   --series-5:       #a98bc9;
   --series-6:       #e5646e;
   --good-text:      #34c034;
-  --warning-text:   #f0b93c;
-  --critical-text:  #ef6b6b;
+  --warning-text:   #e0a94f;
+  --critical-text:  #d97e68;
+  --reference:      #7fa6bf;
   --shadow:         0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
 }
 
@@ -1249,10 +1257,11 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
     --series-6:       #d64550 !important;
     --good:           #0ca30c !important;
     --good-text:      #056b05 !important;
-    --warning:        #fab219 !important;
-    --warning-text:   #8a5a00 !important;
-    --critical:       #d03b3b !important;
-    --critical-text:  #b32626 !important;
+    --warning:        #e8a23d !important;
+    --warning-text:   #92661f !important;
+    --critical:       #c1594a !important;
+    --critical-text:  #a3452f !important;
+    --reference:      #5c7f97 !important;
     --shadow:         none !important;
     /* 화면용 카드 상자의 그림자·둥근 모서리를 눌러서, .card/.stat 등
        var(--radius[-sm])를 쓰는 모든 상자가 인쇄에서는 각진 문서
