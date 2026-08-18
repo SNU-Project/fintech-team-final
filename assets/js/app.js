@@ -639,13 +639,21 @@
         <span class="scenario-rate">${s.baselineRate.toFixed(2)}%<span class="arrow">→</span><b>${sc.rate.toFixed(2)}%</b></span>
       </div>`).join("");
 
-    // 리포트 마지막 카드의 마무리 인사 — 케이스 A/B와 무관하게 항상
-    // 같은 따뜻한 톤(good)을 쓴다. 여기는 "처방전을 잘 챙기라"는
-    // 마무리라, 진단 결과에 따라 표정을 바꾸는 카드1과는 역할이 다르다.
+    // 리포트 마지막 카드의 마무리 인사 — v27: 카드1은 진단 결과에 따라
+    // 표정이 바뀌는데 여기는 항상 good으로 고정해 놨더니, 물가를 못
+    // 따라가는 케이스(A)에서도 카드1은 안심시키는 표정인데 결론
+    // 카드에서 갑자기 활짝 웃어버려 앞뒤가 안 맞아 보였다. 같은
+    // buildGapVerdictLines()로 같은 케이스 판정을 다시 구해 카드1과
+    // 항상 같은 표정을 쓰게 맞춘다. 마무리 문구 자체는 어느 케이스든
+    // 진실인 일반적인 인사말이라 그대로 둔다.
     const scenarioMascotBox = $("#scenarioMascot");
     if (scenarioMascotBox && window.Mascot) {
-      scenarioMascotBox.innerHTML = Mascot.svg("good", { size: 56 }) +
-        Mascot.bubbleHtml("good", "처방전 잘 챙기시고, 오늘도 건강한 재정 되세요!");
+      const cur = Math.max(0, +$("#curSalary").value || 0);
+      const next = Math.max(0, +$("#nextSalary").value || 0);
+      const gap = buildGapVerdictLines(cur, next);
+      const pose = !gap ? "good" : gap.d.beatsInflation ? "good" : "reassure";
+      scenarioMascotBox.innerHTML = Mascot.svg(pose, { size: 56 }) +
+        Mascot.bubbleHtml(pose, "처방전 잘 챙기시고, 오늘도 건강한 재정 되세요!");
     }
   }
 
