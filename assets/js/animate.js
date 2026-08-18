@@ -1,6 +1,7 @@
 /* ============================================================
    진입 애니메이션 (v20 항목2) — 카드가 화면에 나타날 때(스와이프/전환)
-   그래프·숫자가 0.5~1초 안에 짧게 채워지는 연출. 외부 라이브러리 없이
+   그래프·숫자가 1~1.2초 정도에 걸쳐 채워지는 연출(v27: 너무 빨리
+   끝난다는 피드백으로 전체적으로 느리게 늘렸다). 외부 라이브러리 없이
    requestAnimationFrame으로 직접 구현한다 — CLAUDE.md가 빌드 도구·
    외부 의존성 추가를 금지해서, 이미 쓰는 SVG/CSS 위에서 처리한다.
    차트는 charts.js가 값이 바뀔 때마다(입력값 수정 등) 다시 그리므로,
@@ -33,7 +34,7 @@
   // 배선할 필요 없이, 이미 만들어진 문구를 "되감아 재생"하는 방식이다.
   function countUpText(el, opts = {}) {
     if (!el) return;
-    const { duration = 700 } = opts;
+    const { duration = 1050 } = opts;
     const raw = el.textContent;
     const m = raw.match(/-?[\d,]+(\.\d+)?/);
     if (!m) return;
@@ -61,7 +62,7 @@
   // 0으로 줄이면 왼쪽부터 그려지는 것처럼 보인다.
   function drawLine(path, opts = {}) {
     if (!path) return;
-    const { duration = 800 } = opts;
+    const { duration = 1200 } = opts;
     let length;
     try { length = path.getTotalLength(); } catch { return; }
     if (!length) return;
@@ -85,7 +86,7 @@
   // "left"/"right" 방향에서부터) 자라난다.
   function growBar(rect, opts = {}) {
     if (!rect) return;
-    const { duration = 600, axis = "y", origin = "left", delay = 0 } = opts;
+    const { duration = 950, axis = "y", origin = "left", delay = 0 } = opts;
 
     if (axis === "y") {
       const finalHeight = parseFloat(rect.getAttribute("height"));
@@ -125,7 +126,7 @@
   // "0~16%만 채워진" 중간 상태의 conic-gradient를 만든다.
   function growDonut(el, stops, opts = {}) {
     if (!el) return;
-    const { duration = 700, baseColor = "var(--surface-sunk)" } = opts;
+    const { duration = 1050, baseColor = "var(--surface-sunk)" } = opts;
     const build = (p) => {
       const segs = stops.map((s) => `${s.color} ${(s.from * p).toFixed(2)}% ${(s.to * p).toFixed(2)}%`);
       return `conic-gradient(${segs.join(",")}, ${baseColor} 0)`;
@@ -140,9 +141,9 @@
   // data-donut-stops를 읽는다.
   function playCardEntrance(container) {
     if (!container) return;
-    container.querySelectorAll('[data-anim="bar-y"]').forEach((el, i) => growBar(el, { axis: "y", delay: i * 35 }));
+    container.querySelectorAll('[data-anim="bar-y"]').forEach((el, i) => growBar(el, { axis: "y", delay: i * 55 }));
     container.querySelectorAll('[data-anim="bar-x"]').forEach((el, i) =>
-      growBar(el, { axis: "x", origin: el.dataset.animOrigin || "left", delay: i * 35 }));
+      growBar(el, { axis: "x", origin: el.dataset.animOrigin || "left", delay: i * 55 }));
     container.querySelectorAll('[data-anim="line"]').forEach((el) => drawLine(el));
     container.querySelectorAll('[data-donut-stops]').forEach((el) => {
       let stops;
