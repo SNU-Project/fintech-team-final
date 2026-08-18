@@ -889,14 +889,9 @@ input[readonly] { -moz-appearance: textfield; }
    아래에 있었다 — 카드1로 옮기면서 카드1이 이미 .is-cover로 가운데
    정렬·여백을 처리하므로 별도 박스 스타일은 없앴다. v22 "닥터"
    컨셉에서 다시 점선 테두리 박스(.prescription-box)로 감싸 실제
-   처방전 용지를 은유한다 — 과하지 않게 점선 테두리 하나만 쓴다. */
-.rx-heading { display: flex; align-items: center; justify-content: center; gap: .55rem; }
-.rx-mark {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 1.9rem; height: 1.9rem; border-radius: 999px;
-  background: var(--brand); color: #fff; font-size: .78rem; font-weight: 800;
-  font-family: Georgia, "Times New Roman", serif; font-style: italic;
-}
+   처방전 용지를 은유한다 — 과하지 않게 점선 테두리 하나만 쓴다.
+   (v23: "Rx 처방전" 텍스트 라벨 자체는 카드1에서 뺐다 — 박스와
+   점선만으로도 처방전 느낌은 남아 있어서 과했다는 판단.) */
 .prescription-box {
   margin-top: .8rem; padding: 1.3rem 1.4rem;
   border: 1.5px dashed color-mix(in srgb, var(--brand) 45%, var(--border-strong));
