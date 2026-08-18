@@ -251,7 +251,7 @@ section { scroll-margin-top: 5rem; }
   margin: 0; font-weight: 800; color: var(--text-primary);
 }
 .home-hero h1 em { font-style: normal; color: var(--brand); }
-.home-hero .lede { font-size: clamp(.95rem, 2vw, 1.1rem); color: var(--text-secondary); margin: 0; max-width: 32rem; }
+.home-hero .lede { font-size: clamp(.95rem, 2vw, 1.1rem); color: var(--text-secondary); margin: 0; max-width: 32rem; word-break: keep-all; }
 .home-hero .kicker { margin: 0; }
 /* 카드1(결론부터)의 kicker는 이 리포트의 첫인상 역할을 하는데도 다른
    자잘한 kicker(Q1·내 물가 같은 문항 안내, 카드7의 "마지막으로")와
