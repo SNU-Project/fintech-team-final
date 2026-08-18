@@ -12,7 +12,12 @@
   // 포즈 3종 — 눈·입 모양만 바꿔서 표정을 표현한다.
   // greet: 카드 진입 시 기본 인사("어디 한번 볼까요?")
   // good: 물가를 이기는 케이스(B) — 활짝 웃는 얼굴
-  // reassure: 물가를 못 이기는 케이스(A) — 눈을 살짝 접고 안심시키는 얼굴(걱정 표정 아님)
+  // reassure: 물가를 못 이기는 케이스(A) — 살짝 크게 뜬 눈 + 평평한
+  // 입꼬리로 "안심시키면서도 진지하게 살피는" 표정을 낸다. v27 전에는
+  // good과 거의 같은 미소 곡선을 얕게만 쓴 눈·입이라 실제 화면에서
+  // "항상 웃는 얼굴"처럼 보인다는 피드백이 있었다 — 웃는 곡선을 아예
+  // 빼고 눈은 동그랗게, 입은 수평선으로 바꿔 good과 실루엣부터
+  // 구분되게 했다(찡그리거나 처진 입은 쓰지 않는다 — 안심 톤 유지).
   const FACES = {
     greet: {
       eyes: '<circle cx="38" cy="52" r="3.4" fill="var(--text-primary)"/><circle cx="62" cy="52" r="3.4" fill="var(--text-primary)"/>',
@@ -23,8 +28,8 @@
       mouth: '<path d="M40 62q10 11 20 0" stroke="var(--text-primary)" stroke-width="2.8" fill="none" stroke-linecap="round"/>',
     },
     reassure: {
-      eyes: '<path d="M34 53q4-3 8 0" stroke="var(--text-primary)" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M58 53q4-3 8 0" stroke="var(--text-primary)" stroke-width="2.6" fill="none" stroke-linecap="round"/>',
-      mouth: '<path d="M43 65q7 4 14 0" stroke="var(--text-primary)" stroke-width="2.6" fill="none" stroke-linecap="round"/>',
+      eyes: '<circle cx="38" cy="51" r="3.9" fill="var(--text-primary)"/><circle cx="62" cy="51" r="3.9" fill="var(--text-primary)"/>',
+      mouth: '<path d="M44 65h12" stroke="var(--text-primary)" stroke-width="2.6" fill="none" stroke-linecap="round"/>',
     },
   };
 
