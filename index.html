@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>연봉닥터 — 연봉은 올랐는데 왜 더 빠듯할까?</title>
-<meta name="description" content="물가를 반영한 내 연봉의 실질 가치를 진단하고, 실제 10년 시장 데이터로 부족분을 메울 자산배분을 설계합니다.">
+<meta name="description" content="물가를 반영한 내 연봉의 실질 가치를 진단하고, 실제 10년 시장 데이터로 부족분을 메울 자산배분을 처방합니다.">
 <link rel="icon" type="image/png" href="assets/img/logo.png">
 <link rel="apple-touch-icon" href="assets/img/logo.png">
 <link rel="stylesheet" href="assets/css/styles.css">
@@ -14,7 +14,6 @@
 <header class="topbar">
   <div class="wrap topbar-inner">
     <a class="brand" href="#top">
-      <img class="brand-mark" src="assets/img/logo.png" alt="" aria-hidden="true">
       <span>연봉닥터<small>SNU 핀테크 13기 3조 · 웹 개발 및 시각화</small></span>
     </a>
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="테마 전환" title="라이트/다크 테마 전환">
@@ -53,8 +52,9 @@
 
       <!-- 0 · 인트로 -->
       <div class="onboarding-step" data-step="0">
-        <h1>연봉은 올랐는데,<br><em>왜 더 빠듯할까요?</em></h1>
-        <p class="lede">실제 10년 시장 데이터로 내 연봉의 진짜 가치를 진단합니다.</p>
+        <div class="mascot-wrap" id="introMascot"></div>
+        <h1>연봉은 올랐는데,<br><em>왜 더 빠듯하게 느껴질까요?</em></h1>
+        <p class="lede">실제 10년 시장 데이터로 내 연봉 상태를 꼼꼼히 살펴봐드릴게요.</p>
         <button class="home-start-btn" id="onbStart" type="button">시작하기 →</button>
       </div>
 
@@ -163,10 +163,12 @@
                #finalBody를 채우고, 카드 진입 시(카드덱이 열리자마자,
                index 0) 타이핑 연출도 여기서 재생된다.) -->
           <section class="deck-card is-cover" id="card-1">
-            <p class="kicker">먼저 결론부터 말하면</p>
-            <h1 class="report-heading" id="finalHeadline">당신을 위한 결론</h1>
+            <div class="mascot-wrap is-large" id="homeMascot"></div>
+            <p class="kicker">진단을 마쳤어요</p>
             <div class="chart-box is-compact-bar home-gap-chart" id="homeGapChart" hidden></div>
-            <p class="final-body" id="finalBody"></p>
+            <div class="prescription-box">
+              <p class="final-body" id="finalBody"></p>
+            </div>
             <button class="onboarding-back deck-restart-link" type="button">처음부터 다시 입력하기</button>
           </section>
 
@@ -237,7 +239,7 @@
               <p class="verdict" id="mineVerdict">—</p>
             </div>
             <div class="card bento-contrib">
-              <h3 class="block-title">내 물가를 밀어올린 범인</h3>
+              <h3 class="block-title">내 물가를 밀어올린 원인</h3>
               <ol class="contrib-rank" id="contribRank"></ol>
               <div id="mineTips"></div>
               <details class="calc-detail">
@@ -279,7 +281,7 @@
               </div>
 
               <div class="card bento-main">
-                <h3 class="block-title">내 연봉은 물가를 이겼을까?</h3>
+                <h3 class="block-title">내 연봉, 물가를 잘 따라가고 있을까?</h3>
                 <p class="verdict" id="gapVerdict">—</p>
               </div>
             </div>
@@ -311,7 +313,7 @@
             <h2 class="report-heading">그래서 얼마 더 받아야 하나</h2>
             <div class="card bento-half-b">
               <h3 class="block-title">연봉 협상 가이드</h3>
-              <p class="block-q">물가를 방어하려면 최소 얼마를 올려야 하는지, 세 금액을 나란히 비교합니다.</p>
+              <p class="block-q">물가를 따라잡으려면 최소 얼마를 올려야 하는지, 세 금액을 나란히 비교합니다.</p>
               <div class="chart-box is-compact-bar" id="negoChart"></div>
               <div class="stat-grid" id="negoStats"></div>
               <table class="print-only print-only-table" id="negoPrintTable">
@@ -331,6 +333,7 @@
               <h3 class="block-title">이렇게 실천하면 어떻게 달라질까</h3>
               <p class="block-q" id="scenarioNote">—</p>
               <div class="scenario-grid" id="scenarioGrid"></div>
+              <div class="mascot-wrap is-small is-inline" id="scenarioMascot"></div>
             </div>
 
             <div class="card no-print">
@@ -610,6 +613,7 @@
 </dialog>
 
 <script src="assets/js/animate.js"></script>
+<script src="assets/js/mascot.js"></script>
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/engine.js"></script>
 <script src="assets/js/live.js"></script>

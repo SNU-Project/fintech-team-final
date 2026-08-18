@@ -43,10 +43,16 @@ body {
 
   --good:           #0ca30c;
   --good-text:      #056b05;
-  --warning:        #fab219;
-  --warning-text:   #8a5a00;
-  --critical:       #d03b3b;
-  --critical-text:  #b32626;
+  /* v22 "닥터" 컨셉: 경고색을 덜 자극적인 톤으로 낮췄다(원색 빨강/
+     쨍한 주황 → 차분한 러스트/앰버) — 유효성 검사 오류처럼 진짜
+     "주의"가 필요한 곳에서도 위협적으로 느껴지지 않게 한다. */
+  --warning:        #e8a23d;
+  --warning-text:   #92661f;
+  --critical:       #c1594a;
+  --critical-text:  #a3452f;
+  /* "물가 유지선"처럼 나쁜 소식이 아니라 그냥 기준선을 나타내는
+     자리에 쓴다 — critical(빨강)을 쓰면 "이겨야 할 상대"처럼 보인다. */
+  --reference:      #5c7f97;
 
   --radius:         22px;
   --radius-sm:      14px;
@@ -81,8 +87,9 @@ body {
     --series-6:       #e5646e;
 
     --good-text:      #34c034;
-    --warning-text:   #f0b93c;
-    --critical-text:  #ef6b6b;
+    --warning-text:   #e0a94f;
+    --critical-text:  #d97e68;
+    --reference:      #7fa6bf;
     --shadow:         0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
   }
 }
@@ -110,8 +117,9 @@ body {
   --series-5:       #a98bc9;
   --series-6:       #e5646e;
   --good-text:      #34c034;
-  --warning-text:   #f0b93c;
-  --critical-text:  #ef6b6b;
+  --warning-text:   #e0a94f;
+  --critical-text:  #d97e68;
+  --reference:      #7fa6bf;
   --shadow:         0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
 }
 
@@ -129,8 +137,7 @@ section { scroll-margin-top: 5rem; }
   border-bottom: 1px solid var(--border);
 }
 .topbar-inner { display: flex; align-items: center; gap: 1rem; padding: .7rem 0; }
-.brand { display: flex; align-items: center; gap: .55rem; font-weight: 700; letter-spacing: -.01em; text-decoration: none; color: var(--text-primary); }
-.brand-mark { width: 30px; height: 30px; border-radius: 9px; display: block; object-fit: contain; }
+.brand { display: flex; align-items: center; font-weight: 700; letter-spacing: -.01em; text-decoration: none; color: var(--text-primary); }
 .brand small { display: block; font-weight: 500; font-size: .68rem; color: var(--text-muted); letter-spacing: 0; }
 @media (max-width: 860px) { .brand small { display: none; } }
 
@@ -258,6 +265,21 @@ section { scroll-margin-top: 5rem; }
    (점수 링·등급·풀이 문단은 삭제 — 안 쓰이는 채로 남겨두지 않는다). */
 .home-gap-chart { margin-top: 1rem; }
 .home-gap-chart[hidden] { display: none; }
+
+/* ---------- 마스코트 캐릭터 (v22) ----------
+   실제 일러스트 전까지 쓰는 자리표시자 SVG(mascot.js) + 말풍선.
+   is-large는 카드1(진단 결과를 알려주는 자리)에서 세로로 크게,
+   is-small.is-inline은 카드7(처방전 마무리 인사)에서 옆으로 작게 쓴다. */
+.mascot-wrap { display: flex; flex-direction: column; align-items: center; gap: .6rem; }
+.mascot-wrap.is-inline { flex-direction: row; justify-content: center; gap: .8rem; margin-top: 1rem; }
+.mascot-wrap.is-small .mascot-svg { width: 56px; height: 56px; }
+.mascot-svg { display: block; }
+.mascot-bubble {
+  margin: 0; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: .5rem 1.15rem; font-size: .84rem; font-weight: 700;
+  color: var(--text-primary); word-break: keep-all; text-align: center;
+}
+.mascot-wrap.is-small .mascot-bubble { font-size: .8rem; padding: .45rem 1rem; }
 
 @media (min-width: 641px) {
   .final-body { white-space: pre; max-width: none; }
@@ -472,8 +494,17 @@ section { scroll-margin-top: 5rem; }
 
 /* 카드 1(표지)만 세로 가운데 정렬 — 나머지 카드는 위에서부터 읽는
    일반 카드 레이아웃(기존 리포트와 같은 흐름)을 유지한다. */
+/* justify-content:center인 채로 콘텐츠가 카드 높이보다 길어지면(모바일
+   처럼 뷰포트가 낮을 때 특히), 넘치는 만큼이 위/아래로 반씩 나뉘어
+   밀려나면서 "위로 밀려난 절반"이 화면 밖(#deckViewport의
+   overflow:hidden)으로 잘려나가 스크롤로도 다시 볼 수 없는 문제가
+   있었다(카드1 맨 위 마스코트 얼굴 위쪽이 잘려 보이던 원인). safe
+   center는 넘칠 경우 자동으로 맨 위 정렬로 대체해 항상 스크롤로
+   전체 콘텐츠에 닿을 수 있게 한다 — 미지원 브라우저는 이 줄이
+   무효화되어 그냥 앞의 center로 남는다(점진적 향상, JS 불필요). */
 .deck-card.is-cover {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
+  justify-content: safe center;
   text-align: center; gap: 1rem; min-height: 100%;
 }
 /* 점 인디케이터·화살표·스와이프로도 이미 이동할 수 있는 보조
@@ -678,9 +709,21 @@ input[readonly] { -moz-appearance: textfield; }
   padding: .8rem .9rem;
   display: flex; flex-direction: column;
   flex: 1 1 150px; max-width: 220px;
+  container-type: inline-size;
 }
 .stat .k { font-size: .74rem; color: var(--text-muted); display: block; margin-bottom: .3rem; }
-.stat .v { font-size: clamp(1.7rem, 3.2vw, 2.15rem); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; display: block; }
+/* v26: "내년 연봉으로 실제 살 수 있는 만큼" 같이 자릿수가 큰 값
+   ("3,643만원")은 다른 카드보다 글자 수가 많은데 폭은 같은
+   .stat-grid 아래서 정해져서, 고정 크기(vw 기준)로는 이 카드만
+   두 줄로 줄바꿈됐다. 뷰포트가 아니라 이 박스 자신의 실제 너비를
+   기준으로 글자 크기가 줄어들게(cqw, container-type:inline-size
+   필요) 바꿔, 어떤 값이 와도 박스 폭에 맞춰 자동으로 줄어들며 항상
+   한 줄을 유지한다 — 카드 개수·값 자릿수가 바뀌어도 다시 손댈
+   필요가 없다. white-space:nowrap으로 줄바꿈 자체를 막아둔다. */
+.stat .v {
+  font-size: clamp(1.3rem, 17cqw, 2.15rem); font-weight: 800; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; display: block; white-space: nowrap;
+}
 .stat .s { font-size: .72rem; color: var(--text-muted); margin-top: auto; padding-top: .3rem; }
 .stat.is-good .v { color: var(--good-text); }
 .stat.is-warn .v { color: var(--warning-text); }
@@ -853,11 +896,19 @@ input[readonly] { -moz-appearance: textfield; }
 }
 .spend-total b { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 
-/* ---------- 결론 문단 (카드1) ----------
+/* ---------- 처방전 (카드1 결론 문단) ----------
    v21 전에는 .final-card라는 그라디언트 박스 안에 감싸 카드7 맨
    아래에 있었다 — 카드1로 옮기면서 카드1이 이미 .is-cover로 가운데
-   정렬·여백을 처리하므로 별도 박스 스타일은 없앴다(그라디언트
-   배경·전용 kicker 색 등 죽은 채로 남겨두지 않는다). */
+   정렬·여백을 처리하므로 별도 박스 스타일은 없앴다. v22 "닥터"
+   컨셉에서 다시 점선 테두리 박스(.prescription-box)로 감싸 실제
+   처방전 용지를 은유한다 — 과하지 않게 점선 테두리 하나만 쓴다.
+   (v23: "Rx 처방전" 텍스트 라벨 자체는 카드1에서 뺐다 — 박스와
+   점선만으로도 처방전 느낌은 남아 있어서 과했다는 판단.) */
+.prescription-box {
+  margin-top: .8rem; padding: 1.3rem 1.4rem;
+  border: 1.5px dashed color-mix(in srgb, var(--brand) 45%, var(--border-strong));
+  border-radius: var(--radius-sm); background: var(--surface-2);
+}
 .final-body {
   max-width: 34rem; margin: 0 auto; text-align: center;
   font-size: 1rem; line-height: 1.8; color: var(--text-secondary); white-space: pre-line;
@@ -866,7 +917,13 @@ input[readonly] { -moz-appearance: textfield; }
 }
 
 /* ---------- 차트 ---------- */
-.chart-box { margin-top: .3rem; overflow-x: auto; }
+/* flex-shrink:0 — 카드1(.deck-card.is-cover)처럼 세로 flex 컬럼 안에서
+   쓰일 때, overflow-x:auto가 있는 요소는 flexbox의 "콘텐츠 기준 자동
+   최소 크기" 보호를 받지 못해 형제 요소들과 세로 공간을 다투다가
+   높이가 0으로 눌려버리는 문제가 있었다(모바일처럼 뷰포트가 낮아
+   카드 내용이 다 안 들어갈 때 재현 — 축·막대·값 라벨이 전부 통째로
+   사라져 보였다). 이 차트만은 절대 눌리지 않게 고정한다. */
+.chart-box { margin-top: .3rem; overflow-x: auto; flex-shrink: 0; }
 .chart-box svg { display: block; width: 100%; height: auto; min-width: 300px; }
 /* 막대 3개짜리 비교 차트처럼 세로:가로 비율이 낮은 차트는 카드
    전체 폭으로 늘어나면 그만큼 세로로도 길어진다(v13 — 카드 4의
@@ -884,6 +941,13 @@ input[readonly] { -moz-appearance: textfield; }
    더 키울 수 있게 됐다. */
 .contrib-label { font-size: 13px; }
 .contrib-value { font-size: 12.5px; font-weight: 800; }
+/* barChart() 전용(카드1 갭 그래프·카드6 협상 가이드) — 막대 위 값이
+   이 그래프에서 가장 중요한 정보인데 기본 .bar-value(11px)로는 너무
+   작아 안 보인다는 피드백. contrib-*와 같은 이유로 .bar-value/
+   .axis-text를 공유하는 다른 차트(hBarChart, lineChart)까지 같이
+   커지지 않게 전용 클래스로 분리했다. */
+.gap-value { font-size: 20px; }
+.gap-axis-label { font-size: 15px; fill: var(--text-secondary); }
 
 .legend { display: flex; flex-wrap: wrap; gap: .5rem .95rem; margin-top: .7rem; font-size: .78rem; color: var(--text-secondary); }
 .legend-item { display: inline-flex; align-items: center; gap: .35rem; }
@@ -1234,10 +1298,11 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
     --series-6:       #d64550 !important;
     --good:           #0ca30c !important;
     --good-text:      #056b05 !important;
-    --warning:        #fab219 !important;
-    --warning-text:   #8a5a00 !important;
-    --critical:       #d03b3b !important;
-    --critical-text:  #b32626 !important;
+    --warning:        #e8a23d !important;
+    --warning-text:   #92661f !important;
+    --critical:       #c1594a !important;
+    --critical-text:  #a3452f !important;
+    --reference:      #5c7f97 !important;
     --shadow:         none !important;
     /* 화면용 카드 상자의 그림자·둥근 모서리를 눌러서, .card/.stat 등
        var(--radius[-sm])를 쓰는 모든 상자가 인쇄에서는 각진 문서

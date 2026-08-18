@@ -36,13 +36,25 @@
   }
 
   /* ---------- 세로 막대 (연봉 비교) ---------- */
+  // v23: 그래프가 작아서 값 차이가 잘 안 보인다는 피드백으로 세로
+  // 길이·막대 두께를 키웠다. y축을 0이 아닌 값에서 시작해 작은 차이를
+  // 과장하는 방식은 일부러 쓰지 않았다 — 이 프로젝트는 "데이터가
+  // 진짜인 것"이 핵심 차별점이라(CLAUDE.md), 축을 잘라 작은 차이를
+  // 커 보이게 만드는 건 반대 방향의 위험(과장)이라고 판단했다. 대신
+  // 막대가 0부터 시작한다는 정직함은 유지하면서, 맨 위 여백(헤드룸)을
+  // 좁혀 막대 자체가 차트 세로 공간을 더 많이 차지하게 해 같은 값
+  // 차이도 시각적으로 더 잘 대비되게 했다.
   function barChart(mount, bars) {
-    const W = 620, H = 214, padT = 28, padB = 40, padX = 20;
+    // v24: 값·축 라벨 글자가 작아 안 보인다는 피드백으로 .gap-value/
+    // .gap-axis-label(아래 CSS)로 폰트를 키웠다. 그만큼 위·아래 여백
+    // (padT/padB)과 라벨 오프셋도 같이 늘려야 큰 글자가 막대나 서로와
+    // 겹치지 않는다 — H/padT/padB를 함께 키운 이유.
+    const W = 620, H = 320, padT = 46, padB = 54, padX = 20;
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
-    const max = Math.max(...bars.map((b) => b.value), 1) * 1.16;
+    const max = Math.max(...bars.map((b) => b.value), 1) * 1.08;
     const plotH = H - padT - padB;
     const slot = (W - padX * 2) / bars.length;
-    const barW = Math.min(96, slot * 0.5);
+    const barW = Math.min(140, slot * 0.58);
 
     // 기준선
     svg.appendChild(el("line", { x1: padX, y1: H - padB, x2: W - padX, y2: H - padB, class: "axis-line" }));
@@ -60,16 +72,16 @@
       bindTip(rect, `<b>${b.label}</b><br>${fmtMan(b.value)}만원`);
       svg.appendChild(rect);
 
-      const val = el("text", { x: cx, y: y - 9, "text-anchor": "middle", class: "bar-value" });
+      const val = el("text", { x: cx, y: y - 14, "text-anchor": "middle", class: "bar-value gap-value" });
       val.textContent = `${fmtMan(b.value)}만`;
       svg.appendChild(val);
 
-      const lab = el("text", { x: cx, y: H - padB + 19, "text-anchor": "middle", class: "axis-text" });
+      const lab = el("text", { x: cx, y: H - padB + 24, "text-anchor": "middle", class: "axis-text gap-axis-label" });
       lab.textContent = b.label;
       svg.appendChild(lab);
 
       if (b.sub) {
-        const sub = el("text", { x: cx, y: H - padB + 34, "text-anchor": "middle", class: "axis-text" });
+        const sub = el("text", { x: cx, y: H - padB + 45, "text-anchor": "middle", class: "axis-text gap-axis-label" });
         sub.textContent = b.sub;
         sub.setAttribute("fill", b.subColor || "currentColor");
         svg.appendChild(sub);
