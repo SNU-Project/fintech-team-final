@@ -19,7 +19,7 @@
     if (reduceMotion()) { onFrame(1); if (onDone) onDone(); return; }
     const start = performance.now();
     function tick(now) {
-      const t = Math.min(1, (now - start) / duration);
+      const t = Math.max(0, Math.min(1, (now - start) / duration));
       onFrame(easeOutCubic(t));
       if (t < 1) requestAnimationFrame(tick);
       else if (onDone) onDone();
@@ -74,22 +74,49 @@
     requestAnimationFrame(() => { path.style.strokeDashoffset = "0"; });
   }
 
-  // SVG 막대(rect) — 이미 그려진 최종 x/y/width/height는 그대로 두고
-  // transform:scale만 0→1로 키운다(레이아웃을 다시 계산할 필요가 없어
-  // 가볍다). axis="y"는 세로 막대(아래에서 위로), "x"는 가로 막대
-  // (origin 방향에서부터) 자라난다.
+  // SVG 막대(rect) — CSS transform(scaleY/scaleX) + transform-box:fill-box
+  // 조합으로 구현했다가, 방금 DOM에 삽입된(replaceChildren으로 새로 그린)
+  // rect에 대해 fill-box 원점을 잘못 계산해 막대가 영영 채워지지 않는
+  // 버그가 있었다(Safari에서 재현 — getBoundingClientRect() 강제 리플로우로도
+  // 못 고쳤다). transform 대신 rect 자신의 height/y(세로) 또는 width/x(가로)
+  // 속성값을 직접 0→최종값으로 매 프레임 다시 쓰는 방식으로 바꿔 이 문제를
+  // 원천적으로 피한다 — SVG 지오메트리 속성이라 fill-box 계산이 끼어들 자리가
+  // 없다. axis="y"는 세로 막대(아래에서 위로), "x"는 가로 막대(origin
+  // "left"/"right" 방향에서부터) 자라난다.
   function growBar(rect, opts = {}) {
     if (!rect) return;
-    const { duration = 600, axis = "y", origin, delay = 0 } = opts;
-    const finalOrigin = origin || (axis === "y" ? "bottom" : "left");
-    rect.style.transformBox = "fill-box";
-    rect.style.transformOrigin = finalOrigin;
-    rect.style.transition = "none";
-    rect.style.transform = axis === "y" ? "scaleY(0)" : "scaleX(0)";
-    rect.getBoundingClientRect();
-    if (reduceMotion()) { rect.style.transform = "none"; return; }
-    rect.style.transition = `transform ${duration}ms cubic-bezier(.22,.61,.36,1) ${delay}ms`;
-    requestAnimationFrame(() => { rect.style.transform = axis === "y" ? "scaleY(1)" : "scaleX(1)"; });
+    const { duration = 600, axis = "y", origin = "left", delay = 0 } = opts;
+
+    if (axis === "y") {
+      const finalHeight = parseFloat(rect.getAttribute("height"));
+      const finalY = parseFloat(rect.getAttribute("y"));
+      if (!Number.isFinite(finalHeight) || !Number.isFinite(finalY)) return;
+      if (reduceMotion()) { rect.setAttribute("height", finalHeight); rect.setAttribute("y", finalY); return; }
+      const bottom = finalY + finalHeight;
+      rect.setAttribute("height", 0);
+      rect.setAttribute("y", bottom);
+      const tween = () => animateValue(duration, (p) => {
+        const h = finalHeight * p;
+        rect.setAttribute("height", h);
+        rect.setAttribute("y", bottom - h);
+      });
+      delay ? setTimeout(tween, delay) : tween();
+    } else {
+      const finalWidth = parseFloat(rect.getAttribute("width"));
+      const finalX = parseFloat(rect.getAttribute("x"));
+      if (!Number.isFinite(finalWidth) || !Number.isFinite(finalX)) return;
+      if (reduceMotion()) { rect.setAttribute("width", finalWidth); rect.setAttribute("x", finalX); return; }
+      const growFromRight = origin === "right";
+      const right = finalX + finalWidth;
+      rect.setAttribute("width", 0);
+      if (growFromRight) rect.setAttribute("x", right);
+      const tween = () => animateValue(duration, (p) => {
+        const w = finalWidth * p;
+        rect.setAttribute("width", w);
+        if (growFromRight) rect.setAttribute("x", right - w);
+      });
+      delay ? setTimeout(tween, delay) : tween();
+    }
   }
 
   // 도넛/스코어 링(conic-gradient) — stops(각 구간의 최종 색·시작·끝 %)를
