@@ -1841,6 +1841,8 @@
     // 사용자는 고장난 걸로 읽는다.
     if (!valid) {
       const guide = "현재 연봉을 입력하면 물가와 비교해 보여드립니다.";
+      const trendTitleEl = $("#trendTitle");
+      if (trendTitleEl) trendTitleEl.textContent = "격차는 해마다 벌어집니다";
       $("#trendChart").innerHTML = `<p class="skeleton">현재 연봉을 입력하면 격차가 어떻게 벌어지는지 계산합니다.</p>`;
       $("#trendLegend").innerHTML = "";
       $("#gapStats").innerHTML = "";
@@ -1892,8 +1894,19 @@
     renderNegotiation(cur, d, inflationPct);
   }
 
+  // 인상률과 물가가 이 차이(%p) 안에 있으면 "비슷한 속도"로 본다 —
+  // 딱 0으로 가르면 0.01%p 차이로도 "개선"/"악화"로 갈려 사소한
+  // 반올림 차이가 과장된 제목을 만든다.
+  const TREND_SIMILAR_THRESHOLD_PP = 0.2;
+
   /* 격차는 해마다 벌어진다 — 명목 인상률과 물가가 유지될 때의 두 곡선.
-     (bumyong 프로토타입의 연도별 추이 관점을 실데이터 기준으로 다시 만듦) */
+     (bumyong 프로토타입의 연도별 추이 관점을 실데이터 기준으로 다시 만듦)
+     v28: 제목을 "격차는 해마다 벌어집니다"로 고정해 뒀더니, 연봉이
+     물가를 이기는 케이스에서도 실제로는 좁혀지는 그래프에 "벌어진다"는
+     제목이 붙는 모순이 있었다 — 인상률 vs 물가 상승률 비교로 제목을
+     동적으로 바꾼다. 이 카드의 핵심 숫자(격차)도 명목 원 차액이 아니라
+     "물가 유지선"(오늘과 같은 구매력을 유지하는 데 필요한 연봉) 대비
+     차이라 실질 구매력 비교라는 점을 문구에 명시한다. */
   function renderTrend(cur, next, d, inflationPct) {
     const YEARS = 10;
     const raise = cur > 0 ? (next - cur) / cur : 0;
@@ -1921,16 +1934,26 @@
       `<span class="legend-item"><span class="legend-swatch" style="background:var(--series-1)"></span>내 연봉 (인상률 ${(raise * 100).toFixed(1)}%)</span>
        <span class="legend-item"><span class="legend-swatch" style="background:var(--reference)"></span>물가 유지선 (${inflationPct.toFixed(1)}%)</span>`;
 
+    const diffPp = raise * 100 - inflationPct;
+    const title = $("#trendTitle");
+    if (title) {
+      title.textContent = diffPp > TREND_SIMILAR_THRESHOLD_PP
+        ? "지금 추세라면 구매력이 개선됩니다"
+        : diffPp < -TREND_SIMILAR_THRESHOLD_PP
+          ? "지금 추세라면 구매력이 점점 줄어듭니다"
+          : "연봉이 물가와 비슷한 속도로 오르고 있습니다";
+    }
+
     const endGap = required[YEARS].y - nominal[YEARS].y;
     const v = $("#trendVerdict");
     if (endGap <= 0) {
       v.className = "verdict";
       v.innerHTML = `인상률이 물가를 앞서고 있어 격차가 <b>벌어지지 않습니다.</b>
-        10년 뒤에는 오히려 <b>${man(-endGap)}만원</b> 앞섭니다.`;
+        10년 뒤에는 실질 구매력 기준으로 오히려 <b>${man(-endGap)}만원</b> 더 여유로워집니다.`;
       $("#trendTips").innerHTML = "";
     } else {
       v.className = "verdict bad";
-      v.innerHTML = `지금 조건이 유지되면 10년 뒤 격차는 <b>연 ${man(endGap)}만원</b>까지 벌어집니다.
+      v.innerHTML = `지금 조건이 유지되면 10년 뒤 실질 구매력 기준 격차는 <b>연 ${man(endGap)}만원</b>까지 벌어집니다.
         매년 <b>${(inflationPct - d.nominalRatePct).toFixed(1)}포인트</b>씩 밀리는 게 복리로 쌓인 결과입니다.`;
       // 격차가 벌어지는 쪽일 때만 "그럼 어떻게 줄이나"가 의미 있다 —
       // 카드3·시나리오 계산과 같은 팁 라이브러리·판별 기준
