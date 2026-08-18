@@ -14,18 +14,6 @@
 <header class="topbar">
   <div class="wrap topbar-inner">
     <a class="brand" href="#top">
-      <!-- v22: "닥터" 컨셉으로 로고를 청진기 아이콘으로 바꿨다. 파비콘
-           (위 link 태그)은 바이너리 이미지라 그대로 두고, 눈에 훨씬 더
-           잘 띄는 헤더 로고만 인라인 SVG로 교체했다 — 별도 이미지 파일
-           없이 브랜드 색(--brand)을 그대로 쓴다. -->
-      <svg class="brand-mark" viewBox="0 0 30 30" role="img" aria-hidden="true">
-        <rect width="30" height="30" rx="9" fill="var(--brand)"></rect>
-        <path d="M10 6v5.5a5 5 0 0 0 10 0V6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"></path>
-        <circle cx="10" cy="6" r="1.6" fill="#fff"></circle>
-        <circle cx="20" cy="6" r="1.6" fill="#fff"></circle>
-        <path d="M15 16.5v3.5a4 4 0 0 0 4 4h.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"></path>
-        <circle cx="20" cy="24.3" r="2.3" fill="none" stroke="#fff" stroke-width="1.6"></circle>
-      </svg>
       <span>연봉닥터<small>SNU 핀테크 13기 3조 · 웹 개발 및 시각화</small></span>
     </a>
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="테마 전환" title="라이트/다크 테마 전환">
@@ -64,8 +52,9 @@
 
       <!-- 0 · 인트로 -->
       <div class="onboarding-step" data-step="0">
-        <h1>연봉은 올랐는데,<br><em>왜 더 빠듯할까요?</em></h1>
-        <p class="lede">실제 10년 시장 데이터로 내 연봉의 진짜 가치를 진단합니다.</p>
+        <div class="mascot-wrap" id="introMascot"></div>
+        <h1>연봉은 올랐는데,<br><em>왜 더 빠듯하게 느껴질까요?</em></h1>
+        <p class="lede">실제 10년 시장 데이터로 내 연봉 상태를 꼼꼼히 살펴봐드릴게요.</p>
         <button class="home-start-btn" id="onbStart" type="button">시작하기 →</button>
       </div>
 
