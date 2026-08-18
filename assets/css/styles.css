@@ -494,8 +494,17 @@ section { scroll-margin-top: 5rem; }
 
 /* 카드 1(표지)만 세로 가운데 정렬 — 나머지 카드는 위에서부터 읽는
    일반 카드 레이아웃(기존 리포트와 같은 흐름)을 유지한다. */
+/* justify-content:center인 채로 콘텐츠가 카드 높이보다 길어지면(모바일
+   처럼 뷰포트가 낮을 때 특히), 넘치는 만큼이 위/아래로 반씩 나뉘어
+   밀려나면서 "위로 밀려난 절반"이 화면 밖(#deckViewport의
+   overflow:hidden)으로 잘려나가 스크롤로도 다시 볼 수 없는 문제가
+   있었다(카드1 맨 위 마스코트 얼굴 위쪽이 잘려 보이던 원인). safe
+   center는 넘칠 경우 자동으로 맨 위 정렬로 대체해 항상 스크롤로
+   전체 콘텐츠에 닿을 수 있게 한다 — 미지원 브라우저는 이 줄이
+   무효화되어 그냥 앞의 center로 남는다(점진적 향상, JS 불필요). */
 .deck-card.is-cover {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
+  justify-content: safe center;
   text-align: center; gap: 1rem; min-height: 100%;
 }
 /* 점 인디케이터·화살표·스와이프로도 이미 이동할 수 있는 보조
