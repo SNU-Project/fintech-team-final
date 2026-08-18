@@ -55,12 +55,30 @@
         <div class="mascot-wrap" id="introMascot"></div>
         <h1>연봉은 올랐는데,<br><em>왜 더 빠듯하게 느껴질까요?</em></h1>
         <p class="lede">물가와 소비를 기준으로 내 연봉의 건강 상태를 진단하고,<br>더 나은 재정을 위한 맞춤 처방을 제안합니다.</p>
+
+        <!-- 연봉닥터 3단계 흐름을 첫 화면에서 한눈에 보여준다 — 문장만으로는
+             "뭘 해준다는 건지" 잘 안 와닿는다는 피드백이 있어, 아이콘 3개로
+             진찰→진단→처방 흐름을 시각적으로 먼저 각인시킨다.
+             칩 사이 화살표는 시각적으로 번잡해서 뺐다 — 순서는 칩 배열
+             자체로 충분히 전달된다. -->
+        <ul class="home-steps">
+          <li><span class="home-steps-icon" aria-hidden="true">🩺</span><span class="home-steps-label">진찰</span></li>
+          <li><span class="home-steps-icon" aria-hidden="true">📋</span><span class="home-steps-label">진단</span></li>
+          <li><span class="home-steps-icon" aria-hidden="true">💊</span><span class="home-steps-label">처방</span></li>
+        </ul>
         <button class="home-start-btn" id="onbStart" type="button">시작하기 →</button>
       </div>
 
       <!-- 1 · 생활 유형 -->
       <div class="onboarding-step" data-step="1" hidden>
-        <p class="kicker">Q1 · 내 물가</p>
+        <div class="onboarding-step-head">
+          <ul class="home-steps is-compact">
+            <li class="is-active"><span class="home-steps-icon" aria-hidden="true">🩺</span><span class="home-steps-label">진찰</span></li>
+            <li><span class="home-steps-icon" aria-hidden="true">📋</span><span class="home-steps-label">진단</span></li>
+            <li><span class="home-steps-icon" aria-hidden="true">💊</span><span class="home-steps-label">처방</span></li>
+          </ul>
+          <p class="kicker">Q1 · 내 물가</p>
+        </div>
         <h2>어떤 유형에 가까우신가요?</h2>
         <div class="card onboarding-card">
           <div class="persona-grid" id="onbPersonaGrid" role="group" aria-label="생활 유형 선택">
@@ -77,7 +95,14 @@
 
       <!-- 2 · 월 생활비 -->
       <div class="onboarding-step" data-step="2" hidden>
-        <p class="kicker">Q2 · 내 물가</p>
+        <div class="onboarding-step-head">
+          <ul class="home-steps is-compact">
+            <li class="is-active"><span class="home-steps-icon" aria-hidden="true">🩺</span><span class="home-steps-label">진찰</span></li>
+            <li><span class="home-steps-icon" aria-hidden="true">📋</span><span class="home-steps-label">진단</span></li>
+            <li><span class="home-steps-icon" aria-hidden="true">💊</span><span class="home-steps-label">처방</span></li>
+          </ul>
+          <p class="kicker">Q2 · 내 물가</p>
+        </div>
         <h2>한 달 생활비는 얼마 정도인가요?</h2>
         <div class="card onboarding-card is-wide">
           <label class="field">월 생활비
@@ -103,7 +128,14 @@
 
       <!-- 3 · 연봉 -->
       <div class="onboarding-step" data-step="3" hidden>
-        <p class="kicker">Q3 · 실질임금 진단</p>
+        <div class="onboarding-step-head">
+          <ul class="home-steps is-compact">
+            <li class="is-active"><span class="home-steps-icon" aria-hidden="true">🩺</span><span class="home-steps-label">진찰</span></li>
+            <li><span class="home-steps-icon" aria-hidden="true">📋</span><span class="home-steps-label">진단</span></li>
+            <li><span class="home-steps-icon" aria-hidden="true">💊</span><span class="home-steps-label">처방</span></li>
+          </ul>
+          <p class="kicker">Q3 · 실질임금 진단</p>
+        </div>
         <h2>현재·내년 예상 연봉은요?</h2>
         <div class="card onboarding-card">
           <div class="field-grid">
@@ -176,6 +208,11 @@
 
           <!-- 카드 2 · 내 물가란? -->
           <section class="deck-card" id="card-2">
+            <ul class="home-steps is-compact home-steps-report">
+              <li><span class="home-steps-icon" aria-hidden="true">🩺</span><span class="home-steps-label">진찰</span></li>
+              <li class="is-active"><span class="home-steps-icon" aria-hidden="true">📋</span><span class="home-steps-label">진단</span></li>
+              <li><span class="home-steps-icon" aria-hidden="true">💊</span><span class="home-steps-label">처방</span></li>
+            </ul>
             <h2 class="report-heading">내 물가란?</h2>
             <div class="concept-note">
               <p>공식 물가는 전 국민 평균이에요. 그런데 품목마다 물가 상승률이 다르기 때문에,
@@ -224,6 +261,11 @@
                지우고 그 정보(한 달에 약 X만원 더/덜 나가요)를
                #mineVerdict 헤드라인 문장에 흡수했다. -->
           <section class="deck-card" id="card-3">
+            <ul class="home-steps is-compact home-steps-report">
+              <li><span class="home-steps-icon" aria-hidden="true">🩺</span><span class="home-steps-label">진찰</span></li>
+              <li class="is-active"><span class="home-steps-icon" aria-hidden="true">📋</span><span class="home-steps-label">진단</span></li>
+              <li><span class="home-steps-icon" aria-hidden="true">💊</span><span class="home-steps-label">처방</span></li>
+            </ul>
             <h2 class="report-heading">얼마나 비싸게 살고 있나</h2>
             <div class="card bento-hero">
               <p class="kicker">뉴스에 나오는 물가는 전국 평균입니다</p>
@@ -256,6 +298,11 @@
 
           <!-- 카드 4 · 내 연봉 vs 물가 -->
           <section class="deck-card" id="card-4">
+            <ul class="home-steps is-compact home-steps-report">
+              <li><span class="home-steps-icon" aria-hidden="true">🩺</span><span class="home-steps-label">진찰</span></li>
+              <li class="is-active"><span class="home-steps-icon" aria-hidden="true">📋</span><span class="home-steps-label">진단</span></li>
+              <li><span class="home-steps-icon" aria-hidden="true">💊</span><span class="home-steps-label">처방</span></li>
+            </ul>
             <h2 class="report-heading">내 연봉 vs 물가</h2>
             <div class="concept-note is-compact">
               <p><b>물가 유지선</b>은 작년과 똑같이 살려면 필요한 연봉입니다.
@@ -316,6 +363,11 @@
 
           <!-- 카드 5 · 그래서 얼마 더 받아야 하나 (v31 전 카드 6) -->
           <section class="deck-card" id="card-5">
+            <ul class="home-steps is-compact home-steps-report">
+              <li><span class="home-steps-icon" aria-hidden="true">🩺</span><span class="home-steps-label">진찰</span></li>
+              <li><span class="home-steps-icon" aria-hidden="true">📋</span><span class="home-steps-label">진단</span></li>
+              <li class="is-active"><span class="home-steps-icon" aria-hidden="true">💊</span><span class="home-steps-label">처방</span></li>
+            </ul>
             <h2 class="report-heading">그래서 얼마 더 받아야 하나</h2>
             <div class="card bento-half-b">
               <h3 class="block-title">연봉 협상 가이드</h3>
@@ -335,6 +387,11 @@
                카드는 "실천하면 이렇게 달라진다"는 시나리오로 마무리한다.
                v31 전 카드 7.) -->
           <section class="deck-card" id="card-6">
+            <ul class="home-steps is-compact home-steps-report">
+              <li><span class="home-steps-icon" aria-hidden="true">🩺</span><span class="home-steps-label">진찰</span></li>
+              <li><span class="home-steps-icon" aria-hidden="true">📋</span><span class="home-steps-label">진단</span></li>
+              <li class="is-active"><span class="home-steps-icon" aria-hidden="true">💊</span><span class="home-steps-label">처방</span></li>
+            </ul>
             <div class="card" id="scenarioCard" hidden>
               <p class="kicker">마지막으로</p>
               <h3 class="block-title">이렇게 실천하면 어떻게 달라질까</h3>
@@ -382,6 +439,11 @@
   <!-- ══════════════ 리포트 3 · 목표 자산 ══════════════ -->
   <section class="panel" id="panel-goal" hidden>
     <button class="deck-back-btn" type="button">← 카드 리포트로 돌아가기</button>
+    <ul class="home-steps is-compact home-steps-report">
+      <li><span class="home-steps-icon" aria-hidden="true">🩺</span><span class="home-steps-label">진찰</span></li>
+      <li><span class="home-steps-icon" aria-hidden="true">📋</span><span class="home-steps-label">진단</span></li>
+      <li class="is-active"><span class="home-steps-icon" aria-hidden="true">💊</span><span class="home-steps-label">처방</span></li>
+    </ul>
     <div class="print-doc-header print-only">
       <p class="print-doc-title">목표 자산 계획</p>
       <p class="print-doc-meta" id="printMetaGoal"></p>
