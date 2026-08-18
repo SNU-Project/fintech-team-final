@@ -179,6 +179,13 @@
               <p>공식 물가는 전 국민 평균이에요. 그런데 품목마다 물가 상승률이 다르기 때문에,
                  내가 실제로 쓰는 품목 비중으로 다시 계산한 게 <b>'내 물가'</b>예요.</p>
             </div>
+            <div class="card" id="inflationForecastCard" hidden>
+              <h3 class="block-title">공식 물가, 앞으로는 어떻게 될까</h3>
+              <p class="block-q">최근 3년 흐름으로 앞으로 1년을 이어 그린 <b>추세선</b>입니다. 예측치이며 실제와 다를 수 있어요.</p>
+              <div class="chart-box" id="forecastChart"></div>
+              <div class="legend" id="forecastLegend"></div>
+            </div>
+
             <div class="card bento-input">
               <div class="section-head">
                 <div><h2>나와 가까운 생활 유형</h2><p>설문에서 입력하신 내용이에요.</p></div>
@@ -205,13 +212,6 @@
                   <div class="legend is-centered" id="spendLegend"></div>
                 </div>
               </div>
-            </div>
-
-            <div class="card" id="inflationForecastCard" hidden>
-              <h3 class="block-title">공식 물가, 앞으로는 어떻게 될까</h3>
-              <p class="block-q">최근 3년 흐름으로 앞으로 1년을 이어 그린 <b>추세선</b>입니다. 예측치이며 실제와 다를 수 있어요.</p>
-              <div class="chart-box" id="forecastChart"></div>
-              <div class="legend" id="forecastLegend"></div>
             </div>
           </section>
 
