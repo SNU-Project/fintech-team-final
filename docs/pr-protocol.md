@@ -109,3 +109,4 @@ console.log([...document.querySelectorAll('.panel')].filter(p=>!p.hidden).map(p=
 배포까지 1~2분 걸립니다. **배포본을 직접 열어서** 내가 고친 게 실제로 반영됐는지, 다른 데가 깨지지 않았는지 확인하세요.
 
 https://fintech-team-final.vercel.app
+
