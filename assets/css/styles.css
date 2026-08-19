@@ -726,6 +726,13 @@ p.block-q { margin: 0 0 .6rem; font-size: .8rem; color: var(--text-muted); }
 }
 .input-wrap input:focus { outline: none; }
 .input-wrap span { font-size: .78rem; color: var(--text-muted); flex: 0 0 auto; }
+/* v46: 세부질문의 select(대중교통/자차, 알뜰폰 여부 등) — 숫자 입력과
+   같은 .input-wrap 틀을 그대로 쓴다. */
+.input-wrap select {
+  flex: 1; min-width: 0; border: 0; background: none; font: inherit; color: var(--text-primary);
+  padding: .5rem .6rem; cursor: pointer;
+}
+.input-wrap select:focus { outline: none; }
 .range-label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: .9rem; }
 .range-label .val { color: var(--brand); font-variant-numeric: tabular-nums; }
 .range-label input[type="range"] { width: 100%; margin: .45rem 0 .1rem; }
