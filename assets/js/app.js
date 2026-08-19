@@ -180,6 +180,8 @@
     spending: roundSpending(PERSONAS[DEFAULT_PERSONA].spending),
     persona: DEFAULT_PERSONA,
     personalRate: null,
+    aiInsightKey: null,
+    aiInsightSeq: 0,
   };
 
   // 카드 4~7의 핵심 연봉 계산은 화면 설명대로 개인 물가를 기준으로 한다.
@@ -1722,6 +1724,48 @@
        <span class="legend-item"><span class="legend-swatch" style="background:var(--warning)"></span>예측 · 최근 3년으로 계산 (실제와 다를 수 있음)</span>`;
   }
 
+  // 카드3의 짧은 AI 해설. api/insight.mjs는 이미 이 카드가 쓰는 6개 값
+  // (공식/개인 물가, 격차, 1위 원인 그룹·비중·상승률)만 검증·허용하도록
+  // 만들어져 있었다(v6 이전 "AI로 쉽게 풀어보기" 버튼용) — 새 엔드포인트를
+  // 만드는 대신 그 검증 로직을 그대로 재사용한다. 실패해도 #mineVerdict가
+  // 이미 같은 내용을 규칙 기반으로 보여주고 있으니 조용히 숨기기만 한다.
+  // 지출 입력마다 바로 부르면 타이핑 중에도 요청이 계속 나가므로
+  // debounce하고, 같은 값이면(반올림 후 동일) 다시 부르지 않는다.
+  let aiInsightTimer = null;
+  function scheduleAiInsight(payload) {
+    const key = [
+      payload.officialRate, payload.personalRate, payload.gapPp,
+      payload.topCategoryId, payload.topSharePct, payload.topRatePct,
+    ].map((v) => (typeof v === "number" ? v.toFixed(1) : v)).join("|");
+    const note = $("#mineAiNote");
+    if (key === state.aiInsightKey) return;
+    clearTimeout(aiInsightTimer);
+    if (note) note.hidden = true;
+    aiInsightTimer = setTimeout(async () => {
+      const seq = ++state.aiInsightSeq;
+      let text = null;
+      try {
+        const res = await fetch("/api/insight", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json().catch(() => null);
+        if (res.ok) text = body?.text || null;
+      } catch (_error) {
+        text = null;
+      }
+      // 응답이 오는 사이 지출을 더 바꿨으면(seq 불일치) 화면과 안 맞는
+      // 옛 해설이므로 버린다.
+      if (seq !== state.aiInsightSeq || !note) return;
+      if (text) {
+        note.textContent = `AI 해설 · ${text}`;
+        note.hidden = false;
+        state.aiInsightKey = key;
+      }
+    }, 700);
+  }
+
   function renderMine() {
     const cats = state.cpi.categories || [];
     if (!cats.length) return;
@@ -1743,6 +1787,9 @@
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
       $("#contribMath").innerHTML = "";
       $("#mineSrc").textContent = "";
+      clearTimeout(aiInsightTimer);
+      state.aiInsightKey = null;
+      if ($("#mineAiNote")) $("#mineAiNote").hidden = true;
       return;
     }
 
@@ -1817,6 +1864,21 @@
       </li>`;
     $("#contribRank").innerHTML = ranked.map((g, i) => rankRow(g, i)).join("");
     $("#mineTips").innerHTML = cause ? tipBoxHtml(cause.id, cause.name) : "";
+
+    if (cause) {
+      scheduleAiInsight({
+        officialRate: official,
+        personalRate: result.rate,
+        gapPp: diff,
+        topCategoryId: cause.id,
+        topSharePct: cause.weight * 100,
+        topRatePct: cause.rate,
+      });
+    } else {
+      clearTimeout(aiInsightTimer);
+      const note = $("#mineAiNote");
+      if (note) note.hidden = true;
+    }
 
     Charts.contributionChart($("#contribChart"),
       grouped.filter((g) => g.amount > 0).map((g) => ({
