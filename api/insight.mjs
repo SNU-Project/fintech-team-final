@@ -24,19 +24,18 @@ const SYSTEM_PROMPT = [
   "투자 권유나 수익 보장은 하지 않는다.",
 ].join("\n");
 
+// 이 엔드포인트를 부르는 유일한 화면은 카드3("얼마나 비싸게 살고
+// 있나")인데, 그 카드가 "범인" 랭킹에서 쓰는 단위는 12개 COICOP
+// 원본 품목이 아니라 assets/js/app.js의 SPEND_GROUPS 5개 그룹이다.
+// 원본 12품목 키를 그대로 두면 화면이 실제로 보내는 topCategoryId
+// (g-food 등)가 전부 걸러져 매번 400이 났을 것 — 화면이 실제로 쓰는
+// id로 맞춘다.
 const CATEGORY_NAMES = Object.freeze({
-  food: "식료품·비주류음료",
-  alcohol: "주류·담배",
-  clothing: "의류·신발",
-  housing: "주거·수도·광열",
-  household: "가정용품·가사서비스",
-  health: "보건",
-  transport: "교통",
-  comm: "통신",
-  leisure: "오락·문화",
-  education: "교육",
-  dining: "음식·숙박",
-  misc: "기타 상품·서비스",
+  "g-food": "식비",
+  "g-home": "주거·생활",
+  "g-move": "교통·통신",
+  "g-play": "여가·문화",
+  "g-etc": "건강·기타",
 });
 
 const inRange = (value, min, max) =>
