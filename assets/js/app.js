@@ -1234,7 +1234,12 @@
     }
 
     function showStep(i) {
-      setStage("checkup");
+      // 0(표지, 아직 "시작하기"를 안 누른 상태)은 진찰 단계로 안 친다 —
+      // 설문에 실제로 들어가기 전까지는 중립 기본값(블루)을 유지하고,
+      // "cover"는 어떤 .stage-pill의 data-stage와도 안 맞으므로 셋 다
+      // 비활성 상태로 보인다. #onbStart가 showStep(1)을 부르는 순간부터
+      // 핑크(진찰)로 바뀐다.
+      setStage(i === 0 ? "cover" : "checkup");
       stepIndex = i;
       steps.forEach((s) => { s.hidden = Number(s.dataset.step) !== i; });
       progressWrap.hidden = i === 0;
