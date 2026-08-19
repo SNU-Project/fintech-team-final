@@ -1,13 +1,17 @@
 // 사용할 모델 후보. 앞에서부터 시도하고 404(모델 없음/미제공)면 다음으로 넘어간다.
 // 구글이 모델을 수시로 정리해서 하나만 박아 두면 어느 날 조용히 죽는다.
-// 실제로 gemini-2.5-flash-lite가 "no longer available to new users"로 404가 났다.
+// 실제로 gemini-2.5-flash-lite가 "no longer available to new users"로 404가 났고,
+// 2026-08-19에는 gemini-2.5-flash도 같은 사유로 404가 나기 시작했다 — 응답
+// 메시지가 직접 지목한 gemini-3.6-flash로 교체. 마지막 후보가 죽어 있으면
+// 앞선 후보들이 전부 일시적으로 막힌 순간(503 몇 개가 겹치는 경우) 요청
+// 전체가 실패한다 — 실측으로 확인(같은 요청 3번 중 2번 이 경로로 실패).
 // 할당량은 모델마다 따로 잡히므로 후보를 여럿 둔다.
 // 사고 단계가 없는 모델을 앞에 둬야 짧은 해설이 예측 가능하게 나온다.
 const MODELS = [
   "gemini-2.0-flash",
   "gemini-2.0-flash-lite",
   "gemini-flash-latest",
-  "gemini-2.5-flash",
+  "gemini-3.6-flash",
 ];
 
 // assets/js/app.js의 SPEND_GROUPS 5개 그룹과 반드시 같은 id·이름을
