@@ -263,10 +263,11 @@ export async function POST(request) {
         lastDetail = "(본문 없음)";
       }
       console.error(`[insight] ${input.type}/${model} → ${lastStatus}: ${lastDetail}`);
-      // 404(그 모델 없음)와 429(그 모델 할당량 소진)는 다른 모델로 풀릴 수
-      // 있으므로 계속 시도한다. 401·403 같은 인증 문제는 모델을 바꿔도
-      // 소용없으니 즉시 중단한다.
-      if (lastStatus === 404 || lastStatus === 429) continue;
+      // 404(그 모델 없음)·429(그 모델 할당량 소진)·503(그 모델이 일시적으로
+      // 혼잡 — 배포 후 실측: "currently experiencing high demand... usually
+      // temporary")은 다른 모델로 풀릴 수 있으므로 계속 시도한다. 401·403
+      // 같은 인증 문제는 모델을 바꿔도 소용없으니 즉시 중단한다.
+      if (lastStatus === 404 || lastStatus === 429 || lastStatus === 503) continue;
       break;
     }
 
