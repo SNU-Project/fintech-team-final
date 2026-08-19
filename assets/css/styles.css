@@ -18,10 +18,13 @@ body {
 /* ---------- 팔레트 (라이트 기본) ---------- */
 :root {
   color-scheme: light;
-  --page-plane:     #f7f7f4;
-  --surface-1:      #fcfcfb;
+  /* v34: 기존 값(#f7f7f4 등)이 살짝 누런 아이보리 톤이라는 피드백 —
+     같은 정도의 명도 차이(카드 흰색과 구분되는 폭)는 유지하면서
+     따뜻한 톤 대신 아주 옅은 그레이·블루 쪽으로 축을 바꿨다. */
+  --page-plane:     #f7f8fa;
+  --surface-1:      #fbfcfd;
   --surface-2:      #ffffff;
-  --surface-sunk:   #f0efea;
+  --surface-sunk:   #eef1f5;
   --text-primary:   #0b0b0b;
   --text-secondary: #52514e;
   --text-muted:     #8b8983;
@@ -1308,10 +1311,10 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 @media print {
   :root, :root[data-theme="dark"] {
     color-scheme: light !important;
-    --page-plane:     #f7f7f4 !important;
-    --surface-1:      #fcfcfb !important;
+    --page-plane:     #f7f8fa !important;
+    --surface-1:      #fbfcfd !important;
     --surface-2:      #ffffff !important;
-    --surface-sunk:   #f0efea !important;
+    --surface-sunk:   #eef1f5 !important;
     --text-primary:   #0b0b0b !important;
     --text-secondary: #52514e !important;
     --text-muted:     #8b8983 !important;
