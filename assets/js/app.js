@@ -91,6 +91,26 @@
     "g-play": "var(--series-4)", "g-etc": "var(--series-5)",
   };
 
+  // v46: 그룹 총액을 직접 입력하는 대신, 소비 습관(횟수×1회평균)을 물어서
+  // 자동 계산하는 "자세히 입력하기" 아코디언. 카테고리마다 순차 적용
+  // 예정이라(식비 먼저) 지금은 g-food만 있다 — 이 키가 없는 그룹은 기존
+  // 총액 직접입력 그대로 동작한다(하위 호환). freq×avg×multiplier(원)를
+  // category(실카테고리 id)별로 합산해 만원으로 반올림한 뒤 그 그룹의
+  // draft.spending[category]에 직접 써 넣는다 — 기존 scaleSpending의
+  // 비례 배분 대신, 실제로 물어본 값이 있으니 그대로 반영한다.
+  const SPEND_GROUP_DETAILS = {
+    "g-food": {
+      fields: [
+        { id: "dining", category: "dining", label: "배달/외식",
+          freqLabel: "주간 이용 횟수", freqUnit: "회/주", avgLabel: "1회 평균 결제액", avgUnit: "원", multiplier: 4.3 },
+        { id: "grocery", category: "food", label: "장보기",
+          freqLabel: "월 이용 횟수", freqUnit: "회/월", avgLabel: "1회 평균 금액", avgUnit: "원", multiplier: 1 },
+        { id: "cafe", category: "dining", label: "카페/음료",
+          freqLabel: "주간 이용 횟수", freqUnit: "회/주", avgLabel: "1회 평균 금액", avgUnit: "원", multiplier: 4.3 },
+      ],
+    },
+  };
+
   // 카테고리별 절약 팁 — 카드3("범인")·시나리오 계산(카드7)·격차 추이
   // 카드(항목 5·7)가 전부 이 하나의 데이터를 공유한다. 문구에는 "월
   // OO원 절약" 같은 구체 금액을 넣지 않는다 — 사람마다 실제 절감액이
@@ -187,6 +207,7 @@
     startMonth: null,
     timeComparisonEnd: null,
     spending: roundSpending(PERSONAS[DEFAULT_PERSONA].spending),
+    spendingDetail: {},
     persona: DEFAULT_PERSONA,
     personalRate: null,
   };
@@ -415,6 +436,11 @@
       persona: DEFAULT_PERSONA,
       monthlySpend: personaDefaultTotal(DEFAULT_PERSONA),
       spending: roundSpending(PERSONAS[DEFAULT_PERSONA].spending),
+      // v46: "자세히 입력하기"에 답한 소비 습관 원본(횟수·1회평균)을
+      // 그룹별로 보관한다. 지금 당장 쓰는 곳은 없다 — 계산엔 이미
+      // draft.spending에 반영된 결과만 쓰이고, 이 원본은 나중에
+      // AI 해설 프롬프트를 더 구체화할 때(v46 후속 작업) 쓸 재료다.
+      spendingDetail: {},
       curSalary: 3600, nextSalary: 3750,
       goalAmount: 0, goalYears: 1, goalMonths: 0, goalCurrent: 0,
     };
@@ -433,6 +459,9 @@
       state.spending = profile.spending;
       syncSpendingFields();
     }
+    // v46: 예전에 저장된(spendingDetail 없는) 답변으로 재방문해도
+    // 깨지지 않게 기본값을 채워 둔다.
+    state.spendingDetail = profile.spendingDetail || {};
 
     if (profile.monthlySpend != null) setInputAndFire("#monthlySpend", profile.monthlySpend);
     setInputAndFire("#curSalary", profile.curSalary);
@@ -1340,8 +1369,45 @@
     // draft.spending에 적용한다 — 계산 로직을 새로 만들지 않는다.
     const draftGroupTotal = (g) => g.members.reduce((sum, id) => sum + (draft.spending[id] || 0), 0);
 
+    // v46: 세부질문 입력칸 하나의 id. "onb-{그룹}-{필드}-{freq|avg}"
+    const detailFieldId = (g, f, kind) => `onb-${g.id}-${f.id}-${kind}`;
+
+    function spendDetailFieldsHtml(g, detail) {
+      const saved = draft.spendingDetail?.[g.id] || {};
+      return detail.fields.map((f) => {
+        const s = saved[f.id] || {};
+        return `
+        <div class="spend-detail-field">
+          <p class="spend-detail-label">${f.label}</p>
+          <div class="spend-detail-inputs">
+            <span class="input-wrap">
+              <input type="number" id="${detailFieldId(g, f, "freq")}" min="0" step="1" inputmode="numeric"
+                placeholder="0" value="${s.freq ?? ""}">
+              <span>${f.freqUnit}</span>
+            </span>
+            <span class="input-wrap">
+              <input type="number" id="${detailFieldId(g, f, "avg")}" min="0" step="1000" inputmode="numeric"
+                placeholder="0" value="${s.avg ?? ""}">
+              <span>${f.avgUnit}</span>
+            </span>
+          </div>
+          <p class="field-note">${f.freqLabel} × ${f.avgLabel}</p>
+        </div>`;
+      }).join("");
+    }
+
     function renderOnbSpendFields() {
-      $("#onbSpendFields").innerHTML = SPEND_GROUPS.map((g) => `
+      $("#onbSpendFields").innerHTML = SPEND_GROUPS.map((g) => {
+        const detail = SPEND_GROUP_DETAILS[g.id];
+        const detailHtml = detail ? `
+          <details class="calc-detail spend-detail-toggle">
+            <summary>자세히 입력하기</summary>
+            <div class="spend-detail-fields">
+              ${spendDetailFieldsHtml(g, detail)}
+              <p class="field-note">모르면 비워두셔도 괜찮아요 — 위 총액을 그대로 써요.</p>
+            </div>
+          </details>` : "";
+        return `
         <div class="spend-row">
           <label for="onb-sp-${g.id}">
             <b>${g.name}</b>
@@ -1351,7 +1417,9 @@
             <input type="number" id="onb-sp-${g.id}" min="0" step="1" inputmode="numeric" value="${Math.round(draftGroupTotal(g))}">
             <span>만원</span>
           </span>
-        </div>`).join("");
+        </div>
+        ${detailHtml}`;
+      }).join("");
 
       SPEND_GROUPS.forEach((g) => {
         $(`#onb-sp-${g.id}`).addEventListener("input", (e) => {
@@ -1362,10 +1430,57 @@
             g.members,
             PERSONAS[draft.persona]?.spending
           );
+          // 총액을 직접 손으로 바꾸면 방금 전까지의 세부 답변은 더는
+          // 이 총액을 설명하지 못한다 — 다음에 세부질문을 다시 채우기
+          // 전까지 잘못된 값을 들고 있지 않도록 지운다(화면의 아코디언
+          // 입력칸은 건드리지 않는다 — 매 타이핑마다 다시 그리면 포커스가
+          // 날아간다. 다시 세부질문에 입력하는 순간 recompute가 총액을
+          // 또 덮어쓰므로 잠깐의 불일치는 스스로 해소된다).
+          if (draft.spendingDetail?.[g.id]) delete draft.spendingDetail[g.id];
           draft.monthlySpend = spendingTotal(draft.spending);
           $("#onbMonthlySpend").value = Math.round(draft.monthlySpend);
           renderOnbSpendDonut();
         });
+
+        const detail = SPEND_GROUP_DETAILS[g.id];
+        if (detail) bindSpendDetailInputs(g, detail);
+      });
+    }
+
+    // v46: 세부질문(횟수×1회평균) 입력을 그룹 총액으로 환산한다. 필드마다
+    // 정해진 실카테고리(category)로 원 단위 지출을 합산한 뒤 만원으로
+    // 반올림해서 draft.spending에 직접 써 넣는다 — scaleSpending의 비례
+    // 배분(통계 비중 추정)과 달리, 실제로 물어본 값이니 그대로 반영한다.
+    // 다른 그룹 산정 로직(v43)과 같은 원칙: 화면에 보이는 그룹 총액은
+    // "이미 반올림된 항목들의 합"이어야 한다 — 원본 합을 한 번 더
+    // 반올림하면 항목 합계와 총액이 어긋날 수 있다.
+    function bindSpendDetailInputs(g, detail) {
+      const recompute = () => {
+        const anyFilled = detail.fields.some((f) =>
+          $(`#${detailFieldId(g, f, "freq")}`).value !== "" ||
+          $(`#${detailFieldId(g, f, "avg")}`).value !== "");
+        if (!anyFilled) return;
+
+        draft.spendingDetail[g.id] = draft.spendingDetail[g.id] || {};
+        const byCategory = {};
+        detail.fields.forEach((f) => {
+          const freq = Math.max(0, +$(`#${detailFieldId(g, f, "freq")}`).value || 0);
+          const avg = Math.max(0, +$(`#${detailFieldId(g, f, "avg")}`).value || 0);
+          draft.spendingDetail[g.id][f.id] = { freq, avg };
+          byCategory[f.category] = (byCategory[f.category] || 0) + freq * avg * f.multiplier;
+        });
+        Object.entries(byCategory).forEach(([category, won]) => {
+          draft.spending[category] = Math.round(won / 10000);
+        });
+
+        draft.monthlySpend = spendingTotal(draft.spending);
+        $(`#onb-sp-${g.id}`).value = Math.round(draftGroupTotal(g));
+        $("#onbMonthlySpend").value = Math.round(draft.monthlySpend);
+        renderOnbSpendDonut();
+      };
+      detail.fields.forEach((f) => {
+        $(`#${detailFieldId(g, f, "freq")}`).addEventListener("input", recompute);
+        $(`#${detailFieldId(g, f, "avg")}`).addEventListener("input", recompute);
       });
     }
 
@@ -1533,6 +1648,11 @@
       { test: (id) => id === "goalMonths", min: 0, max: 11, label: "목표 기간(개월)", money: true },
       { test: (id) => id === "goalMonthly", min: 0, max: 5000, label: "월 저축 가능액", money: true, amount: true },
       { test: (id) => id === "investAmount", min: 0, max: 100000, label: "투자 금액", money: true, amount: true },
+      // v46: 소비 습관 세부질문(횟수×1회평균). 접미사 하나로 카테고리
+      // 전부(식비 다음에 늘어날 주거·교통·여가·건강 세부질문 포함)를
+      // 커버해서, 카테고리를 늘릴 때마다 규칙을 새로 안 추가해도 된다.
+      { test: (id) => id.endsWith("-freq"), min: 0, max: 30, label: "이용 횟수", money: true },
+      { test: (id) => id.endsWith("-avg"), min: 0, max: 200000, label: "1회 평균 금액", money: true, amount: true },
     ];
 
     // 숫자가 아닌 문자(부호·소수점·"e" 등)는 타이핑이든 붙여넣기든
