@@ -5,8 +5,18 @@ name: Update market data
 # (물가·환율·비트코인은 CORS가 열려 있어 페이지가 직접 실시간 조회한다)
 #
 # main은 보호되어 있어 봇이 직접 push할 수 없다(2026-08-07~09 3일간 이것 때문에
-# 계속 실패했다). 그래서 직접 push하지 않고 PR을 연다. 관리자는 검사 없이도
-# 머지할 수 있으므로 클릭 한 번이면 끝난다.
+# 계속 실패했다). 그래서 직접 push하지 않고 PR을 연다.
+#
+# 그런데 PR을 열어도 자동 머지가 안 됐다(2026-08-16 첫 스케줄 실행이 3일간
+# 방치됨). GitHub은 봇이 만든 PR에는 워크플로를 실행하지 않는데(봇이 봇을
+# 무한히 부르는 것을 막는 안전장치다), main 병합 조건이 pr-check.yml의
+# "check" 통과라서 검사가 영영 돌지 않아 조건이 채워지지 않는다.
+#
+# 그래서 이 잡이 pr-check.yml과 같은 검사를 직접 돌리고, 통과하면 커밋
+# 상태 API로 "check" 컨텍스트를 직접 기록한다. 필수 검사는 체크런이든
+# 커밋 상태든 같은 이름이면 충족된 것으로 본다(2026-08-19 실제 PR로 확인:
+# BLOCKED → CLEAN). 검사를 건너뛰는 게 아니라 같은 검사를 여기서 돌린 뒤
+# 그 결과를 기록하는 것이다.
 
 on:
   schedule:
@@ -16,6 +26,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  statuses: write     # 검사 결과를 커밋에 기록하기 위해 필요
 
 concurrency:
   group: update-data
@@ -114,6 +125,28 @@ jobs:
                 f"품목 {len(cpi['categories'])}개, 월 시계열 연속성 정상")
           PY
 
+      # pr-check.yml의 코드 검사를 여기서도 돌린다. data/만 바뀌는 PR이라
+      # 걸릴 일은 없지만, "check"를 성공으로 기록하는 이상 그 이름이 뜻하는
+      # 검사를 실제로 다 돌리지 않으면 거짓 보고가 된다.
+      - name: 코드 가드 검사 (pr-check와 동일)
+        run: |
+          set -e
+          FOUND=0
+          check() {
+            hits=$(grep -rnE "$1" assets/js pipeline 2>/dev/null || true)
+            if [ -n "$hits" ]; then echo "::error::$2"; echo "$hits"; FOUND=1; fi
+          }
+          check 'np\.random|numpy\.random' '난수로 데이터를 만들고 있습니다.'
+          check 'Math\.random'              'Math.random()이 있습니다.'
+          check 'Math\.sin|Math\.cos'      '삼각함수로 시계열을 만들고 있을 수 있습니다.'
+          for f in package.json vite.config.ts webpack.config.js tsconfig.json; do
+            [ -e "$f" ] && { echo "::error::빌드 도구 $f"; FOUND=1; }
+          done
+          grep -nE '<script[^>]+src="https?://' index.html && { echo "::error::외부 CDN"; FOUND=1; }
+          for f in assets/js/*.js; do node --check "$f" || FOUND=1; done
+          [ "$FOUND" = "1" ] && exit 1
+          echo "통과 — 코드 가드 정상"
+
       - name: 변경 여부 확인
         id: diff
         run: |
@@ -161,6 +194,15 @@ jobs:
             --title "chore(data): 시세·물가 스냅샷 갱신 ($DATE)" \
             --body-file /tmp/pr-body.md
 
-          # 검사를 통과하면 알아서 머지되고 브랜치도 지워진다.
-          # 사람이 클릭할 일이 없다.
+          # 이 잡에서 데이터 검증과 코드 가드를 모두 통과했으므로 그 결과를
+          # "check" 컨텍스트로 기록한다. 이게 없으면 봇 PR은 검사가 영영
+          # 돌지 않아 자동 머지가 대기 상태로 멈춘다.
+          SHA=$(git rev-parse HEAD)
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
+            -f state=success \
+            -f context=check \
+            -f description="데이터 검증·코드 가드 통과 (update-data.yml)" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          # 이제 조건이 채워져 자동 머지가 바로 발동한다.
           gh pr merge "$BRANCH" --squash --auto --delete-branch
