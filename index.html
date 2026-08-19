@@ -379,13 +379,12 @@
                 </span>
                 <span id="scenarioAiNoteText"></span>
               </div>
-              <!-- v36: 카드1(진단 직후 처방전 상자)과 짝을 맞춰, 리포트의
-                   마지막 인사도 같은 점선 테두리 상자로 감싼다 —
-                   "처방전을 받고 시작해서 처방전으로 마무리한다"는
-                   여닫는 구조를 만들어 병원 서류 느낌을 강화한다. -->
-              <div class="prescription-box">
-                <div class="mascot-wrap is-small is-inline" id="scenarioMascot"></div>
-              </div>
+              <!-- v44: v36에서 카드1과 짝을 맞추려 점선 테두리 상자로
+                   감쌌더니, 캐릭터+말풍선보다 상자 여백이 훨씬 넓어
+                   붕 떠 보인다는 피드백(v41 재요청) — 상자를 걷어내고
+                   캐릭터를 카드1(#homeMascot)과 같은 크기(108)로 키워
+                   시나리오 카드 바로 아래 자연스럽게 붙인다. -->
+              <div class="mascot-wrap is-large" id="scenarioMascot"></div>
             </div>
 
             <div class="card no-print">

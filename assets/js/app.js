@@ -693,7 +693,10 @@
       const next = Math.max(0, +$("#nextSalary").value || 0);
       const gap = buildGapVerdictLines(cur, next);
       const pose = !gap ? "good" : gap.d.beatsInflation ? "good" : "reassure";
-      scenarioMascotBox.innerHTML = Mascot.svg(pose, { size: 56 }) +
+      // v44: 점선 상자를 없애면서(index.html 참고) 크기도 카드1
+      // #homeMascot과 맞춘다 — 상자 안에서 작게 쓰던 56은 상자가 주던
+      // 시각적 무게를 잃은 채로 남으면 더 작아 보였다.
+      scenarioMascotBox.innerHTML = Mascot.svg(pose, { size: 108 }) +
         Mascot.bubbleHtml(pose, "처방전 잘 챙기시고, 오늘도 건강한 재정 되세요!");
     }
   }
