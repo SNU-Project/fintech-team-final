@@ -1410,6 +1410,20 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 .calc-detail summary::marker { color: var(--brand); }
 .calc-detail[open] summary { margin-bottom: .5rem; }
 
+/* v46: 설문 Q2 그룹 총액 아래 "자세히 입력하기"(소비 습관 세부질문).
+   .calc-detail을 그대로 얹어 쓰고, 필드 레이아웃만 여기서 정의한다.
+   온보딩 Q2는 #onbSpendFields가 도넛차트와 폭을 나눠 쓰는(min-width
+   230px) 좁은 칸이라, 횟수·1회평균 입력 두 개를 가로로 나란히 두면
+   안 들어가 카드 전체가 옆으로 밀려나며 왼쪽이 잘려 보이는 문제가
+   있었다(실측: .onboarding-card가 컨테이너보다 넓어져 flex 중앙정렬로
+   양쪽이 잘림). 가로 공간이 애초에 좁은 자리라 반응형 줄바꿈 대신
+   아예 세로로 쌓는다 — 어떤 폭에서도 넘칠 일이 없다. */
+.spend-detail-toggle { margin: -.2rem 0 .8rem; }
+.spend-detail-fields { display: flex; flex-direction: column; gap: .7rem; }
+.spend-detail-field .spend-detail-label { margin: 0 0 .3rem; font-size: .78rem; font-weight: 700; color: var(--text-secondary); }
+.spend-detail-inputs { display: flex; flex-direction: column; gap: .35rem; }
+.spend-detail-field > .field-note { margin: .3rem 0 0; font-size: .68rem; }
+
 /* ---------- 카테고리별 절약 팁 (v20) ----------
    카드3(범인)·카드7(격차 추이)·시나리오 카드가 공유하는 팁 라이브러리의
    화면 표현. 조언 톤이라 경고(critical/warning)가 아니라 브랜드 톤으로
