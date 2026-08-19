@@ -1731,18 +1731,39 @@
   // 이미 같은 내용을 규칙 기반으로 보여주고 있으니 조용히 숨기기만 한다.
   // 지출 입력마다 바로 부르면 타이핑 중에도 요청이 계속 나가므로
   // debounce하고, 같은 값이면(반올림 후 동일) 다시 부르지 않는다.
+  function hideAiInsight() {
+    const note = $("#mineAiNote");
+    if (!note) return;
+    note.hidden = true;
+    note.classList.remove("is-visible", "is-loading");
+  }
+
   let aiInsightTimer = null;
   function scheduleAiInsight(payload) {
     const key = [
       payload.officialRate, payload.personalRate, payload.gapPp,
       payload.topCategoryId, payload.topSharePct, payload.topRatePct,
     ].map((v) => (typeof v === "number" ? v.toFixed(1) : v)).join("|");
-    const note = $("#mineAiNote");
     if (key === state.aiInsightKey) return;
     clearTimeout(aiInsightTimer);
-    if (note) note.hidden = true;
+    // 사용자가 아직 입력을 조정 중일 수 있으니(디바운스 대기), 이 시점엔
+    // 박스를 보여주지 않는다 — 값이 바뀔 때마다 로딩 문구가 깜빡이는 걸
+    // 막는다. 실제로 요청을 보내는 순간에만(타이머가 실제로 발동할 때)
+    // 페이드인하며 나타난다.
+    hideAiInsight();
     aiInsightTimer = setTimeout(async () => {
       const seq = ++state.aiInsightSeq;
+      const note = $("#mineAiNote");
+      const textEl = $("#mineAiNoteText");
+      if (note && textEl) {
+        textEl.textContent = "AI가 해설을 작성하고 있어요…";
+        note.hidden = false;
+        note.classList.add("is-loading");
+        // hidden을 막 푼 프레임에 곧바로 opacity를 올리면 트랜지션이
+        // 생략되고 툭 나타난다 — 다음 프레임에 붙여야 페이드인이 실제로
+        // 재생된다.
+        requestAnimationFrame(() => note.classList.add("is-visible"));
+      }
       let text = null;
       try {
         const res = await fetch("/api/insight", {
@@ -1757,11 +1778,13 @@
       }
       // 응답이 오는 사이 지출을 더 바꿨으면(seq 불일치) 화면과 안 맞는
       // 옛 해설이므로 버린다.
-      if (seq !== state.aiInsightSeq || !note) return;
+      if (seq !== state.aiInsightSeq || !note || !textEl) return;
       if (text) {
-        note.textContent = `AI 해설 · ${text}`;
-        note.hidden = false;
+        textEl.textContent = text;
+        note.classList.remove("is-loading");
         state.aiInsightKey = key;
+      } else {
+        hideAiInsight();
       }
     }, 700);
   }
@@ -1789,7 +1812,7 @@
       $("#mineSrc").textContent = "";
       clearTimeout(aiInsightTimer);
       state.aiInsightKey = null;
-      if ($("#mineAiNote")) $("#mineAiNote").hidden = true;
+      hideAiInsight();
       return;
     }
 
@@ -1876,8 +1899,7 @@
       });
     } else {
       clearTimeout(aiInsightTimer);
-      const note = $("#mineAiNote");
-      if (note) note.hidden = true;
+      hideAiInsight();
     }
 
     Charts.contributionChart($("#contribChart"),
