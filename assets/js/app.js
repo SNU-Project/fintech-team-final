@@ -91,22 +91,35 @@
     "g-play": "var(--series-4)", "g-etc": "var(--series-5)",
   };
 
-  // v46: 그룹 총액을 직접 입력하는 대신, 소비 습관(횟수×1회평균)을 물어서
-  // 자동 계산하는 "자세히 입력하기" 아코디언. 카테고리마다 순차 적용
-  // 예정이라(식비 먼저) 지금은 g-food만 있다 — 이 키가 없는 그룹은 기존
-  // 총액 직접입력 그대로 동작한다(하위 호환). freq×avg×multiplier(원)를
-  // category(실카테고리 id)별로 합산해 만원으로 반올림한 뒤 그 그룹의
-  // draft.spending[category]에 직접 써 넣는다 — 기존 scaleSpending의
-  // 비례 배분 대신, 실제로 물어본 값이 있으니 그대로 반영한다.
+  // v46: 그룹 총액을 직접 입력하는 대신, 소비 습관을 물어서 자동 계산하는
+  // "자세히 입력하기" 아코디언. 카테고리마다 순차 적용 중(식비 → 주거·생활
+  // → …) — 이 키가 없는 그룹은 기존 총액 직접입력 그대로 동작한다(하위
+  // 호환). 필드는 두 가지 mode를 쓴다:
+  //   - "freq-avg": 횟수×1회평균(원)×multiplier를 계산해서 반영(배달비처럼
+  //     "몇 번, 얼마씩"으로 물어야 답하기 쉬운 지출).
+  //   - "direct": 이미 월 총액으로 답하는 게 자연스러운 지출(월세·공과금
+  //     처럼 "몇 번"이 의미가 없는 고정비)은 만원 단위로 바로 받는다.
+  // 두 모드 다 category(실카테고리 id)별로 합산해 만원으로 반올림한 뒤 그
+  // 그룹의 draft.spending[category]에 직접 써 넣는다 — 기존 scaleSpending의
+  // 비례 배분 대신, 실제로 물어본 값이 있으니 그대로 반영한다. 같은
+  // category를 여러 필드가 가리키면(예: 주거 고정비+공과금 → housing)
+  // 자동으로 합산된다.
   const SPEND_GROUP_DETAILS = {
     "g-food": {
       fields: [
-        { id: "dining", category: "dining", label: "배달/외식",
+        { id: "dining", category: "dining", mode: "freq-avg", label: "배달/외식",
           freqLabel: "주간 이용 횟수", freqUnit: "회/주", avgLabel: "1회 평균 결제액", avgUnit: "원", multiplier: 4.3 },
-        { id: "grocery", category: "food", label: "장보기",
+        { id: "grocery", category: "food", mode: "freq-avg", label: "장보기",
           freqLabel: "월 이용 횟수", freqUnit: "회/월", avgLabel: "1회 평균 금액", avgUnit: "원", multiplier: 1 },
-        { id: "cafe", category: "dining", label: "카페/음료",
+        { id: "cafe", category: "dining", mode: "freq-avg", label: "카페/음료",
           freqLabel: "주간 이용 횟수", freqUnit: "회/주", avgLabel: "1회 평균 금액", avgUnit: "원", multiplier: 4.3 },
+      ],
+    },
+    "g-home": {
+      fields: [
+        { id: "housing-fixed", category: "housing", mode: "direct", label: "주거 고정비", hint: "월세 및 관리비 합계" },
+        { id: "utility", category: "housing", mode: "direct", label: "공과금", hint: "월평균 전기·가스·수도 요금" },
+        { id: "household", category: "household", mode: "direct", label: "생활용품/구독", hint: "월 소모품 구매액 및 정기 구독료 합계" },
       ],
     },
   };
@@ -1369,31 +1382,44 @@
     // draft.spending에 적용한다 — 계산 로직을 새로 만들지 않는다.
     const draftGroupTotal = (g) => g.members.reduce((sum, id) => sum + (draft.spending[id] || 0), 0);
 
-    // v46: 세부질문 입력칸 하나의 id. "onb-{그룹}-{필드}-{freq|avg}"
+    // v46: 세부질문 입력칸 하나의 id. "onb-{그룹}-{필드}-{freq|avg|amt}"
     const detailFieldId = (g, f, kind) => `onb-${g.id}-${f.id}-${kind}`;
 
-    function spendDetailFieldsHtml(g, detail) {
-      const saved = draft.spendingDetail?.[g.id] || {};
-      return detail.fields.map((f) => {
-        const s = saved[f.id] || {};
+    function spendDetailFieldHtml(g, f, saved) {
+      if (f.mode === "direct") {
         return `
+        <div class="spend-detail-field">
+          <p class="spend-detail-label">${f.label}</p>
+          <span class="input-wrap">
+            <input type="number" id="${detailFieldId(g, f, "amt")}" min="0" step="1" inputmode="numeric"
+              placeholder="0" value="${saved.amt ?? ""}">
+            <span>만원</span>
+          </span>
+          <p class="field-note">${f.hint}</p>
+        </div>`;
+      }
+      return `
         <div class="spend-detail-field">
           <p class="spend-detail-label">${f.label}</p>
           <div class="spend-detail-inputs">
             <span class="input-wrap">
               <input type="number" id="${detailFieldId(g, f, "freq")}" min="0" step="1" inputmode="numeric"
-                placeholder="0" value="${s.freq ?? ""}">
+                placeholder="0" value="${saved.freq ?? ""}">
               <span>${f.freqUnit}</span>
             </span>
             <span class="input-wrap">
               <input type="number" id="${detailFieldId(g, f, "avg")}" min="0" step="1000" inputmode="numeric"
-                placeholder="0" value="${s.avg ?? ""}">
+                placeholder="0" value="${saved.avg ?? ""}">
               <span>${f.avgUnit}</span>
             </span>
           </div>
           <p class="field-note">${f.freqLabel} × ${f.avgLabel}</p>
         </div>`;
-      }).join("");
+    }
+
+    function spendDetailFieldsHtml(g, detail) {
+      const saved = draft.spendingDetail?.[g.id] || {};
+      return detail.fields.map((f) => spendDetailFieldHtml(g, f, saved[f.id] || {})).join("");
     }
 
     function renderOnbSpendFields() {
@@ -1447,27 +1473,40 @@
       });
     }
 
-    // v46: 세부질문(횟수×1회평균) 입력을 그룹 총액으로 환산한다. 필드마다
-    // 정해진 실카테고리(category)로 원 단위 지출을 합산한 뒤 만원으로
-    // 반올림해서 draft.spending에 직접 써 넣는다 — scaleSpending의 비례
-    // 배분(통계 비중 추정)과 달리, 실제로 물어본 값이니 그대로 반영한다.
-    // 다른 그룹 산정 로직(v43)과 같은 원칙: 화면에 보이는 그룹 총액은
-    // "이미 반올림된 항목들의 합"이어야 한다 — 원본 합을 한 번 더
-    // 반올림하면 항목 합계와 총액이 어긋날 수 있다.
+    // v46: 세부질문(freq-avg 또는 direct) 입력을 그룹 총액으로 환산한다.
+    // 필드마다 정해진 실카테고리(category)로 "원" 단위 지출을 합산한 뒤
+    // 만원으로 반올림해서 draft.spending에 직접 써 넣는다 —
+    // scaleSpending의 비례 배분(통계 비중 추정)과 달리, 실제로 물어본
+    // 값이니 그대로 반영한다. 다른 그룹 산정 로직(v43)과 같은 원칙: 화면에
+    // 보이는 그룹 총액은 "이미 반올림된 항목들의 합"이어야 한다 — 원본
+    // 합을 한 번 더 반올림하면 항목 합계와 총액이 어긋날 수 있다.
+    function isFieldFilled(g, f) {
+      if (f.mode === "direct") return $(`#${detailFieldId(g, f, "amt")}`).value !== "";
+      return $(`#${detailFieldId(g, f, "freq")}`).value !== "" || $(`#${detailFieldId(g, f, "avg")}`).value !== "";
+    }
+
+    // "direct"는 이미 만원 단위 월 총액이라 ×10000해서 다른 필드와 같은
+    // "원" 단위로 맞춘 뒤 합산한다(byCategory는 항상 원 단위로 모은다).
+    function fieldWon(g, f) {
+      if (f.mode === "direct") {
+        const amt = Math.max(0, +$(`#${detailFieldId(g, f, "amt")}`).value || 0);
+        draft.spendingDetail[g.id][f.id] = { amt };
+        return amt * 10000;
+      }
+      const freq = Math.max(0, +$(`#${detailFieldId(g, f, "freq")}`).value || 0);
+      const avg = Math.max(0, +$(`#${detailFieldId(g, f, "avg")}`).value || 0);
+      draft.spendingDetail[g.id][f.id] = { freq, avg };
+      return freq * avg * f.multiplier;
+    }
+
     function bindSpendDetailInputs(g, detail) {
       const recompute = () => {
-        const anyFilled = detail.fields.some((f) =>
-          $(`#${detailFieldId(g, f, "freq")}`).value !== "" ||
-          $(`#${detailFieldId(g, f, "avg")}`).value !== "");
-        if (!anyFilled) return;
+        if (!detail.fields.some((f) => isFieldFilled(g, f))) return;
 
         draft.spendingDetail[g.id] = draft.spendingDetail[g.id] || {};
         const byCategory = {};
         detail.fields.forEach((f) => {
-          const freq = Math.max(0, +$(`#${detailFieldId(g, f, "freq")}`).value || 0);
-          const avg = Math.max(0, +$(`#${detailFieldId(g, f, "avg")}`).value || 0);
-          draft.spendingDetail[g.id][f.id] = { freq, avg };
-          byCategory[f.category] = (byCategory[f.category] || 0) + freq * avg * f.multiplier;
+          byCategory[f.category] = (byCategory[f.category] || 0) + fieldWon(g, f);
         });
         Object.entries(byCategory).forEach(([category, won]) => {
           draft.spending[category] = Math.round(won / 10000);
@@ -1479,8 +1518,8 @@
         renderOnbSpendDonut();
       };
       detail.fields.forEach((f) => {
-        $(`#${detailFieldId(g, f, "freq")}`).addEventListener("input", recompute);
-        $(`#${detailFieldId(g, f, "avg")}`).addEventListener("input", recompute);
+        const kinds = f.mode === "direct" ? ["amt"] : ["freq", "avg"];
+        kinds.forEach((kind) => $(`#${detailFieldId(g, f, kind)}`).addEventListener("input", recompute));
       });
     }
 
@@ -1653,6 +1692,7 @@
       // 커버해서, 카테고리를 늘릴 때마다 규칙을 새로 안 추가해도 된다.
       { test: (id) => id.endsWith("-freq"), min: 0, max: 30, label: "이용 횟수", money: true },
       { test: (id) => id.endsWith("-avg"), min: 0, max: 200000, label: "1회 평균 금액", money: true, amount: true },
+      { test: (id) => id.endsWith("-amt"), min: 0, max: 3000, label: "월 지출액", money: true, amount: true },
     ];
 
     // 숫자가 아닌 문자(부호·소수점·"e" 등)는 타이핑이든 붙여넣기든
