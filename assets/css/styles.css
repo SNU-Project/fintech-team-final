@@ -18,10 +18,13 @@ body {
 /* ---------- 팔레트 (라이트 기본) ---------- */
 :root {
   color-scheme: light;
-  --page-plane:     #f7f7f4;
-  --surface-1:      #fcfcfb;
+  /* v34: 기존 값(#f7f7f4 등)이 살짝 누런 아이보리 톤이라는 피드백 —
+     같은 정도의 명도 차이(카드 흰색과 구분되는 폭)는 유지하면서
+     따뜻한 톤 대신 아주 옅은 그레이·블루 쪽으로 축을 바꿨다. */
+  --page-plane:     #f7f8fa;
+  --surface-1:      #fbfcfd;
   --surface-2:      #ffffff;
-  --surface-sunk:   #f0efea;
+  --surface-sunk:   #eef1f5;
   --text-primary:   #0b0b0b;
   --text-secondary: #52514e;
   --text-muted:     #8b8983;
@@ -138,6 +141,80 @@ body {
   --shadow:         0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
 }
 
+/* ---------- 단계별 테마 (v34) ----------
+   진단 단계(리포트 카드1~4, "내 연봉 vs 물가"까지)는 :root 기본값
+   (블루)을 그대로 쓴다. 진찰(설문 전체)과 처방(카드5~6·연봉 협상
+   가이드·목표 자산·자산 타임머신)만 body에 .stage-checkup/
+   .stage-prescription 클래스가 붙어(app.js setStage()) 이 블록이
+   --brand 등을 덮어쓴다. 컴포넌트 CSS는 여전히 var(--brand)만
+   참조하므로 이 토큰 재정의 말고는 손댈 곳이 없다 — v33에서
+   확인한 "전부 토큰화되어 있다"는 전제가 여기서도 그대로 통한다. */
+body.stage-checkup {
+  --brand:          #db2777;
+  --brand-soft:     #fce7f3;
+  --series-1:       #831843;
+  --series-2:       #db2777;
+  --series-3:       #f472b6;
+  --series-4:       #c026d3;
+  --series-5:       #6b7280;
+}
+body.stage-prescription {
+  --brand:          #15803d;
+  --brand-soft:     #dcfce7;
+  --series-1:       #14532d;
+  --series-2:       #15803d;
+  --series-3:       #22c55e;
+  --series-4:       #0d9488;
+  --series-5:       #6b7280;
+  --series-6:       #84cc16;
+  --good:           #16a34a;
+  --good-text:      #166534;
+}
+@media (prefers-color-scheme: dark) {
+  body.stage-checkup:where(:not([data-theme="light"])) {
+    --brand:          #f472b6;
+    --brand-soft:     #4a1942;
+    --series-1:       #f9a8d4;
+    --series-2:       #f472b6;
+    --series-3:       #fbcfe8;
+    --series-4:       #e879f9;
+    --series-5:       #94a3b8;
+  }
+  body.stage-prescription:where(:not([data-theme="light"])) {
+    --brand:          #4ade80;
+    --brand-soft:     #14291c;
+    --series-1:       #86efac;
+    --series-2:       #4ade80;
+    --series-3:       #bbf7d0;
+    --series-4:       #2dd4bf;
+    --series-5:       #94a3b8;
+    --series-6:       #bef264;
+    --good:           #4ade80;
+    --good-text:      #86efac;
+  }
+}
+body[data-theme="dark"].stage-checkup {
+  --brand:          #f472b6;
+  --brand-soft:     #4a1942;
+  --series-1:       #f9a8d4;
+  --series-2:       #f472b6;
+  --series-3:       #fbcfe8;
+  --series-4:       #e879f9;
+  --series-5:       #94a3b8;
+}
+body[data-theme="dark"].stage-prescription {
+  --brand:          #4ade80;
+  --brand-soft:     #14291c;
+  --series-1:       #86efac;
+  --series-2:       #4ade80;
+  --series-3:       #bbf7d0;
+  --series-4:       #2dd4bf;
+  --series-5:       #94a3b8;
+  --series-6:       #bef264;
+  --good:           #4ade80;
+  --good-text:      #86efac;
+}
+
 /* ---------- 레이아웃 ---------- */
 .wrap { width: min(100% - 2.5rem, var(--maxw)); margin-inline: auto; }
 @media (max-width: 640px) { .wrap { width: min(100% - 1.5rem, var(--maxw)); } }
@@ -151,10 +228,42 @@ section { scroll-margin-top: 5rem; }
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
-.topbar-inner { display: flex; align-items: center; gap: 1rem; padding: .7rem 0; }
-.brand { display: flex; align-items: center; font-weight: 700; letter-spacing: -.01em; text-decoration: none; color: var(--text-primary); }
-.brand small { display: block; font-weight: 500; font-size: .68rem; color: var(--text-muted); letter-spacing: 0; }
-@media (max-width: 860px) { .brand small { display: none; } }
+.topbar-inner { display: flex; align-items: center; gap: 1rem; padding: .85rem 0; }
+/* v34: 헤더가 "연봉닥터" + 서브텍스트(SNU 핀테크...) 2줄이었는데,
+   서브텍스트를 빼고 로고 텍스트 하나만 남기면서 1줄이 됐다. 팀
+   크레딧은 이미 footer(.credits)에 그대로 남아있어 정보가
+   사라지지 않는다. 줄어든 만큼 로고 자체를 크고 단단하게 키운다. */
+.brand { display: flex; align-items: center; font-weight: 800; font-size: 1.35rem; letter-spacing: -.02em; text-decoration: none; color: var(--text-primary); }
+
+/* ---------- 단계 스테퍼(진찰/진단/처방) ---------- */
+/* 점 색은 어느 단계에 있든 고정(핑크/블루/그린) — 사이트 전체가
+   단계별로 갈아입는 --brand 토큰과는 별개로, 이 3개 점만은 항상
+   같은 색을 보여줘야 "지금 이 단계"라는 위치를 기준점처럼 읽을 수
+   있다. 그래서 토큰이 아니라 고정 hex를 직접 쓴다. */
+.stage-tracker { display: flex; align-items: center; gap: .3rem; }
+.stage-pill {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .68rem; font-weight: 700; padding: .32rem .6rem; border-radius: 999px;
+  color: var(--text-muted); background: transparent; border: 1px solid var(--border);
+  white-space: nowrap; user-select: none;
+  transition: background-color .25s ease, color .25s ease, border-color .25s ease, transform .2s ease;
+}
+.stage-dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; transition: background-color .25s ease; }
+.stage-pill[data-stage="checkup"] .stage-dot { background: #db2777; }
+.stage-pill[data-stage="diagnosis"] .stage-dot { background: #2563eb; }
+.stage-pill[data-stage="prescription"] .stage-dot { background: #15803d; }
+.stage-pill.is-active { transform: scale(1.06); border-color: transparent; }
+.stage-pill.is-active .stage-dot { background: #fff; }
+.stage-pill[data-stage="checkup"].is-active { color: #fff; background: #db2777; }
+.stage-pill[data-stage="diagnosis"].is-active { color: #fff; background: #2563eb; }
+.stage-pill[data-stage="prescription"].is-active { color: #fff; background: #15803d; }
+@media (max-width: 480px) {
+  /* 아주 좁은 화면에서는 글자를 지우고 점만 남겨 한 줄을 지킨다.
+     라벨은 별도 태그 없이 텍스트 노드라 부모의 font-size:0을
+     그대로 상속해서 사라진다 — .stage-dot만 px 단위라 영향 없다. */
+  .stage-pill { font-size: 0; padding: .45rem; gap: 0; }
+  .stage-dot { width: 8px; height: 8px; }
+}
 
 .theme-toggle {
   /* 탭이 숨겨진 첫 화면에서도 오른쪽 끝에 붙어 있도록 — 탭이 보이면
@@ -223,6 +332,7 @@ section { scroll-margin-top: 5rem; }
 @media (min-width: 861px) {
   .topbar-inner { display: grid; grid-template-columns: 1fr auto 1fr; }
   .brand { grid-column: 1; justify-self: start; }
+  .stage-tracker { grid-column: 2; justify-self: center; }
   .theme-toggle { grid-column: 3; justify-self: end; }
 }
 
@@ -276,156 +386,6 @@ section { scroll-margin-top: 5rem; }
   margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--brand); letter-spacing: -.01em;
 }
 
-/* ---------- 진찰·진단·처방 3단계 인디케이터 ----------
-   홈/온보딩/리포트 전반에서 지금 이 화면이 3단계(진찰→진단→처방) 중
-   어디에 해당하는지 아이콘 칩으로 보여준다. 홈 화면은 개요용(강조 없음),
-   온보딩 Q1~Q3는 진찰 강조, 리포트 카드는 내용에 맞춰 진단/처방 중
-   하나를 강조한다. */
-.home-steps {
-  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
-  gap: 1.15rem; margin: 0; padding: 0; list-style: none; max-width: 36rem;
-}
-.home-steps > li {
-  display: flex; flex-direction: column; align-items: center; gap: .35rem;
-  padding: .7rem .95rem; border-radius: 14px;
-  background: var(--surface-2); border: 1px solid var(--border);
-  min-width: 4.3rem;
-  position: relative; /* 화살표 촉(::before/::after)의 기준점 */
-}
-.home-steps-icon { font-size: 2.47rem; line-height: 1; }
-.home-steps-label { font-size: .78rem; font-weight: 700; color: var(--text-secondary); letter-spacing: -.01em; }
-/* 칩 사이를 잇던 "→" 글자를 없앤 대신, 칩 테두리 자체가 화살표 촉처럼
-   보이도록 오른쪽에 삼각형을 붙인다(전형적인 "브레드크럼" 화살표 기법 —
-   테두리색 삼각형 위에 한 단계 작은 배경색 삼각형을 겹쳐 1px 테두리
-   효과를 낸다). 마지막 칩에는 촉을 달지 않는다. */
-.home-steps > li:not(:last-child)::before,
-.home-steps > li:not(:last-child)::after {
-  content: ""; position: absolute; top: 50%; width: 0; height: 0;
-  border-top: 11px solid transparent; border-bottom: 11px solid transparent;
-}
-.home-steps > li:not(:last-child)::before {
-  right: -.72rem; transform: translateY(-50%);
-  border-left: 11px solid var(--border);
-}
-.home-steps > li:not(:last-child)::after {
-  right: -.65rem; transform: translateY(-50%);
-  border-left: 10px solid var(--surface-2);
-}
-@media (max-width: 480px) {
-  .home-steps { gap: .9rem; }
-}
-/* 인트로 화면은 칩이 순서대로 색깔이 켜지는 연출 자체가 흐름을
-   보여주므로, 칩 사이의 화살표 촉까지 있으면 오히려 산만하다.
-   :not(:last-child)까지 똑같이 넣어야 하는 이유: 원래 규칙(위)과
-   클래스 개수가 같아야 명시도가 동점이 되고, 그래야 나중에 나온 이
-   규칙이 이긴다 — .home-steps-intro > li::before만 쓰면 명시도가
-   낮아 원래 규칙에 밀려 화살표가 계속 보이는 버그가 있었다. */
-.home-steps-intro > li:not(:last-child)::before,
-.home-steps-intro > li:not(:last-child)::after {
-  content: none;
-}
-
-/* 현재 어느 단계인지 강조하는 상태 — 인트로 연출과 통일해 진찰=핑크,
-   진단=파랑, 처방=초록을 온보딩 문항·리포트 카드·목표 패널 전체에
-   똑같이 적용한다. 칩 순서가 항상 진찰→진단→처방으로 고정이라
-   nth-child로 색을 정한다(디자인 토큰이 아닌 이 배지 전용 색이라
-   하드코딩). 나머지 칩은 옅게 죽인다. */
-.home-steps > li:nth-child(1).is-active {
-  border-color: #ec4899; background: #fce7f3; box-shadow: 0 0 0 2px #fce7f3;
-}
-.home-steps > li:nth-child(1).is-active .home-steps-label { color: #ec4899; }
-.home-steps > li:nth-child(2).is-active {
-  border-color: #3b82f6; background: #dbeafe; box-shadow: 0 0 0 2px #dbeafe;
-}
-.home-steps > li:nth-child(2).is-active .home-steps-label { color: #3b82f6; }
-.home-steps > li:nth-child(3).is-active {
-  border-color: #22c55e; background: #dcfce7; box-shadow: 0 0 0 2px #dcfce7;
-}
-.home-steps > li:nth-child(3).is-active .home-steps-label { color: #22c55e; }
-.home-steps > li:not(.is-active) { opacity: .55; }
-
-/* 첫 화면(인트로)의 진찰·진단·처방 칩은 아직 아무 단계도 진행 전이라
-   is-active를 안 쓴다 — 대신 화면 진입 직후 하나씩 순서대로 밝아지며
-   "검사→진단→처방" 흐름을 3초 안에 각인시킨다. 평소의 단일 브랜드색
-   대신 이 연출에서만 핑크·파랑·초록 3색을 써서 세 단계가 뚜렷이
-   구분되게 했다(디자인 토큰이 아닌 이 연출 전용 색이라 하드코딩). */
-.home-steps-intro > li:nth-child(1) { animation: heroStepPink .5s ease .5s both; }
-.home-steps-intro > li:nth-child(2) { animation: heroStepBlue .5s ease 1.1s both; }
-.home-steps-intro > li:nth-child(3) { animation: heroStepGreen .5s ease 1.7s both; }
-@keyframes heroStepPink {
-  0% { opacity: .55; border-color: var(--border); background: transparent; box-shadow: none; }
-  100% { opacity: 1; border-color: #ec4899; background: #fce7f3; box-shadow: 0 0 0 2px #fce7f3; }
-}
-@keyframes heroStepBlue {
-  0% { opacity: .55; border-color: var(--border); background: transparent; box-shadow: none; }
-  100% { opacity: 1; border-color: #3b82f6; background: #dbeafe; box-shadow: 0 0 0 2px #dbeafe; }
-}
-@keyframes heroStepGreen {
-  0% { opacity: .55; border-color: var(--border); background: transparent; box-shadow: none; }
-  100% { opacity: 1; border-color: #22c55e; background: #dcfce7; box-shadow: 0 0 0 2px #dcfce7; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .home-steps-intro > li:nth-child(1) { animation: none; opacity: 1; border-color: #ec4899; background: #fce7f3; box-shadow: 0 0 0 2px #fce7f3; }
-  .home-steps-intro > li:nth-child(2) { animation: none; opacity: 1; border-color: #3b82f6; background: #dbeafe; box-shadow: 0 0 0 2px #dbeafe; }
-  .home-steps-intro > li:nth-child(3) { animation: none; opacity: 1; border-color: #22c55e; background: #dcfce7; box-shadow: 0 0 0 2px #dcfce7; }
-}
-
-/* 설문 카드 위처럼 좁은 자리에 쓰는 축소판 — 아이콘/여백/화살표 촉을
-   전부 한 단계씩 줄인다. */
-.home-steps.is-compact { gap: .7rem; margin: 0 0 .3rem; }
-.home-steps.is-compact > li { padding: .4rem .55rem; min-width: 3rem; gap: .2rem; }
-.home-steps.is-compact .home-steps-icon { font-size: 1.95rem; }
-.home-steps.is-compact .home-steps-label { font-size: .68rem; }
-.home-steps.is-compact > li:not(:last-child)::before {
-  right: -.5rem; border-top-width: 7px; border-bottom-width: 7px; border-left-width: 7px;
-}
-.home-steps.is-compact > li:not(:last-child)::after {
-  right: -.44rem; border-top-width: 7px; border-bottom-width: 7px; border-left-width: 6px;
-}
-/* 리포트 카드/패널 버전 — 본문 위에 얹기보다, 카드 우측 상단 구석에
-   가로로 붙여서 "지금 이 카드가 어느 단계인지"를 보여주는 배지 역할을
-   하게 한다. */
-.home-steps-report {
-  position: absolute; top: 0; right: 0;
-  justify-content: flex-end;
-  gap: .45rem; margin: 0; z-index: 1;
-}
-/* 배지가 얹히는 카드/패널 쪽에서 위치 기준점을 잡고, 첫 제목이 배지와
-   겹치지 않도록 오른쪽에 배지 폭만큼 여유를 둔다. */
-.deck-card, #panel-goal { position: relative; }
-/* absolute 배지의 containing block은 .deck-card의 패딩 박스라 right:0이
-   패딩(1.2rem)을 무시하고 카드 바깥쪽 테두리에 딱 붙어버린다 — 그 결과
-   배지 우측 끝이 아래 흰 배경(연봉 협상 가이드 등)의 우측 끝보다 더
-   오른쪽으로 튀어나와 보였다. 카드 콘텐츠와 같은 선에 맞추려면 그
-   패딩값만큼 안쪽으로 당겨야 한다(#panel-goal은 우측 패딩이 0이라
-   그대로 둔다). */
-.deck-card .home-steps-report { right: 1.2rem; }
-/* 온보딩 문항 화면(#homeOnboarding)의 우측 패딩은 1rem(.home-hero)이라
-   카드와는 다른 값으로 맞춰야 한다. */
-#homeOnboarding .home-steps-report { right: 1rem; }
-.home-steps-report ~ .report-heading,
-.home-steps-report + .card {
-  padding-right: 11.5rem;
-}
-/* 카드6(협상·시나리오)만 h2.report-heading이 없어서 본문 시작 높이가
-   다른 카드보다 위로 붙어 보인다. 스와이프로 카드를 넘길 때 내용
-   위치가 들쭉날쭉하지 않도록, 다른 카드의 헤딩 한 줄 높이만큼 위쪽
-   여백을 더해 앞 카드와 시작선을 맞춘다. */
-#scenarioCard { margin-top: 5.1rem; }
-/* 좁은 화면에서는 11.5rem 여백이 제목 폭을 너무 잡아먹어 "목표 자산
-   모으기" 같은 제목이 한 글자만 남기고 줄바꿈됐다. 우측 상단 배지
-   대신 다시 제목 위에 가운데 정렬로 내려서, 제목이 화면 폭을 온전히
-   쓰게 한다. */
-@media (max-width: 480px) {
-  .home-steps-report {
-    position: static; justify-content: center; margin: 0 0 .8rem;
-  }
-  .home-steps-report ~ .report-heading,
-  .home-steps-report + .card {
-    padding-right: 0;
-  }
-}
-
 /* v21: 카드1에 결론이 그대로 들어오면서 갭 막대그래프만 필요해졌다
    (점수 링·등급·풀이 문단은 삭제 — 안 쓰이는 채로 남겨두지 않는다). */
 .home-gap-chart { margin-top: 1rem; }
@@ -463,7 +423,11 @@ section { scroll-margin-top: 5rem; }
   appearance: none; border: 0; cursor: pointer; margin-top: .5rem;
   background: var(--brand); color: #fff; font-family: inherit; font-weight: 700;
   font-size: 1rem; padding: .85rem 2.1rem; border-radius: var(--radius-sm);
-  transition: filter .15s ease, transform .05s ease;
+  /* v34: 진찰→진단→처방 단계가 바뀔 때 --brand가 즉시 스냅되지 않고
+     부드럽게 넘어가도록. 값이 바뀌는 커스텀 프로퍼티 자체는 트랜지션
+     대상이 될 수 없지만, 이걸 참조하는 background-color 속성 자체에
+     transition을 걸면 새로 계산된 색으로 정상적으로 보간된다. */
+  transition: filter .15s ease, transform .05s ease, background-color .3s ease;
 }
 .home-start-btn:hover { filter: brightness(1.08); }
 .home-start-btn:active { transform: translateY(1px); }
@@ -486,14 +450,8 @@ section { scroll-margin-top: 5rem; }
 .home-summary-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .3rem 1rem; margin-top: 1.1rem; }
 
 /* 문항 하나가 화면 하나 — 답이 바뀔 때마다 살짝 밀려 들어오게 해서
-   "설문" 대신 "경험"처럼 느껴지게 한다. transform이 아니라 margin-top을
-   쓰는 이유: transform은 값이 none이 아닌 동안(애니메이션 재생 중)
-   해당 요소를 absolute 자손의 containing block으로 만들어버린다.
-   .onboarding-step 안의 .home-steps-report 배지(top:0 right:1rem,
-   #homeOnboarding 기준)가 애니메이션 재생 중 잠깐 #homeOnboarding
-   대신 .onboarding-step을 기준으로 튀어, 재생되는 동안 h2 제목 위에
-   겹쳐 보이는 버그가 있었다. */
-@keyframes stepIn { from { opacity: 0; margin-top: 10px; } to { opacity: 1; margin-top: 0; } }
+   "설문" 대신 "경험"처럼 느껴지게 한다. */
+@keyframes stepIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .onboarding-step {
   display: flex; flex-direction: column; align-items: center; gap: 1.1rem;
   animation: stepIn .35s ease;
@@ -1462,10 +1420,10 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 @media print {
   :root, :root[data-theme="dark"] {
     color-scheme: light !important;
-    --page-plane:     #f7f7f4 !important;
-    --surface-1:      #fcfcfb !important;
+    --page-plane:     #f7f8fa !important;
+    --surface-1:      #fbfcfd !important;
     --surface-2:      #ffffff !important;
-    --surface-sunk:   #f0efea !important;
+    --surface-sunk:   #eef1f5 !important;
     --text-primary:   #0b0b0b !important;
     --text-secondary: #52514e !important;
     --text-muted:     #8b8983 !important;
