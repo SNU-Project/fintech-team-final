@@ -157,6 +157,20 @@
           ] },
       ],
     },
+    // g-etc는 실카테고리 3개(health/alcohol/misc)와 요청서의 세부질문
+    // 3개가 정확히 1:1로 맞아떨어지는 유일한 그룹이다 — g-play(education
+    // 누락)와 달리 전부 커버된다. 보험료는 CPI상 "건강" 항목이 아니라
+    // 기타 상품·서비스에 가까워 misc로, 모임/술자리는 술 문화와 직결돼
+    // alcohol로, "담배·반려동물·정기 병원비"를 묶은 기타 정기 지출은
+    // 그중 CPI 매칭이 가장 분명한 정기 병원비를 기준으로 health로 보냈다.
+    "g-etc": {
+      fields: [
+        { id: "insurance", category: "misc", mode: "direct", label: "보험료", hint: "월 납입 총액" },
+        { id: "gathering", category: "alcohol", mode: "freq-avg", label: "모임/술자리",
+          freqLabel: "월 모임 횟수", freqUnit: "회/월", avgLabel: "1회 평균 지출액", avgUnit: "원", multiplier: 1 },
+        { id: "misc-regular", category: "health", mode: "direct", label: "기타 정기 지출", hint: "담배, 반려동물, 정기 병원비 등 월 총액 합계" },
+      ],
+    },
   };
 
   // 카테고리별 절약 팁 — 카드3("범인")·시나리오 계산(카드7)·격차 추이
