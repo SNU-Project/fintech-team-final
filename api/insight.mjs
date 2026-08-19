@@ -9,27 +9,10 @@ const MODELS = [
   "gemini-flash-latest",
   "gemini-2.5-flash",
 ];
-// 금지사항을 나열하면 사고형 모델이 그 제약을 곱씹은 내용을 그대로
-// 답변으로 뱉는다("기호는 쓰지 마세요 — Does a period count?" 같은 식).
-// 그래서 하지 말 것 대신 '이렇게 쓰라'는 예시 하나를 준다.
-const SYSTEM_PROMPT = [
-  "너는 한국어 금융 해설자다. 사용자가 준 수치를 근거로 해설문 두 문장만 쓴다.",
-  "다른 말은 절대 덧붙이지 않는다.",
-  "",
-  "형식 예시:",
-  "지출에서 비중이 큰 교통 물가가 크게 올라 평균보다 부담이 크게 느껴집니다. " +
-    "아래 기여도 그래프에서 어떤 항목이 영향을 줬는지 확인해 보세요.",
-  "",
-  "규칙: 첫 문장은 왜 평균과 다르게 느끼는지, 둘째 문장은 화면에서 무엇을 볼지 안내한다.",
-  "투자 권유나 수익 보장은 하지 않는다.",
-].join("\n");
 
-// 이 엔드포인트를 부르는 유일한 화면은 카드3("얼마나 비싸게 살고
-// 있나")인데, 그 카드가 "범인" 랭킹에서 쓰는 단위는 12개 COICOP
-// 원본 품목이 아니라 assets/js/app.js의 SPEND_GROUPS 5개 그룹이다.
-// 원본 12품목 키를 그대로 두면 화면이 실제로 보내는 topCategoryId
-// (g-food 등)가 전부 걸러져 매번 400이 났을 것 — 화면이 실제로 쓰는
-// id로 맞춘다.
+// assets/js/app.js의 SPEND_GROUPS 5개 그룹과 반드시 같은 id·이름을
+// 유지해야 한다 — 화면이 실제로 보내는 topCategoryId가 이 키와
+// 안 맞으면 그 순간부터 매번 400이 난다.
 const CATEGORY_NAMES = Object.freeze({
   "g-food": "식비",
   "g-home": "주거·생활",
@@ -41,38 +24,161 @@ const CATEGORY_NAMES = Object.freeze({
 const inRange = (value, min, max) =>
   typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
 
+// 리포트 안 4곳(카드3 물가 비교/카드1 처방전/카드3 절약 팁/카드6 시나리오)이
+// 이 엔드포인트 하나를 type으로 구분해 쓴다. 새 엔드포인트를 늘리는 대신
+// 검증 틀(아래 validate/safeText)을 공유하려고 이렇게 묶었다 — 필드마다
+// 허용 범위(range)만 선언하면 safeText가 쓸 "허용된 숫자 목록"도 여기서
+// 자동으로 뽑힌다(카테고리·불리언 필드는 숫자가 아니라 자동 제외).
+//
+// 금지사항을 나열하면 사고형 모델이 그 제약을 곱씹은 내용을 그대로
+// 답변으로 뱉는다("기호는 쓰지 마세요 — Does a period count?" 같은 식).
+// 그래서 프롬프트마다 하지 말 것 대신 '이렇게 쓰라'는 예시 하나를 준다.
+const TYPES = {
+  // 카드3 · "공식 물가 vs 내 물가" 비교 (v38에서 처음 연결한 원래 용도)
+  "gap-analysis": {
+    prompt: [
+      "너는 한국어 금융 해설자다. 사용자가 준 수치를 근거로 해설문 두 문장만 쓴다.",
+      "다른 말은 절대 덧붙이지 않는다.",
+      "",
+      "형식 예시:",
+      "지출에서 비중이 큰 교통 물가가 크게 올라 평균보다 부담이 크게 느껴집니다. " +
+        "아래 기여도 그래프에서 어떤 항목이 영향을 줬는지 확인해 보세요.",
+      "",
+      "규칙: 첫 문장은 왜 평균과 다르게 느끼는지, 둘째 문장은 화면에서 무엇을 볼지 안내한다.",
+      "투자 권유나 수익 보장은 하지 않는다.",
+    ].join("\n"),
+    fields: {
+      officialRate: { range: [-50, 200], label: "공식 물가", unit: "%", digits: 1 },
+      personalRate: { range: [-50, 200], label: "개인 물가", unit: "%", digits: 1 },
+      gapPp: { range: [-250, 250], label: "차이", unit: "%p", digits: 1 },
+      topCategoryId: { category: true, label: "가장 큰 영향 품목" },
+      topSharePct: { range: [0, 100], label: "그 품목의 지출 비중", unit: "%", digits: 0 },
+      topRatePct: { range: [-100, 1000], label: "그 품목의 물가상승률", unit: "%", digits: 1 },
+    },
+  },
+
+  // 카드1 · 처방전 결론(#finalBody) 아래에 붙는 한두 문장
+  "prescription-note": {
+    prompt: [
+      "너는 한국어 재정 주치의다. 사용자의 연봉·물가 진단 결과를 근거로,",
+      "진료를 마무리하며 건네는 짧은 코멘트 한두 문장만 쓴다. 다른 말은 덧붙이지 않는다.",
+      "",
+      "형식 예시:",
+      "물가 유지선을 여유 있게 넘기고 계시니 지금 페이스를 유지하시면 됩니다. " +
+        "다만 오른 품목의 지출은 계속 눈여겨봐 주세요.",
+      "",
+      "규칙: 화면에 이미 나온 판정(물가를 방어했는지 못했는지)을 다시 설명하지 말고,",
+      "그 결과를 요약하는 짧은 코멘트만 쓴다. 특정 투자·상품을 추천하지 않는다.",
+    ].join("\n"),
+    fields: {
+      curSalary: { range: [0, 1000000], label: "현재 연봉", unit: "만원", digits: 0 },
+      nextSalary: { range: [0, 1000000], label: "내년 예상 연봉", unit: "만원", digits: 0 },
+      requiredSalary: { range: [0, 1000000], label: "물가 유지선(작년과 같은 구매력에 필요한 연봉)", unit: "만원", digits: 0 },
+      gapAmount: { range: [-1000000, 1000000], label: "여유·부족분(양수면 여유, 음수면 부족)", unit: "만원", digits: 0 },
+      beatsInflation: { bool: true, label: "물가를 방어했는지 여부" },
+    },
+  },
+
+  // 카드3 · "OO 지출, 이렇게 줄여보세요" 팁 박스 위에 붙는 한 줄
+  "saving-tip": {
+    prompt: [
+      "너는 한국어 재정 주치의다. 사용자가 준 지출 수치를 근거로,",
+      "왜 이 항목부터 줄여보면 좋은지 한 문장만 쓴다. 다른 말은 덧붙이지 않는다.",
+      "",
+      "형식 예시:",
+      "지금처럼 교통·통신에 지출 비중이 크다면, 이 항목만 줄여도 체감 물가가 눈에 띄게 낮아질 수 있어요.",
+      "",
+      "규칙: 절약 방법을 새로 제안하지 않는다 — 방법은 이미 화면에 나열되어 있다.",
+      "이 항목에 왜 주목해야 하는지만 준 수치로 설명한다. 투자 권유는 하지 않는다.",
+    ].join("\n"),
+    fields: {
+      topCategoryId: { category: true, label: "절약 대상 품목" },
+      topAmount: { range: [0, 1000000], label: "그 품목의 월 지출", unit: "만원", digits: 0 },
+      topSharePct: { range: [0, 100], label: "지출 비중", unit: "%", digits: 0 },
+      topRatePct: { range: [-100, 1000], label: "그 품목의 물가상승률", unit: "%", digits: 1 },
+    },
+  },
+
+  // 카드6 · 절감 시나리오 3개 비교 결과 아래에 붙는 한두 문장.
+  // 시나리오 이름은 자유 텍스트를 그대로 받지 않고 카테고리 화이트리스트 +
+  // 서버가 아는 고정 절감률(10%/5% — assets/js/app.js의 SCENARIO_CUT_PCT와
+  // 반드시 같은 값이어야 한다)로 서버에서 직접 조립한다. 자유 텍스트를
+  // 받으면 그만큼 별도 검증기를 새로 만들어야 하는데, 절감률 자체가 이미
+  // 고정 상수라 그럴 필요가 없다.
+  "scenario-summary": {
+    prompt: [
+      "너는 한국어 재정 주치의다. 절감 시나리오별 결과 수치를 근거로,",
+      "어떤 선택이 더 효율적인지 비교하는 한두 문장만 쓴다. 다른 말은 덧붙이지 않는다.",
+      "",
+      "형식 예시:",
+      "두 가지를 함께 줄이면 효과가 가장 크지만, 하나만 시작한다면 비중이 더 큰 쪽이 체감 개선폭이 더 커요.",
+      "",
+      "규칙: 준 시나리오 수치만 비교하고 새 숫자를 만들지 않는다. 특정 투자는 권하지 않는다.",
+    ].join("\n"),
+    fields: {
+      baselineRate: { range: [-50, 200], label: "지금 내 물가", unit: "%", digits: 2 },
+      firstCategoryId: { category: true, label: "① 10% 절감 대상" },
+      firstRate: { range: [-50, 200], label: "① 절감 후 내 물가", unit: "%", digits: 2 },
+      secondCategoryId: { category: true, label: "② 5% 절감 대상", optional: true },
+      secondRate: { range: [-50, 200], label: "② 절감 후 내 물가", unit: "%", digits: 2, optional: true },
+      bothRate: { range: [-50, 200], label: "③ 둘 다 절감 후 내 물가", unit: "%", digits: 2, optional: true },
+    },
+  },
+};
+
+function sanitizeField(spec, raw) {
+  if (spec.category) return CATEGORY_NAMES[raw] || null;
+  if (spec.bool) return typeof raw === "boolean" ? raw : null;
+  if (spec.range) {
+    if (typeof raw !== "number" || !inRange(raw, spec.range[0], spec.range[1])) return null;
+    return raw.toFixed(spec.digits ?? 1);
+  }
+  return null;
+}
+
 function validate(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
-  const category = CATEGORY_NAMES[body.topCategoryId];
-  if (!category ||
-      !inRange(body.officialRate, -50, 200) ||
-      !inRange(body.personalRate, -50, 200) ||
-      !inRange(body.gapPp, -250, 250) ||
-      !inRange(body.topSharePct, 0, 100) ||
-      !inRange(body.topRatePct, -100, 1000)) return null;
-  return {
-    officialRate: body.officialRate.toFixed(1),
-    personalRate: body.personalRate.toFixed(1),
-    gapPp: body.gapPp.toFixed(1),
-    category,
-    topSharePct: body.topSharePct.toFixed(0),
-    topRatePct: body.topRatePct.toFixed(1),
-  };
+  // type이 없거나 모르는 값이면 기존(v38 이전부터의 유일한 용도) 동작을
+  // 그대로 유지한다 — 이미 배포된 화면이 type 없이 부르고 있어도 깨지지 않게.
+  const type = typeof body.type === "string" && TYPES[body.type] ? body.type : "gap-analysis";
+  const def = TYPES[type];
+  const sanitized = { type };
+  for (const [key, spec] of Object.entries(def.fields)) {
+    if (body[key] === undefined && spec.optional) continue;
+    const value = sanitizeField(spec, body[key]);
+    if (value === null) return null;
+    sanitized[key] = value;
+  }
+  return sanitized;
+}
+
+function buildFacts(sanitized) {
+  const def = TYPES[sanitized.type];
+  return Object.entries(def.fields)
+    .filter(([key]) => sanitized[key] !== undefined)
+    .map(([key, spec]) => {
+      const value = sanitized[key];
+      if (spec.bool) return `${spec.label}: ${value ? "예" : "아니오"}`;
+      return `${spec.label}: ${value}${spec.unit || ""}`;
+    })
+    .join("\n");
 }
 
 // 반환: { text } 통과 / { reason, raw } 거부
 // 왜 버렸는지 남기지 않으면 model-output-rejected만 보고 원인을 알 수 없다.
-function safeText(value, input) {
+function safeText(value, sanitized) {
   if (typeof value !== "string") return { reason: "빈 응답", raw: String(value).slice(0, 120) };
   const text = value.trim().replace(/[*#`]/g, "").slice(0, 500);
   if (!text) return { reason: "빈 문자열", raw: value.slice(0, 120) };
   if (/[₩$€]/.test(text)) return { reason: "통화 기호 포함", raw: text.slice(0, 120) };
 
   // 모델이 전달받은 값을 반복하는 것은 허용하되, 없던 숫자를 만들면 응답을 버린다.
-  const allowed = [
-    input.officialRate, input.personalRate, input.gapPp,
-    input.topSharePct, input.topRatePct,
-  ].map(Number);
+  // 허용 목록은 이 타입의 range 필드에서만 뽑는다 — 카테고리·불리언은 숫자가
+  // 아니므로 애초에 mentioned 정규식에 안 걸린다.
+  const def = TYPES[sanitized.type];
+  const allowed = Object.entries(def.fields)
+    .filter(([key, spec]) => spec.range && sanitized[key] !== undefined)
+    .map(([key]) => Number(sanitized[key]));
   const mentioned = text.match(/-?\d+(?:\.\d+)?/g) || [];
   const invented = mentioned.filter((token) =>
     !allowed.some((number) => Math.abs(Number(token) - number) < 0.051));
@@ -109,14 +215,8 @@ export async function POST(request) {
     }, { status: 503 });
   }
 
-  const facts = [
-    `공식 물가: ${input.officialRate}%`,
-    `개인 물가: ${input.personalRate}%`,
-    `차이: ${input.gapPp}%p`,
-    `가장 큰 영향 품목: ${input.category}`,
-    `그 품목의 지출 비중: ${input.topSharePct}%`,
-    `그 품목의 물가상승률: ${input.topRatePct}%`,
-  ].join("\n");
+  const systemPrompt = TYPES[input.type].prompt;
+  const facts = buildFacts(input);
 
   // 모델을 앞에서부터 시도한다. 404(그 모델이 없거나 내 계정에 안 열림)면
   // 다음 후보로 넘어가고, 그 외 오류는 바로 반환한다.
@@ -135,7 +235,7 @@ export async function POST(request) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            systemInstruction: { parts: [{ text: systemPrompt }] },
             contents: [{ role: "user", parts: [{ text: facts }] }],
             // thinkingConfig는 모델마다 지원이 갈려서(안 받는 모델은 400) 쓰지
             // 않는다. 대신 사고와 답변이 함께 들어갈 만큼 여유를 준다.
@@ -162,7 +262,7 @@ export async function POST(request) {
       } catch (_ignored) {
         lastDetail = "(본문 없음)";
       }
-      console.error(`[insight] ${model} → ${lastStatus}: ${lastDetail}`);
+      console.error(`[insight] ${input.type}/${model} → ${lastStatus}: ${lastDetail}`);
       // 404(그 모델 없음)와 429(그 모델 할당량 소진)는 다른 모델로 풀릴 수
       // 있으므로 계속 시도한다. 401·403 같은 인증 문제는 모델을 바꿔도
       // 소용없으니 즉시 중단한다.
@@ -182,7 +282,7 @@ export async function POST(request) {
       .join(" ");
     const checked = safeText(answer, input);
     if (!checked.text) {
-      console.error(`[insight] ${model} 출력 거부: ${checked.reason} | ${checked.raw}`);
+      console.error(`[insight] ${input.type}/${model} 출력 거부: ${checked.reason} | ${checked.raw}`);
       return Response.json({
         error: "AI 해설을 불러오지 못했습니다.",
         code: "model-output-rejected",

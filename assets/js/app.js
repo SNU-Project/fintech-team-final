@@ -180,8 +180,6 @@
     spending: roundSpending(PERSONAS[DEFAULT_PERSONA].spending),
     persona: DEFAULT_PERSONA,
     personalRate: null,
-    aiInsightKey: null,
-    aiInsightSeq: 0,
   };
 
   // 카드 4~7의 핵심 연봉 계산은 화면 설명대로 개인 물가를 기준으로 한다.
@@ -642,7 +640,7 @@
     const card = $("#scenarioCard");
     if (!card) return;
     const s = buildSpendScenarios();
-    if (!s) { card.hidden = true; return; }
+    if (!s) { card.hidden = true; aiInsightScenario.hide(); return; }
     card.hidden = false;
 
     const firstClause = `${s.first.name}${josa(s.first.name, "을", "를")} ${SCENARIO_CUT_PCT.first}%`;
@@ -659,6 +657,19 @@
         <span class="scenario-label">${["①", "②", "③"][i] || ""} ${sc.label}</span>
         <span class="scenario-rate">${s.baselineRate.toFixed(2)}%<span class="arrow">→</span><b>${sc.rate.toFixed(2)}%</b></span>
       </div>`).join("");
+
+    const scenarioPayload = {
+      type: "scenario-summary",
+      baselineRate: s.baselineRate,
+      firstCategoryId: s.first.id,
+      firstRate: s.scenarios[0].rate,
+    };
+    if (s.second) {
+      scenarioPayload.secondCategoryId = s.second.id;
+      scenarioPayload.secondRate = s.scenarios[1].rate;
+      scenarioPayload.bothRate = s.scenarios[2].rate;
+    }
+    aiInsightScenario.schedule(scenarioPayload);
 
     // 리포트 마지막 카드의 마무리 인사 — v27: 카드1은 진단 결과에 따라
     // 표정이 바뀌는데 여기는 항상 good으로 고정해 놨더니, 물가를 못
@@ -712,12 +723,26 @@
   function buildFinalConclusion() {
     const headline = buildConclusionHeadline();
     if (headline == null) {
+      aiInsightPrescription.hide();
       return "아직 결과를 계산할 수 없어요.\n리포트에서 값을 입력하면 여기서 정리해 드릴게요.";
     }
 
     const cur = Math.max(0, +$("#curSalary").value || 0);
     const next = Math.max(0, +$("#nextSalary").value || 0);
     const gap = buildGapVerdictLines(cur, next);
+
+    if (gap) {
+      aiInsightPrescription.schedule({
+        type: "prescription-note",
+        curSalary: cur,
+        nextSalary: next,
+        requiredSalary: gap.d.requiredSalary,
+        gapAmount: -gap.d.gap,
+        beatsInflation: gap.d.beatsInflation,
+      });
+    } else {
+      aiInsightPrescription.hide();
+    }
 
     const lines = [];
     if (gap) {
@@ -1724,70 +1749,79 @@
        <span class="legend-item"><span class="legend-swatch" style="background:var(--warning)"></span>예측 · 최근 3년으로 계산 (실제와 다를 수 있음)</span>`;
   }
 
-  // 카드3의 짧은 AI 해설. api/insight.mjs는 이미 이 카드가 쓰는 6개 값
-  // (공식/개인 물가, 격차, 1위 원인 그룹·비중·상승률)만 검증·허용하도록
-  // 만들어져 있었다(v6 이전 "AI로 쉽게 풀어보기" 버튼용) — 새 엔드포인트를
-  // 만드는 대신 그 검증 로직을 그대로 재사용한다. 실패해도 #mineVerdict가
-  // 이미 같은 내용을 규칙 기반으로 보여주고 있으니 조용히 숨기기만 한다.
-  // 지출 입력마다 바로 부르면 타이핑 중에도 요청이 계속 나가므로
-  // debounce하고, 같은 값이면(반올림 후 동일) 다시 부르지 않는다.
-  function hideAiInsight() {
-    const note = $("#mineAiNote");
-    if (!note) return;
-    note.hidden = true;
-    note.classList.remove("is-visible", "is-loading");
+  // 리포트 안 4곳(카드1 처방전/카드3 물가비교·절약팁/카드6 시나리오)이
+  // 전부 같은 패턴을 쓴다 — 값이 바뀌면 debounce 후 /api/insight를
+  // 부르고, 같은 값이면 다시 안 부르고, 응답이 오는 사이 값이 더
+  // 바뀌었으면(seq 불일치) 버리고, 실패하면 조용히 숨긴다. api/insight.mjs는
+  // 이미 카드3가 쓰던 검증 로직(v6 이전 "AI로 쉽게 풀어보기" 버튼용)을
+  // type 필드로 나눠 그대로 재사용하도록 만들어져 있다 — 새 엔드포인트
+  // 대신 자리마다 이 팩토리로 인스턴스 하나씩 만든다. 매 자리가 실패해도
+  // 이미 있는 규칙 기반 문구가 화면을 채우고 있으니 리포트 자체는 깨지지
+  // 않는다.
+  function createAiInsight(noteId, textId) {
+    let timer = null;
+    let lastKey = null;
+    let seq = 0;
+
+    function hide() {
+      clearTimeout(timer);
+      const note = $(`#${noteId}`);
+      if (!note) return;
+      note.hidden = true;
+      note.classList.remove("is-visible", "is-loading");
+    }
+
+    function schedule(payload) {
+      const key = JSON.stringify(payload);
+      if (key === lastKey) return;
+      // 사용자가 아직 입력을 조정 중일 수 있으니(디바운스 대기), 이
+      // 시점엔 박스를 보여주지 않는다 — 값이 바뀔 때마다 로딩 문구가
+      // 깜빡이는 걸 막는다. 실제로 요청을 보내는 순간에만(타이머가
+      // 실제로 발동할 때) 페이드인하며 나타난다.
+      hide();
+      timer = setTimeout(async () => {
+        const mySeq = ++seq;
+        const note = $(`#${noteId}`);
+        const textEl = $(`#${textId}`);
+        if (note && textEl) {
+          textEl.textContent = "AI가 해설을 작성하고 있어요…";
+          note.hidden = false;
+          note.classList.add("is-loading");
+          // hidden을 막 푼 프레임에 곧바로 opacity를 올리면 트랜지션이
+          // 생략되고 툭 나타난다 — 다음 프레임에 붙여야 페이드인이
+          // 실제로 재생된다.
+          requestAnimationFrame(() => note.classList.add("is-visible"));
+        }
+        let text = null;
+        try {
+          const res = await fetch("/api/insight", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => null);
+          if (res.ok) text = body?.text || null;
+        } catch (_error) {
+          text = null;
+        }
+        if (mySeq !== seq || !note || !textEl) return;
+        if (text) {
+          textEl.textContent = text;
+          note.classList.remove("is-loading");
+          lastKey = key;
+        } else {
+          hide();
+        }
+      }, 700);
+    }
+
+    return { schedule, hide };
   }
 
-  let aiInsightTimer = null;
-  function scheduleAiInsight(payload) {
-    const key = [
-      payload.officialRate, payload.personalRate, payload.gapPp,
-      payload.topCategoryId, payload.topSharePct, payload.topRatePct,
-    ].map((v) => (typeof v === "number" ? v.toFixed(1) : v)).join("|");
-    if (key === state.aiInsightKey) return;
-    clearTimeout(aiInsightTimer);
-    // 사용자가 아직 입력을 조정 중일 수 있으니(디바운스 대기), 이 시점엔
-    // 박스를 보여주지 않는다 — 값이 바뀔 때마다 로딩 문구가 깜빡이는 걸
-    // 막는다. 실제로 요청을 보내는 순간에만(타이머가 실제로 발동할 때)
-    // 페이드인하며 나타난다.
-    hideAiInsight();
-    aiInsightTimer = setTimeout(async () => {
-      const seq = ++state.aiInsightSeq;
-      const note = $("#mineAiNote");
-      const textEl = $("#mineAiNoteText");
-      if (note && textEl) {
-        textEl.textContent = "AI가 해설을 작성하고 있어요…";
-        note.hidden = false;
-        note.classList.add("is-loading");
-        // hidden을 막 푼 프레임에 곧바로 opacity를 올리면 트랜지션이
-        // 생략되고 툭 나타난다 — 다음 프레임에 붙여야 페이드인이 실제로
-        // 재생된다.
-        requestAnimationFrame(() => note.classList.add("is-visible"));
-      }
-      let text = null;
-      try {
-        const res = await fetch("/api/insight", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const body = await res.json().catch(() => null);
-        if (res.ok) text = body?.text || null;
-      } catch (_error) {
-        text = null;
-      }
-      // 응답이 오는 사이 지출을 더 바꿨으면(seq 불일치) 화면과 안 맞는
-      // 옛 해설이므로 버린다.
-      if (seq !== state.aiInsightSeq || !note || !textEl) return;
-      if (text) {
-        textEl.textContent = text;
-        note.classList.remove("is-loading");
-        state.aiInsightKey = key;
-      } else {
-        hideAiInsight();
-      }
-    }, 700);
-  }
+  const aiInsightMine = createAiInsight("mineAiNote", "mineAiNoteText");
+  const aiInsightTip = createAiInsight("tipAiNote", "tipAiNoteText");
+  const aiInsightPrescription = createAiInsight("finalAiNote", "finalAiNoteText");
+  const aiInsightScenario = createAiInsight("scenarioAiNote", "scenarioAiNoteText");
 
   function renderMine() {
     const cats = state.cpi.categories || [];
@@ -1810,9 +1844,8 @@
       $("#contribChart").innerHTML = `<p class="skeleton">월 생활비를 입력하면 항목별 기여도를 보여드립니다.</p>`;
       $("#contribMath").innerHTML = "";
       $("#mineSrc").textContent = "";
-      clearTimeout(aiInsightTimer);
-      state.aiInsightKey = null;
-      hideAiInsight();
+      aiInsightMine.hide();
+      aiInsightTip.hide();
       return;
     }
 
@@ -1889,7 +1922,8 @@
     $("#mineTips").innerHTML = cause ? tipBoxHtml(cause.id, cause.name) : "";
 
     if (cause) {
-      scheduleAiInsight({
+      aiInsightMine.schedule({
+        type: "gap-analysis",
         officialRate: official,
         personalRate: result.rate,
         gapPp: diff,
@@ -1897,9 +1931,16 @@
         topSharePct: cause.weight * 100,
         topRatePct: cause.rate,
       });
+      aiInsightTip.schedule({
+        type: "saving-tip",
+        topCategoryId: cause.id,
+        topAmount: cause.amount,
+        topSharePct: cause.weight * 100,
+        topRatePct: cause.rate,
+      });
     } else {
-      clearTimeout(aiInsightTimer);
-      hideAiInsight();
+      aiInsightMine.hide();
+      aiInsightTip.hide();
     }
 
     Charts.contributionChart($("#contribChart"),
