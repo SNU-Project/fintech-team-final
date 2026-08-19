@@ -408,18 +408,18 @@ section { scroll-margin-top: 5rem; }
 
 /* ---------- 마스코트 캐릭터 (v22) ----------
    실제 일러스트 전까지 쓰는 자리표시자 SVG(mascot.js) + 말풍선.
-   is-large는 카드1(진단 결과를 알려주는 자리)에서 세로로 크게,
-   is-small.is-inline은 카드7(처방전 마무리 인사)에서 옆으로 작게 쓴다. */
+   is-large는 카드1(진단 결과)·카드6(마무리 인사, v44부터 카드1과 같은
+   크기)처럼 세로로 크게 쓰는 자리에 붙인다. v44 이전엔 카드6에서만
+   is-small.is-inline(옆으로 작게)을 썼는데, 그 자리를 감싸던 점선
+   상자(.prescription-box)를 없애면서 크기도 카드1과 맞춰 더는 안
+   쓴다 — 죽은 규칙이라 함께 지웠다. */
 .mascot-wrap { display: flex; flex-direction: column; align-items: center; gap: .6rem; }
-.mascot-wrap.is-inline { flex-direction: row; justify-content: center; gap: .8rem; margin-top: 1rem; }
-.mascot-wrap.is-small .mascot-svg { width: 56px; height: 56px; }
 .mascot-svg { display: block; }
 .mascot-bubble {
   margin: 0; background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 999px; padding: .5rem 1.15rem; font-size: .84rem; font-weight: 700;
   color: var(--text-primary); word-break: keep-all; text-align: center;
 }
-.mascot-wrap.is-small .mascot-bubble { font-size: .8rem; padding: .45rem 1rem; }
 
 @media (min-width: 641px) {
   .final-body { white-space: pre; max-width: none; }
@@ -1433,6 +1433,10 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 .scenario-card .scenario-rate { display: block; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 .scenario-card .scenario-rate b { color: var(--good-text); }
 .scenario-card .scenario-rate .arrow { color: var(--text-muted); font-weight: 400; margin: 0 .15rem; }
+/* v44: 마무리 인사 마스코트를 감싸던 .prescription-box를 없애면서 그
+   박스가 주던 margin-top(.8rem)도 같이 사라졌다 — 시나리오 카드 바로
+   아래 붙지 않도록 직접 챙긴다. */
+#scenarioCard .mascot-wrap { margin-top: 1rem; }
 
 /* ---------- PDF 다운로드 버튼 (v18) ---------- */
 /* 별도 라이브러리 없이 브라우저 네이티브 인쇄(window.print())를 쓴다 —
