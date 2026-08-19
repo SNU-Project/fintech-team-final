@@ -170,8 +170,19 @@ body.stage-prescription {
   --good:           #16a34a;
   --good-text:      #166534;
 }
+/* v36 버그 수정: data-theme는 <body>가 아니라 <html>(:root)에 붙는다
+   (initTheme()/themeToggle 참고). 아래 두 블록이 원래
+   "body[data-theme=dark].stage-X"/"body.stage-X:not([data-theme=light])"
+   로 body 자신의 data-theme을 찾고 있어서, 사용자가 테마 토글
+   버튼으로 다크를 켠 경우(시스템이 아니라 명시적 토글) 이 규칙이
+   전혀 매치되지 않았다 — 그 결과 다크에서도 라이트용 --brand-soft
+   (밝은 파스텔)가 그대로 남고, 본문 텍스트만 다크모드 규칙
+   (:root[data-theme=dark]가 올바르게 적용됨)을 타서 흰색이 되며
+   "밝은 배경 + 흰 글자"로 뒤집혀 보였다(v35 캐릭터·연봉 협상 가이드
+   박스 버그가 전부 이 원인). :root의 data-theme을 확인하고, 커스텀
+   프로퍼티는 그대로 body에 선언해 자손에게 내려가게 한다. */
 @media (prefers-color-scheme: dark) {
-  body.stage-checkup:where(:not([data-theme="light"])) {
+  :root:where(:not([data-theme="light"])) body.stage-checkup {
     --brand:          #f472b6;
     --brand-soft:     #4a1942;
     --series-1:       #f9a8d4;
@@ -180,7 +191,7 @@ body.stage-prescription {
     --series-4:       #e879f9;
     --series-5:       #94a3b8;
   }
-  body.stage-prescription:where(:not([data-theme="light"])) {
+  :root:where(:not([data-theme="light"])) body.stage-prescription {
     --brand:          #4ade80;
     --brand-soft:     #14291c;
     --series-1:       #86efac;
@@ -193,7 +204,7 @@ body.stage-prescription {
     --good-text:      #86efac;
   }
 }
-body[data-theme="dark"].stage-checkup {
+:root[data-theme="dark"] body.stage-checkup {
   --brand:          #f472b6;
   --brand-soft:     #4a1942;
   --series-1:       #f9a8d4;
@@ -202,7 +213,7 @@ body[data-theme="dark"].stage-checkup {
   --series-4:       #e879f9;
   --series-5:       #94a3b8;
 }
-body[data-theme="dark"].stage-prescription {
+:root[data-theme="dark"] body.stage-prescription {
   --brand:          #4ade80;
   --brand-soft:     #14291c;
   --series-1:       #86efac;
