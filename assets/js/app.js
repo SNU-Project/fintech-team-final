@@ -122,6 +122,19 @@
         { id: "household", category: "household", mode: "direct", label: "생활용품/구독", hint: "월 소모품 구매액 및 정기 구독료 합계" },
       ],
     },
+    // g-move부터는 세 번째 mode "select"가 들어간다 — 금액 계산엔 안
+    // 쓰고(category: null) 절약 팁을 개인화할 재료(대중교통/자차,
+    // 알뜰폰 여부)로만 spendingDetail에 저장해 둔다(활용은 후속 작업).
+    "g-move": {
+      fields: [
+        { id: "commute-mode", category: null, mode: "select", label: "주 이용 수단",
+          options: [{ value: "transit", label: "대중교통" }, { value: "car", label: "자차" }] },
+        { id: "commute-cost", category: "transport", mode: "direct", label: "이동 비용", hint: "기름값, 교통카드 등 월 총 지출액" },
+        { id: "phone-cost", category: "comm", mode: "direct", label: "통신비", hint: "월 휴대폰 요금" },
+        { id: "phone-plan", category: null, mode: "select", label: "알뜰폰 사용 여부",
+          options: [{ value: "no", label: "일반 요금제" }, { value: "yes", label: "이미 알뜰폰" }] },
+      ],
+    },
   };
 
   // 카테고리별 절약 팁 — 카드3("범인")·시나리오 계산(카드7)·격차 추이
@@ -1386,6 +1399,18 @@
     const detailFieldId = (g, f, kind) => `onb-${g.id}-${f.id}-${kind}`;
 
     function spendDetailFieldHtml(g, f, saved) {
+      if (f.mode === "select") {
+        const chosen = saved.value ?? f.options[0].value;
+        return `
+        <div class="spend-detail-field">
+          <p class="spend-detail-label">${f.label}</p>
+          <span class="input-wrap">
+            <select id="${detailFieldId(g, f, "sel")}">
+              ${f.options.map((o) => `<option value="${o.value}"${o.value === chosen ? " selected" : ""}>${o.label}</option>`).join("")}
+            </select>
+          </span>
+        </div>`;
+      }
       if (f.mode === "direct") {
         return `
         <div class="spend-detail-field">
@@ -1480,14 +1505,25 @@
     // 값이니 그대로 반영한다. 다른 그룹 산정 로직(v43)과 같은 원칙: 화면에
     // 보이는 그룹 총액은 "이미 반올림된 항목들의 합"이어야 한다 — 원본
     // 합을 한 번 더 반올림하면 항목 합계와 총액이 어긋날 수 있다.
+    // select 필드(대중교통/자차, 알뜰폰 여부 등)는 금액 계산에 안 쓰이고
+    // (category: null) 항상 어떤 값이든 선택돼 있으므로, "사용자가 실제로
+    // 뭔가 입력했나"를 판단하는 기준(anyFilled)에서는 제외한다 — 안
+    // 그러면 select만 건드려도 아직 안 채운 금액 필드들이 0으로
+    // draft.spending을 덮어써 버린다.
     function isFieldFilled(g, f) {
+      if (f.mode === "select") return false;
       if (f.mode === "direct") return $(`#${detailFieldId(g, f, "amt")}`).value !== "";
       return $(`#${detailFieldId(g, f, "freq")}`).value !== "" || $(`#${detailFieldId(g, f, "avg")}`).value !== "";
     }
 
     // "direct"는 이미 만원 단위 월 총액이라 ×10000해서 다른 필드와 같은
     // "원" 단위로 맞춘 뒤 합산한다(byCategory는 항상 원 단위로 모은다).
+    // select는 spendingDetail에 선택값만 저장하고 금액에는 기여하지 않는다.
     function fieldWon(g, f) {
+      if (f.mode === "select") {
+        draft.spendingDetail[g.id][f.id] = { value: $(`#${detailFieldId(g, f, "sel")}`).value };
+        return 0;
+      }
       if (f.mode === "direct") {
         const amt = Math.max(0, +$(`#${detailFieldId(g, f, "amt")}`).value || 0);
         draft.spendingDetail[g.id][f.id] = { amt };
@@ -1506,7 +1542,10 @@
         draft.spendingDetail[g.id] = draft.spendingDetail[g.id] || {};
         const byCategory = {};
         detail.fields.forEach((f) => {
-          byCategory[f.category] = (byCategory[f.category] || 0) + fieldWon(g, f);
+          const won = fieldWon(g, f);
+          // select 필드는 category가 null이다 — byCategory[null]로 새는
+          // 걸 막고(그대로 두면 draft.spending에 "null" 키가 생긴다).
+          if (f.category) byCategory[f.category] = (byCategory[f.category] || 0) + won;
         });
         Object.entries(byCategory).forEach(([category, won]) => {
           draft.spending[category] = Math.round(won / 10000);
@@ -1518,6 +1557,10 @@
         renderOnbSpendDonut();
       };
       detail.fields.forEach((f) => {
+        if (f.mode === "select") {
+          $(`#${detailFieldId(g, f, "sel")}`).addEventListener("change", recompute);
+          return;
+        }
         const kinds = f.mode === "direct" ? ["amt"] : ["freq", "avg"];
         kinds.forEach((kind) => $(`#${detailFieldId(g, f, kind)}`).addEventListener("input", recompute));
       });
