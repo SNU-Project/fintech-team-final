@@ -1719,7 +1719,7 @@
 
     $("#forecastLegend").innerHTML =
       `<span class="legend-item"><span class="legend-swatch" style="background:var(--brand)"></span>실제 물가상승률</span>
-       <span class="legend-item"><span class="legend-swatch" style="background:var(--warning)"></span>예측 · 최근 3년 추세선 (실제와 다를 수 있음)</span>`;
+       <span class="legend-item"><span class="legend-swatch" style="background:var(--warning)"></span>예측 · 최근 3년으로 계산 (실제와 다를 수 있음)</span>`;
   }
 
   function renderMine() {
@@ -1771,7 +1771,16 @@
     const monthlyExtra = cause ? cause.amount * (cause.rate / 100) : 0;
     if (Math.abs(diff) < 0.05) {
       v.className = "verdict";
-      v.innerHTML = `당신의 지출 구성은 전국 평균과 비슷해서, 체감 물가도 거의 같아요.`;
+      // 차이가 작다는 사실만 확인됐을 뿐, 그 이유가 "지출 구성이 평균과
+      // 비슷해서"인지는 확인한 적이 없다. 실제로 의류·신발에만 100%를
+      // 써도 그 품목 물가가 2.79%로 공식과 같아 이 갈래로 들어온다 —
+      // 구성은 극단적인데 "평균과 비슷한 구성"이라고 말하게 된다.
+      // 다른 두 갈래처럼 실제 수치만 말하고 원인은 단정하지 않는다.
+      v.innerHTML = cause
+        ? `당신의 체감 물가는 <b>전국 평균과 거의 같아요.</b>
+           비중이 가장 큰 건 <b>${cause.name}</b>(${(cause.weight * 100).toFixed(0)}%)이고,
+           이 품목 물가는 <b>${cause.rate.toFixed(1)}%</b>예요 (전체 평균 ${official.toFixed(1)}%).`
+        : `당신의 체감 물가는 <b>전국 평균과 거의 같아요.</b>`;
     } else if (diff > 0) {
       v.className = "verdict warn";
       v.innerHTML = cause
