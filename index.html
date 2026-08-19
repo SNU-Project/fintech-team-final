@@ -16,6 +16,16 @@
     <a class="brand" href="#top">
       <span>연봉닥터</span>
     </a>
+    <!-- v34: 지금 사용자가 진찰(설문)/진단(리포트 카드1~4)/처방(카드5~6·
+         목표 자산·자산 타임머신) 중 어디 있는지 보여주는 스테퍼. 3개
+         점 색은 어느 단계에 있든 항상 고정(핑크/블루/그린) — 현재
+         단계만 배경이 채워지며 강조된다. app.js의 setStage()가
+         .is-active 클래스를 옮겨 다닌다. -->
+    <div class="stage-tracker" id="stageTracker">
+      <span class="stage-pill" data-stage="checkup"><i class="stage-dot"></i>진찰</span>
+      <span class="stage-pill" data-stage="diagnosis"><i class="stage-dot"></i>진단</span>
+      <span class="stage-pill" data-stage="prescription"><i class="stage-dot"></i>처방</span>
+    </div>
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="테마 전환" title="라이트/다크 테마 전환">
       <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="4"></circle>

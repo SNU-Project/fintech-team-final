@@ -29,6 +29,25 @@
   const pct = (n, d = 1) => `${(n * 100).toFixed(d)}%`;
   const signPct = (n, d = 1) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(d)}%`;
 
+  // v34: 진찰(설문)/진단(리포트 카드1~4)/처방(카드5~6·목표 자산·
+  // 자산 타임머신) 3단계에 따라 사이트 메인 컬러를 바꾼다. 진단은
+  // body에 별도 클래스 없이 :root 기본값(블루)을 그대로 쓰고,
+  // 진찰·처방만 클래스를 얹어 styles.css의 토큰 재정의 블록
+  // (.stage-checkup/.stage-prescription)이 --brand 등을 갈아입힌다.
+  // #stageTracker의 활성 pill도 여기서 같이 옮긴다.
+  let currentStage = null;
+  function setStage(stage) {
+    if (stage === currentStage) return;
+    currentStage = stage;
+    document.body.classList.remove("stage-checkup", "stage-prescription");
+    if (stage === "checkup" || stage === "prescription") {
+      document.body.classList.add(`stage-${stage}`);
+    }
+    $$(".stage-pill").forEach((el) => {
+      el.classList.toggle("is-active", el.dataset.stage === stage);
+    });
+  }
+
   const ASSET_COLOR = {
     cash: "var(--series-1)", bond10y: "var(--series-3)", kodex200: "var(--series-2)",
     sp500: "var(--series-4)", gold: "var(--series-5)", bitcoin: "var(--series-6)",
@@ -761,6 +780,7 @@
   // 내용은 hidden 상태에서도 다 그려져 있다.
   function setupNextSteps() {
     function openStandalone(id) {
+      setStage("prescription"); // 목표 자산·자산 타임머신은 카드뉴스 밖이라 syncUI가 안 돈다
       $("#deck").hidden = true;
       $("#panel-goal").hidden = true;
       $("#panel-time").hidden = true;
@@ -925,6 +945,11 @@
     });
 
     function syncUI() {
+      // 카드1~4("내 연봉 vs 물가"까지)는 진단, 카드5~6(연봉 협상
+      // 가이드부터 결론까지)은 처방 — 카드 개수가 또 바뀌어도(v32처럼)
+      // FINAL_INDEX 기준 상대 위치로 계산해서 하드코딩한 인덱스가
+      // 낡지 않게 한다(뒤에서 2장 = 처방).
+      setStage(index >= FINAL_INDEX - 1 ? "prescription" : "diagnosis");
       track.style.transform = `translateX(${-index * 100}%)`;
       dots.forEach((d, i) => {
         d.classList.toggle("is-current", i === index);
@@ -1182,6 +1207,7 @@
     }
 
     function showStep(i) {
+      setStage("checkup");
       stepIndex = i;
       steps.forEach((s) => { s.hidden = Number(s.dataset.step) !== i; });
       progressWrap.hidden = i === 0;
