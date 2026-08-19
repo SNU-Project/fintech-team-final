@@ -151,10 +151,12 @@ section { scroll-margin-top: 5rem; }
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
-.topbar-inner { display: flex; align-items: center; gap: 1rem; padding: .7rem 0; }
-.brand { display: flex; align-items: center; font-weight: 700; letter-spacing: -.01em; text-decoration: none; color: var(--text-primary); }
-.brand small { display: block; font-weight: 500; font-size: .68rem; color: var(--text-muted); letter-spacing: 0; }
-@media (max-width: 860px) { .brand small { display: none; } }
+.topbar-inner { display: flex; align-items: center; gap: 1rem; padding: .85rem 0; }
+/* v34: 헤더가 "연봉닥터" + 서브텍스트(SNU 핀테크...) 2줄이었는데,
+   서브텍스트를 빼고 로고 텍스트 하나만 남기면서 1줄이 됐다. 팀
+   크레딧은 이미 footer(.credits)에 그대로 남아있어 정보가
+   사라지지 않는다. 줄어든 만큼 로고 자체를 크고 단단하게 키운다. */
+.brand { display: flex; align-items: center; font-weight: 800; font-size: 1.35rem; letter-spacing: -.02em; text-decoration: none; color: var(--text-primary); }
 
 .theme-toggle {
   /* 탭이 숨겨진 첫 화면에서도 오른쪽 끝에 붙어 있도록 — 탭이 보이면
