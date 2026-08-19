@@ -29,6 +29,15 @@
   const pct = (n, d = 1) => `${(n * 100).toFixed(d)}%`;
   const signPct = (n, d = 1) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(d)}%`;
 
+  // 화면에 보이는 두 값(예: 공식 물가 2.8%, 내 물가 2.8%)이 반올림 후
+  // 같아 보이는데, 그 차이는 원본 정밀 값끼리 뺀 뒤 따로 반올림해서
+  // "+0.1%p"처럼 어긋나 보이는 문제를 막는다. 화면에 실제로 찍히는
+  // 자리수로 두 값을 각각 반올림한 뒤에 빼서, 같아 보이면 차이도 항상
+  // 정확히 0이 되게 한다. 표시 전용 헬퍼다 — 협상 가이드의 목표 금액처럼
+  // 그 자체가 다른 계산에 쓰이는 값은 원본 정밀도를 그대로 두고, 화면에
+  // "차이"로 보여주는 문구를 만들 때만 이 함수를 쓴다.
+  const displayDiff = (a, b, digits = 0) => Number(a.toFixed(digits)) - Number(b.toFixed(digits));
+
   // v34: 진찰(설문)/진단(리포트 카드1~4)/처방(카드5~6·목표 자산·
   // 자산 타임머신) 3단계에 따라 사이트 메인 컬러를 바꾼다. 진단은
   // body에 별도 클래스 없이 :root 기본값(블루)을 그대로 쓰고,
@@ -702,16 +711,22 @@
   function buildGapVerdictLines(cur, next) {
     if (cur <= 0) return null;
     const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct: diagnosticInflation() });
+    // 문장에 나란히 보이는 "내년 연봉"·"물가 유지선"은 man()으로 반올림해
+    // 보여주는데, "몇 만원 더/모자란지"를 d.gap(원본 정밀 차이)로 따로
+    // 반올림하면 화면 값끼리 뺀 것과 어긋날 수 있다 — 화면에 찍히는
+    // 반올림 값 기준으로 다시 구한다(displayDiff, +면 부족·-면 여유로
+    // d.gap과 같은 부호 규약).
+    const gapDisplay = displayDiff(d.requiredSalary, next, 0);
     const lines = d.beatsInflation
       ? [
           `내년 예상 연봉(${man(next)}만원)은 물가 유지선(${man(d.requiredSalary)}만원)을 잘 넘고 있어요.`,
           "지금 페이스라면 괜찮아요 — 실질 소득이 잘 지켜지고 있어요.",
         ]
       : [
-          `물가를 따라잡으려면 연봉을 최소 ${man(d.requiredSalary)}만원(${man(d.gap)}만원 더)까지는 처방해드릴게요.`,
+          `물가를 따라잡으려면 연봉을 최소 ${man(d.requiredSalary)}만원(${man(gapDisplay)}만원 더)까지는 처방해드릴게요.`,
           "그 차이는 투자나 협상으로 채워보세요.",
         ];
-    return { d, lines };
+    return { d, gapDisplay, lines };
   }
 
   // 카드1(결론부터)의 #finalBody 전체 문단 — buildGapVerdictLines()의
@@ -737,7 +752,7 @@
         curSalary: cur,
         nextSalary: next,
         requiredSalary: gap.d.requiredSalary,
-        gapAmount: -gap.d.gap,
+        gapAmount: -gap.gapDisplay,
         beatsInflation: gap.d.beatsInflation,
       });
     } else {
@@ -749,7 +764,7 @@
       lines.push(...gap.lines);
       if (gap.d.beatsInflation) {
         const cause = topSpendingCause();
-        const surplus = man(-gap.d.gap);
+        const surplus = man(-gap.gapDisplay);
         lines.push(`여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요?`);
         if (cause) lines.push(`다만 ${cause.name}처럼 유독 많이 오른 항목은 계속 살펴보는 게 좋아요.`);
       }
@@ -1855,7 +1870,11 @@
     }
 
     state.personalRate = result.rate;
-    const diff = result.rate - official;
+    // 화면(officialRateBig/myRateBig)이 1자리로 반올림해 보여주므로,
+    // 차이도 그 반올림된 자리수 기준으로 구한다 — 원본 정밀 차이를 따로
+    // 반올림하면 화면엔 "2.8% / 2.8%"로 같아 보이는데 차이만 "+0.1%p"로
+    // 뜨는 불일치가 생긴다(실제로 발견된 버그).
+    const diff = displayDiff(result.rate, official, 1);
 
     // 기여도 분해 — 헤드라인이 "무엇 때문에" 비싼지 가리키는 항목도
     // 이 그룹 랭킹(아래 "내 물가를 밀어올린 범인"과 같은 5개 그룹) 1위를
@@ -1877,7 +1896,7 @@
     const v = $("#mineVerdict");
     const cause = ranked[0];
     const monthlyExtra = cause ? cause.amount * (cause.rate / 100) : 0;
-    if (Math.abs(diff) < 0.05) {
+    if (diff === 0) {
       v.className = "verdict";
       // 차이가 작다는 사실만 확인됐을 뿐, 그 이유가 "지출 구성이 평균과
       // 비슷해서"인지는 확인한 적이 없다. 실제로 의류·신발에만 100%를
@@ -2025,6 +2044,11 @@
 
     const inflationPct = diagnosticInflation();
     const d = E.diagnose({ curSalary: cur, nextSalary: next, inflationPct });
+    // gapStats·gapVerdict가 "내년 연봉"·"물가 유지선"을 man()으로 반올림해
+    // 나란히 보여준 뒤 그 "차이"까지 문장에 다시 쓰므로, d.gap(원본 정밀
+    // 차이)을 따로 반올림하지 않고 화면에 찍히는 반올림 값 기준으로
+    // 다시 구한다(부호 규약은 d.gap과 동일: +면 부족, -면 여유).
+    const gapDisplay = displayDiff(d.requiredSalary, next, 0);
 
     // KPI
     const gapCls = d.beatsInflation ? "is-good" : (d.gap > cur * 0.03 ? "is-bad" : "is-warn");
@@ -2036,7 +2060,7 @@
         <span class="v">${d.realRatePct >= 0 ? "+" : ""}${d.realRatePct.toFixed(1)}%</span>
         <span class="s">명목 − 물가</span></div>
       <div class="stat ${gapCls}"><span class="k">${d.beatsInflation ? "연간 여유" : "연간 부족분"}</span>
-        <span class="v">${man(Math.abs(d.gap))}만원</span></div>
+        <span class="v">${man(Math.abs(gapDisplay))}만원</span></div>
       <div class="stat"><span class="k">내년 연봉으로 실제 살 수 있는 만큼</span>
         <span class="v">${man(d.realValue)}만원</span>
         <span class="s">올해 물가 기준</span></div>
@@ -2046,12 +2070,12 @@
     if (d.beatsInflation) {
       v.className = "verdict";
       v.innerHTML = `내년 연봉 <b>${man(next)}만원</b>은 물가 유지선(${man(d.requiredSalary)}만원)을
-        <b>${man(-d.gap)}만원 넘어섭니다.</b> 실질 소득이 늘어나는 구간입니다.`;
+        <b>${man(-gapDisplay)}만원 넘어섭니다.</b> 실질 소득이 늘어나는 구간입니다.`;
     } else {
       const days = next > 0 ? d.gap / (next / WORKDAYS_PER_YEAR) : 0;
       v.className = d.gap > cur * 0.03 ? "verdict bad" : "verdict warn";
       v.innerHTML = `물가를 따라가려면 <b>${man(d.requiredSalary)}만원</b>이 필요한데
-        내년 연봉은 ${man(next)}만원입니다. 연 <b>${man(d.gap)}만원</b>이 부족합니다.
+        내년 연봉은 ${man(next)}만원입니다. 연 <b>${man(gapDisplay)}만원</b>이 부족합니다.
         <b>작년과 같은 생활을 하려면 ${days.toFixed(1)}일을 더 일해야 하는 셈입니다.</b>`;
     }
 
@@ -2321,8 +2345,12 @@
       v.innerHTML = `제안받은 <b>${man(offeredAmount)}만원</b>(${d.nominalRatePct.toFixed(1)}%)은 물가에 실질 +1%를 더한 목표선을 이미 넘었습니다.`;
     } else {
       v.className = "verdict warn";
+      // "현재 제안"은 위 스탯 카드의 제안받은 인상액(offeredAmount)을
+      // 가리키므로, 그 차이도 원본 shortfallAmount를 따로 반올림하는 대신
+      // 화면에 이미 보여준 targetAmount·offeredAmount의 반올림 값 기준으로
+      // 다시 구한다 — 두 반올림 값이 같아 보이면 차이도 0으로 맞는다.
       v.innerHTML = `협상 테이블에서 말할 숫자는 <b>${man(targetAmount)}만원</b>(연봉 ${man(n.targetSalary)}만원, ${n.targetRatePct.toFixed(1)}%)입니다.
-        물가 관리분 ${man(defendAmount)}만원에 실질 인상 1%를 더한 값이고, 현재 제안과는 ${man(n.shortfallAmount)}만원 차이입니다.`;
+        물가 관리분 ${man(defendAmount)}만원에 실질 인상 1%를 더한 값이고, 현재 제안과는 ${man(displayDiff(targetAmount, offeredAmount, 0))}만원 차이입니다.`;
     }
   }
 
