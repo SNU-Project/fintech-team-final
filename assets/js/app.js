@@ -135,6 +135,28 @@
           options: [{ value: "no", label: "일반 요금제" }, { value: "yes", label: "이미 알뜰폰" }] },
       ],
     },
+    // g-play는 실카테고리 3개(leisure/education/clothing)로 이뤄지는데,
+    // 요청서의 세부질문은 education(학원비·등록금)을 다루지 않는다 —
+    // 억지로 만들지 않고 그대로 둔다. education은 이 아코디언이 안
+    // 건드리므로 이전 값(페르소나 기본값 또는 scaleSpending으로 조정된
+    // 값)을 유지한 채 총액에 계속 더해진다 — 다른 두 카테고리처럼
+    // "설문에 없는 항목은 예전 값 그대로"가 자연스러운 하위호환이다.
+    "g-play": {
+      fields: [
+        { id: "shopping", category: "clothing", mode: "freq-avg", label: "쇼핑(패션/뷰티)",
+          freqLabel: "월 구매 횟수", freqUnit: "회/월", avgLabel: "1회 평균 지출액", avgUnit: "원", multiplier: 1 },
+        { id: "hobby", category: "leisure", mode: "direct", label: "취미/구독", hint: "헬스장, OTT, 클래스 등 월 정기 지출액 합계" },
+        // 네 번째 mode "direct-period": 분기/연 단위로 받은 예산을
+        // 월 환산한다. hobby와 같은 category(leisure)로 모이므로,
+        // 두 필드의 "원" 단위 합을 한 번만 반올림한다(v43 원칙 —
+        // 여기서 따로 반올림하면 hobby와의 합계가 화면과 어긋날 수 있다).
+        { id: "travel", category: "leisure", mode: "direct-period", label: "여행/휴식",
+          hint: "분기 또는 연간 여행 예산", periods: [
+            { value: "quarter", label: "분기", divisor: 3 },
+            { value: "year", label: "연", divisor: 12 },
+          ] },
+      ],
+    },
   };
 
   // 카테고리별 절약 팁 — 카드3("범인")·시나리오 계산(카드7)·격차 추이
@@ -1423,6 +1445,26 @@
           <p class="field-note">${f.hint}</p>
         </div>`;
       }
+      if (f.mode === "direct-period") {
+        const period = saved.period ?? f.periods[0].value;
+        return `
+        <div class="spend-detail-field">
+          <p class="spend-detail-label">${f.label}</p>
+          <div class="spend-detail-inputs">
+            <span class="input-wrap">
+              <input type="number" id="${detailFieldId(g, f, "amt")}" min="0" step="1" inputmode="numeric"
+                placeholder="0" value="${saved.amt ?? ""}">
+              <span>만원</span>
+            </span>
+            <span class="input-wrap">
+              <select id="${detailFieldId(g, f, "period")}">
+                ${f.periods.map((p) => `<option value="${p.value}"${p.value === period ? " selected" : ""}>${p.label}</option>`).join("")}
+              </select>
+            </span>
+          </div>
+          <p class="field-note">${f.hint}</p>
+        </div>`;
+      }
       return `
         <div class="spend-detail-field">
           <p class="spend-detail-label">${f.label}</p>
@@ -1512,13 +1554,17 @@
     // draft.spending을 덮어써 버린다.
     function isFieldFilled(g, f) {
       if (f.mode === "select") return false;
-      if (f.mode === "direct") return $(`#${detailFieldId(g, f, "amt")}`).value !== "";
+      if (f.mode === "direct" || f.mode === "direct-period") return $(`#${detailFieldId(g, f, "amt")}`).value !== "";
       return $(`#${detailFieldId(g, f, "freq")}`).value !== "" || $(`#${detailFieldId(g, f, "avg")}`).value !== "";
     }
 
     // "direct"는 이미 만원 단위 월 총액이라 ×10000해서 다른 필드와 같은
     // "원" 단위로 맞춘 뒤 합산한다(byCategory는 항상 원 단위로 모은다).
-    // select는 spendingDetail에 선택값만 저장하고 금액에는 기여하지 않는다.
+    // "direct-period"는 분기/연 단위 예산을 그 자리에서 월 환산(÷3 또는
+    // ÷12)해서 "원" 단위로 넘긴다 — 반올림은 여기서 안 하고 byCategory
+    // 합계 전체에 딱 한 번만 한다(v43 원칙: 다른 필드와 합친 뒤 반올림해야
+    // 화면에 보이는 그룹 총액과 어긋나지 않는다). select는 spendingDetail에
+    // 선택값만 저장하고 금액에는 기여하지 않는다.
     function fieldWon(g, f) {
       if (f.mode === "select") {
         draft.spendingDetail[g.id][f.id] = { value: $(`#${detailFieldId(g, f, "sel")}`).value };
@@ -1528,6 +1574,13 @@
         const amt = Math.max(0, +$(`#${detailFieldId(g, f, "amt")}`).value || 0);
         draft.spendingDetail[g.id][f.id] = { amt };
         return amt * 10000;
+      }
+      if (f.mode === "direct-period") {
+        const amt = Math.max(0, +$(`#${detailFieldId(g, f, "amt")}`).value || 0);
+        const period = $(`#${detailFieldId(g, f, "period")}`).value;
+        const divisor = (f.periods.find((p) => p.value === period) || f.periods[0]).divisor;
+        draft.spendingDetail[g.id][f.id] = { amt, period };
+        return (amt * 10000) / divisor;
       }
       const freq = Math.max(0, +$(`#${detailFieldId(g, f, "freq")}`).value || 0);
       const avg = Math.max(0, +$(`#${detailFieldId(g, f, "avg")}`).value || 0);
@@ -1559,6 +1612,11 @@
       detail.fields.forEach((f) => {
         if (f.mode === "select") {
           $(`#${detailFieldId(g, f, "sel")}`).addEventListener("change", recompute);
+          return;
+        }
+        if (f.mode === "direct-period") {
+          $(`#${detailFieldId(g, f, "amt")}`).addEventListener("input", recompute);
+          $(`#${detailFieldId(g, f, "period")}`).addEventListener("change", recompute);
           return;
         }
         const kinds = f.mode === "direct" ? ["amt"] : ["freq", "avg"];
