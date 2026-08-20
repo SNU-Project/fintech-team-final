@@ -1084,20 +1084,31 @@ input[readonly] { -moz-appearance: textfield; }
 .bento-hero .verdict { margin-top: .8rem; }
 
 /* 지출 입력 */
-.spend-details {
-  margin-top: .9rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  padding: .72rem 0;
-}
-.spend-details summary { cursor: pointer; color: var(--brand); font-size: .8rem; font-weight: 700; }
-.spend-details summary::marker { color: var(--brand); }
-.spend-details[open] summary { margin-bottom: .65rem; }
 .spend-details-label { color: var(--brand); font-size: .8rem; font-weight: 700; margin: 0 0 .65rem; }
-.spend-details > .field-note { margin: 0 0 .75rem; line-height: 1.5; }
-/* v50: 설문(진찰) 단계의 전체 요약에서 도넛차트를 없애고 이 총액
-   문구로 대체했다 — 카드2("내 물가란?")의 완성된 리포트용 도넛과
-   달리, 아직 답을 채워가는 중간 화면이라 클릭마다 다시 그려지는
-   원형 차트보다 숫자를 바로 읽는 텍스트가 더 빠르다. */
-.spend-summary-total { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0 0 .7rem; }
+/* v51: 카테고리 5개 응답을 다 마친 뒤 보여주는 "전체 요약" 독립 스텝 —
+   카드2("내 물가란?")의 완성된 리포트용 도넛과 달리 아직 답을
+   채워가는 중간 화면이라 차트 없이 텍스트 목록으로만 구성한다
+   (v50에서 카드6 하단에 있던 요약을 이 스텝이 더 자세한 버전으로
+   흡수했다). */
+.onb-summary-group { padding: .85rem 0; border-bottom: 1px solid var(--border); }
+/* .onboarding-card .field-note는 기본이 text-align:center(설문 다른
+   화면의 짧은 안내 문구용) — 이 목록 안에서는 나머지 줄과 같은 왼쪽
+   정렬이어야 자연스럽다. */
+.onb-summary-group .field-note { text-align: left; margin: 0 0 .5rem; }
+.onb-summary-group:first-child { padding-top: 0; }
+.onb-summary-group:last-of-type { border-bottom: none; }
+.onb-summary-group-title {
+  display: flex; align-items: center; gap: .45rem; margin: 0 0 .5rem;
+  font-size: .92rem; font-weight: 800; color: var(--text-primary);
+}
+.onb-summary-fields { margin: 0 0 .5rem; padding-left: 1.15rem; display: flex; flex-direction: column; gap: .3rem; }
+.onb-summary-fields li { font-size: .84rem; color: var(--text-secondary); line-height: 1.5; }
+.onb-summary-group-total { margin: 0; font-size: .86rem; font-weight: 700; color: var(--text-primary); }
+.onb-summary-group-total b { color: var(--brand); }
+.onb-summary-grand-total {
+  margin: 1rem 0 0; padding-top: 1rem; border-top: 2px solid var(--border);
+  font-size: 1.2rem; font-weight: 800; color: var(--text-primary);
+}
 .spend-row {
   display: grid; grid-template-columns: minmax(0, 1fr) 130px;
   gap: .5rem; align-items: center; margin-bottom: .42rem;
@@ -1394,7 +1405,7 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 /* v32: 이 토글(비중 직접 조정)은 "상세 계산 보기" 같은 얕은 부연
    토글과 달리 실제로 값을 바꾸는 핵심 조작 진입점인데, 그동안
    ▶ 표시 하나만 있는 작은 텍스트 링크라 있는지도 모르고 지나치기
-   쉬웠다. 다른 disclosure류(.calc-detail, .spend-details 등)는
+   쉬웠다. 다른 disclosure류(.calc-detail, .disclosure 등)는
    의도적으로 얕게 남겨두고, 이 토글만 배경·테두리가 있는 초록
    버튼 + 아이콘으로 위계를 분명히 다르게 준다. */
 .mix-tuner { margin-bottom: 1rem; }
