@@ -274,13 +274,6 @@
             <div class="chart-box is-compact-bar home-gap-chart" id="homeGapChart" hidden></div>
             <div class="prescription-box">
               <p class="final-body" id="finalBody"></p>
-              <div class="ai-insight" id="finalAiNote" hidden>
-                <span class="ai-badge">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2z"/></svg>
-                  AI 해설
-                </span>
-                <span id="finalAiNoteText"></span>
-              </div>
             </div>
             <button class="onboarding-back deck-restart-link" type="button">처음부터 다시 입력하기</button>
           </section>
@@ -350,25 +343,11 @@
                 </div>
               </div>
               <p class="verdict" id="mineVerdict">—</p>
-              <div class="ai-insight" id="mineAiNote" hidden>
-                <span class="ai-badge">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2z"/></svg>
-                  AI 해설
-                </span>
-                <span id="mineAiNoteText"></span>
-              </div>
             </div>
             <div class="card bento-contrib">
               <h3 class="block-title">내 물가를 밀어올린 원인</h3>
               <ol class="contrib-rank" id="contribRank"></ol>
               <div id="mineTips"></div>
-              <div class="ai-insight" id="tipAiNote" hidden>
-                <span class="ai-badge">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2z"/></svg>
-                  AI 해설
-                </span>
-                <span id="tipAiNoteText"></span>
-              </div>
               <details class="calc-detail">
                 <summary>상세 계산 보기</summary>
                 <p class="block-q">막대 = 지출 비중 × 그 품목의 물가상승률. 다 더하면 내 물가입니다.</p>
@@ -465,13 +444,6 @@
               <h3 class="block-title">이렇게 실천하면 어떻게 달라질까</h3>
               <p class="block-q" id="scenarioNote">—</p>
               <div class="scenario-grid" id="scenarioGrid"></div>
-              <div class="ai-insight" id="scenarioAiNote" hidden>
-                <span class="ai-badge">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2z"/></svg>
-                  AI 해설
-                </span>
-                <span id="scenarioAiNoteText"></span>
-              </div>
               <!-- v44: v36에서 카드1과 짝을 맞추려 점선 테두리 상자로
                    감쌌더니, 캐릭터+말풍선보다 상자 여백이 훨씬 넓어
                    붕 떠 보인다는 피드백(v41 재요청) — 상자를 걷어내고
