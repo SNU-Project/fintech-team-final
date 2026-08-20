@@ -828,15 +828,15 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 .quiz-question-label { margin: .6rem 0 .35rem; font-size: .74rem; font-weight: 700; color: var(--text-secondary); }
 .quiz-question-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
 .quiz-question-pair .quiz-question-label { margin-top: 0; }
-/* v56: "거의 안 함" 다음에 "전혀 안 함"에 해당하는 선택지가 없는
-   질문(노출 조건: SPEND_GROUP_DETAILS의 noZeroOption)에 붙이는 안내 —
-   놓치면 "억지로 아무 버튼이나 눌러야 한다"고 오해할 수 있는,
+/* v56: 놓치면 "억지로 아무 버튼이나 눌러야 한다"고 오해할 수 있는,
    무시하면 안 되는 안내라서 다른 보조 텍스트(.field-note류)보다
    한 단계 위 위계를 준다: 옅은 브랜드색 박스 + 아이콘 + 브랜드
    색 텍스트(.tip-box와 같은 톤 — 경고가 아니라 도움말이라
    --warning 대신 --brand를 쓴다). 카테고리마다 색을 다르게 하면
    "동일한 스타일을 일관되게" 유지하기 어려워 5개 카테고리 전부
-   같은 브랜드색으로 통일한다. */
+   같은 브랜드색으로 통일한다. v57: 특정 필드에만 조건부로 붙이던
+   것을(noZeroOption) 모든 freq-avg·direct 질문에 항상 붙이는
+   방식으로 단순화했다. */
 .quiz-no-usage-note {
   display: flex; align-items: flex-start; gap: .4rem; text-align: left;
   margin: .5rem 0 0; padding: .55rem .7rem;

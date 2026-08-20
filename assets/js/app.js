@@ -99,6 +99,11 @@
   // "이 그룹 키가 없으면 총액 직접입력 그대로"인 하위호환도 v46과 같다.
   // 카테고리별로 순차 적용 중(식비 먼저) — 아직 없는 그룹은 화면에서도
   // 총액 입력 칸만 보여준다(index.html의 플레이스홀더 스텝).
+  // v57: 아래 4개 필드(장보기·카페/음료·쇼핑·모임/술자리)의
+  // noZeroOption: true는 더 이상 안 읽는다 — "선택 안 하면 0원" 안내를
+  // 이 필드들에만 조건부로 붙이던 로직을 없애고 모든 freq-avg·direct
+  // 질문에 항상 붙이는 쪽으로 단순화했다(quizFieldBodyHtml). 데이터를
+  // 굳이 찾아 지우진 않았다.
   const SPEND_GROUP_DETAILS = {
     "g-food": {
       fields: [
@@ -1714,12 +1719,20 @@
     // 않고 탭으로 분리한다 — 탭 라벨이 곧 f.label이라 별도 제목이 필요
     // 없다. freq-avg는 빈도·금액 두 질문을 2단(가로)으로 배치하고,
     // 좁은 화면에서는 CSS(.quiz-question-pair)가 알아서 세로로 접는다.
+    // v57: "이 필드에 명시적인 '없음' 선택지가 있는지"를 따지던 조건
+    // (SPEND_GROUP_DETAILS의 noZeroOption)은 이제 안 쓴다 — 그 필드
+    // 데이터는 그대로 남겨 뒀지만(찾아서 지울 필요 없음), 렌더링은
+    // 그 값을 안 보고 모든 freq-avg·direct 질문에 똑같이 안내를
+    // 띄우는 쪽으로 단순화했다. select는 금액 계산이 아예 없어(category
+    // null) "0원으로 계산돼요"가 사실과 안 맞으므로 대상에서 뺀다.
+    const NO_USAGE_NOTE_HTML = `<p class="quiz-no-usage-note"><span class="quiz-no-usage-icon" aria-hidden="true">💡</span>선택하지 않으면 0원으로 계산돼요.</p>`;
+
     function quizFieldBodyHtml(f, saved) {
       if (f.mode === "select") {
         return quizButtonsHtml(f.id, "sel", f.options, saved.value);
       }
       if (f.mode === "direct") {
-        return `${quizButtonsHtml(f.id, "amt", f.amtOptions, saved.amt)}<p class="field-note">${f.hint}</p>`;
+        return `${quizButtonsHtml(f.id, "amt", f.amtOptions, saved.amt)}<p class="field-note">${f.hint}</p>${NO_USAGE_NOTE_HTML}`;
       }
       // v53: "빈도 (월 기준)" 같은 소제목 라벨은 버렸다 — 대신 각 구간
       // 버튼 자체(hint 또는 label)에 "주"/"월"을 직접 박아 넣어(위
@@ -1727,23 +1740,18 @@
       // 했다. 소제목에서 단위를 한 번만 말하면 그 아래 버튼 중 하나가
       // 실수로 다른 단위를 써도(장보기 "주 2회 이상" 버그처럼) 티가
       // 안 나지만, 버튼마다 명시하면 그 자리에서 바로 드러난다.
-      // "거의 안 함" 옵션에 0을 포함한다는 힌트가 없는 질문(장보기·
-      // 카페/음료·쇼핑·모임/술자리)은 "전혀 안 함"에 해당하는 선택지가
-      // 없다 — 안 고르면 0원으로 계산된다는 걸 명시적으로 안내한다
-      // (noZeroOption 플래그, SPEND_GROUP_DETAILS에서 항목별로 직접
-      // 표시).
       return `
         <div class="quiz-question-pair">
           <div class="quiz-question-col">
             <p class="quiz-question-label">빈도</p>
             ${quizButtonsHtml(f.id, "freq", f.freqOptions, saved.freq)}
-            ${f.noZeroOption ? `<p class="quiz-no-usage-note"><span class="quiz-no-usage-icon" aria-hidden="true">💡</span>이 항목을 이용하지 않는다면 선택하지 않아도 괜찮아요 — 0원으로 계산돼요.</p>` : ""}
           </div>
           <div class="quiz-question-col">
             <p class="quiz-question-label">1회 금액</p>
             ${quizButtonsHtml(f.id, "avg", f.avgOptions, saved.avg)}
           </div>
-        </div>`;
+        </div>
+        ${NO_USAGE_NOTE_HTML}`;
     }
 
     function renderCategoryQuiz(groupId, containerId) {
