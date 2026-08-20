@@ -830,30 +830,38 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 .quiz-question-pair .quiz-question-label { margin-top: 0; }
 /* v56: 놓치면 "억지로 아무 버튼이나 눌러야 한다"고 오해할 수 있는,
    무시하면 안 되는 안내라서 다른 보조 텍스트(.field-note류)보다
-   한 단계 위 위계를 준다: 옅은 브랜드색 박스 + 아이콘 + 브랜드
-   색 텍스트(.tip-box와 같은 톤 — 경고가 아니라 도움말이라
-   --warning 대신 --brand를 쓴다). 카테고리마다 색을 다르게 하면
-   "동일한 스타일을 일관되게" 유지하기 어려워 5개 카테고리 전부
-   같은 브랜드색으로 통일한다. v57: 특정 필드에만 조건부로 붙이던
-   것을(noZeroOption) 모든 freq-avg·direct 질문에 항상 붙이는
-   방식으로 단순화했다. */
+   눈에 띄는 브랜드색 텍스트 + 아이콘으로 표시한다. 카테고리마다
+   색을 다르게 하면 "동일한 스타일을 일관되게" 유지하기 어려워
+   5개 카테고리 전부 같은 브랜드색으로 통일한다. v57: 특정 필드에만
+   조건부로 붙이던 것을(noZeroOption) 모든 freq-avg·direct 질문에
+   항상 붙이는 방식으로 단순화했다. v58: 박스(배경·테두리)는 다른
+   보조 텍스트에 비해 위계가 너무 세다는 피드백 — 배경·테두리를
+   걷어내고 아이콘+색 텍스트만 남긴, 다른 .field-note류와 같은
+   "줄글" 형태로 낮췄다. */
 .quiz-no-usage-note {
-  display: flex; align-items: flex-start; gap: .4rem; text-align: left;
-  margin: .5rem 0 0; padding: .55rem .7rem;
-  background: var(--brand-soft); border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
-  border-radius: var(--radius-sm);
+  display: flex; align-items: flex-start; gap: .35rem; text-align: left;
+  margin: .5rem 0 0;
   font-size: .78rem; font-weight: 600; color: var(--brand); line-height: 1.45;
 }
 .quiz-no-usage-icon { flex: 0 0 auto; font-size: .85rem; line-height: 1.5; }
 @media (max-width: 480px) {
   .quiz-question-pair { grid-template-columns: 1fr; gap: 0; }
 }
-.range-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
+/* v58: "거의 안 함"처럼 일부 버튼에만 보조 설명(span)이 붙으면 그
+   버튼이 있는 행만 콘텐츠가 커져, 행마다 각자 auto로 높이가 정해지는
+   기본 그리드에서는 행끼리 높이가 달라 보였다(설명 없는 행은 짧고,
+   있는 행은 김). grid-auto-rows: 1fr로 모든 행을 같은 높이(가장 큰
+   행 기준)로 맞추고, 버튼 자체도 flex column + justify-content:center로
+   바꿔서 설명이 없는 버튼은 늘어난 셀 안에서 텍스트가 세로 중앙에
+   오도록 한다 — 버튼그룹 컴포넌트(.range-grid) 하나만 고치면 모든
+   카테고리·모든 질문에 그대로 적용된다. */
+.range-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: .35rem; }
 .range-grid button {
   appearance: none; width: 100%; text-align: center; cursor: pointer;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--surface-1); color: var(--text-primary); padding: .5rem .4rem;
   font-family: inherit;
+  display: flex; flex-direction: column; justify-content: center;
 }
 .range-grid button b { display: block; font-size: .82rem; font-weight: 700; line-height: 1.3; }
 .range-grid button span { display: block; margin-top: .15rem; font-size: .7rem; font-weight: 600; color: var(--text-secondary); }
