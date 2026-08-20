@@ -118,10 +118,13 @@
         <h2>주거·생활비는 어느 정도 쓰세요?</h2>
         <p class="field-note onb-running-total"></p>
         <div class="card onboarding-card is-wide">
-          <label class="field">주거·생활 총액
-            <span class="input-wrap"><input type="number" id="onb-sp-g-home" min="0" step="1" inputmode="numeric"><span>만원</span></span>
-          </label>
-          <p class="field-note">월세·관리비, 공과금, 생활용품/구독을 합한 금액이에요.</p>
+          <div id="onbHomeQuiz"></div>
+          <details class="calc-detail">
+            <summary>총액을 알고 있어요 — 직접 입력할게요</summary>
+            <label class="field">주거·생활 총액
+              <span class="input-wrap"><input type="number" id="onb-sp-g-home" min="0" step="1" inputmode="numeric"><span>만원</span></span>
+            </label>
+          </details>
         </div>
         <div class="onboarding-nav">
           <button class="onboarding-back" data-back type="button">← 이전</button>

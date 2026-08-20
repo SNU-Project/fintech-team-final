@@ -143,6 +143,34 @@
           ] },
       ],
     },
+    // v46에서 이미 확인한 매핑 그대로: 주거 고정비+공과금 → housing,
+    // 생활용품/구독 → household(같은 category를 여러 필드가 가리키면
+    // 자동 합산된다). direct 모드는 amtOptions 하나짜리 질문이다.
+    "g-home": {
+      fields: [
+        { id: "housing-fixed", category: "housing", mode: "direct", label: "주거 고정비", hint: "월세 및 관리비 합계",
+          amtOptions: [
+            { value: 300000, label: "50만원 미만" },
+            { value: 650000, label: "50~80만원" },
+            { value: 1000000, label: "80~120만원" },
+            { value: 1500000, label: "120만원 이상" },
+          ] },
+        { id: "utility", category: "housing", mode: "direct", label: "공과금", hint: "월평균 전기·가스·수도 요금",
+          amtOptions: [
+            { value: 30000, label: "5만원 미만" },
+            { value: 75000, label: "5~10만원" },
+            { value: 125000, label: "10~15만원" },
+            { value: 200000, label: "15만원 이상" },
+          ] },
+        { id: "household", category: "household", mode: "direct", label: "생활용품/구독", hint: "월 소모품 구매액 및 정기 구독료 합계",
+          amtOptions: [
+            { value: 15000, label: "3만원 미만" },
+            { value: 50000, label: "3~7만원" },
+            { value: 110000, label: "7~15만원" },
+            { value: 200000, label: "15만원 이상" },
+          ] },
+      ],
+    },
   };
 
   // 카테고리별 절약 팁 — 카드3("범인")·시나리오 계산(카드7)·격차 추이
@@ -1301,6 +1329,9 @@
     // v47: 스텝 번호 → 그 화면이 다루는 지출 그룹. 카테고리 5개가 순서대로
     // 2~6번 스텝을 하나씩 차지한다.
     const STEP_GROUP = { 2: "g-food", 3: "g-home", 4: "g-move", 5: "g-play", 6: "g-etc" };
+    // 아직 퀴즈 UI가 없는 카테고리(자리표시자 — 총액 직접입력만)는 여기
+    // 없다. 카테고리를 순서대로 채워 나갈 때마다 한 줄씩 늘어난다.
+    const STEP_QUIZ_CONTAINER = { 2: "onbFoodQuiz", 3: "onbHomeQuiz" };
 
     const loadSaved = () => {
       try { return JSON.parse(localStorage.getItem(ONBOARD_KEY)); } catch { return null; }
@@ -1344,7 +1375,7 @@
         // updateRunningTotal()이 renderOnbSpendDonut()도 함께 갱신하므로
         // 카드6("건강·기타") 진입 시 도넛 요약도 이 한 줄로 같이 채워진다.
         updateRunningTotal();
-        if (i === 2) renderFoodQuiz();
+        if (STEP_QUIZ_CONTAINER[i]) renderCategoryQuiz(groupId, STEP_QUIZ_CONTAINER[i]);
       }
       scrollHomeToTop();
     }
@@ -1447,49 +1478,68 @@
       return pressed ? Number(pressed.dataset.value) : null;
     }
 
-    // ---- 2 · 식비 (첫 번째로 퀴즈 UI를 갖춘 카테고리) ----
-    function renderFoodQuiz() {
-      const detail = SPEND_GROUP_DETAILS["g-food"];
-      const saved = draft.spendingDetail?.["g-food"] || {};
-      $("#onbFoodQuiz").innerHTML = detail.fields.map((f) => {
-        const s = saved[f.id] || {};
+    // ---- 2~6 · 카테고리별 퀴즈 (범용) ----
+    // 필드의 mode에 따라 두 형태 중 하나로 그린다: "freq-avg"는 빈도·1회
+    // 금액 두 질문(식비류), "direct"는 이미 월 총액으로 답하는 게 자연스러운
+    // 지출(월세 등) 한 질문짜리다.
+    function quizFieldHtml(f, saved) {
+      if (f.mode === "direct") {
         return `
           <div class="quiz-field">
             <p class="quiz-field-title">${f.label}</p>
-            <p class="quiz-question-label">빈도</p>
-            ${quizButtonsHtml(f.id, "freq", f.freqOptions, s.freq)}
-            <p class="quiz-question-label">1회 금액</p>
-            ${quizButtonsHtml(f.id, "avg", f.avgOptions, s.avg)}
+            ${quizButtonsHtml(f.id, "amt", f.amtOptions, saved.amt)}
+            <p class="field-note">${f.hint}</p>
           </div>`;
-      }).join("");
+      }
+      return `
+        <div class="quiz-field">
+          <p class="quiz-field-title">${f.label}</p>
+          <p class="quiz-question-label">빈도</p>
+          ${quizButtonsHtml(f.id, "freq", f.freqOptions, saved.freq)}
+          <p class="quiz-question-label">1회 금액</p>
+          ${quizButtonsHtml(f.id, "avg", f.avgOptions, saved.avg)}
+        </div>`;
+    }
 
-      $$("#onbFoodQuiz .range-grid button").forEach((b) => {
+    function renderCategoryQuiz(groupId, containerId) {
+      const detail = SPEND_GROUP_DETAILS[groupId];
+      const saved = draft.spendingDetail?.[groupId] || {};
+      const container = $(`#${containerId}`);
+      container.innerHTML = detail.fields.map((f) => quizFieldHtml(f, saved[f.id] || {})).join("");
+
+      // $$는 selector 하나만 받아 항상 document 전체를 검색한다 — 여기서
+      // 필요한 건 "이 버튼그룹 안에서만" 선택 해제이므로, DOM 스코프
+      // 있는 querySelectorAll을 직접 쓴다. 아니면 페이지 전체 버튼의
+      // aria-pressed가 뒤섞여 다른 질문의 답까지 지워진다(식비에서 실제로
+      // 이 버그로 마지막에 누른 버튼 하나만 남고 나머지 질문의 선택이
+      // 전부 풀려 총액이 0으로 계산됐었다).
+      container.querySelectorAll(".range-grid button").forEach((b) => {
         b.addEventListener("click", () => {
           const grid = b.closest(".range-grid");
-          // $$는 selector 하나만 받아 항상 document 전체를 검색한다 —
-          // 여기서 필요한 건 "이 버튼그룹 안에서만" 선택 해제이므로,
-          // DOM 스코프 있는 querySelectorAll을 직접 쓴다. 아니면 페이지
-          // 전체 버튼의 aria-pressed가 뒤섞여 다른 질문의 답까지 지워진다
-          // (실제로 이 버그로 마지막에 누른 버튼 하나만 남고 나머지
-          // 질문의 선택이 전부 풀렸었다).
           grid.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-          recomputeFoodFromQuiz();
+          recomputeCategoryFromQuiz(groupId);
         });
       });
     }
 
-    // 버튼으로 고른 구간의 대표값(freq/avg)을 v46과 같은 계산식
-    // (freq×avg×multiplier, category별 합산 후 한 번만 반올림 — v43
-    // 원칙)에 그대로 대입한다. 두 질문(빈도·금액) 중 하나라도 아직 안
-    // 고른 항목은 기여분을 0으로 둔다 — 버튼은 눌려 있어도 실제 반영은
-    // 두 질문 다 답해야 일어나므로, 우연히 한쪽만 눌렀다고 총액이 튀지
-    // 않는다.
-    function recomputeFoodFromQuiz() {
-      const detail = SPEND_GROUP_DETAILS["g-food"];
+    // 버튼으로 고른 구간의 대표값을 v46과 같은 계산식(freq-avg는
+    // freq×avg×multiplier, direct는 대표값 그대로, category별 합산 후
+    // 한 번만 반올림 — v43 원칙)에 그대로 대입한다. 질문에 하나도 아직
+    // 안 답한 필드는 기여분을 0으로 둔다 — freq-avg는 두 질문 중 하나만
+    // 골라도 총액이 튀지 않는다(둘 다 답해야 반영).
+    function recomputeCategoryFromQuiz(groupId) {
+      const detail = SPEND_GROUP_DETAILS[groupId];
       let anyChosen = false;
       const byCategory = {};
       const detailOut = {};
       detail.fields.forEach((f) => {
+        if (f.mode === "direct") {
+          const amt = selectedQuizValue(f.id, "amt");
+          if (amt != null) anyChosen = true;
+          detailOut[f.id] = { amt: amt ?? 0 };
+          byCategory[f.category] = (byCategory[f.category] || 0) + (amt ?? 0);
+          return;
+        }
         const freq = selectedQuizValue(f.id, "freq");
         const avg = selectedQuizValue(f.id, "avg");
         if (freq != null || avg != null) anyChosen = true;
@@ -1497,12 +1547,12 @@
         byCategory[f.category] = (byCategory[f.category] || 0) + (freq ?? 0) * (avg ?? 0) * f.multiplier;
       });
       if (!anyChosen) return;
-      draft.spendingDetail["g-food"] = detailOut;
+      draft.spendingDetail[groupId] = detailOut;
       Object.entries(byCategory).forEach(([category, won]) => {
         draft.spending[category] = Math.round(won / 10000);
       });
       draft.monthlySpend = spendingTotal(draft.spending);
-      $("#onb-sp-g-food").value = Math.round(draftGroupTotal(SPEND_GROUPS.find((g) => g.id === "g-food")));
+      $(`#onb-sp-${groupId}`).value = Math.round(draftGroupTotal(SPEND_GROUPS.find((g) => g.id === groupId)));
       updateRunningTotal();
     }
 
