@@ -1655,10 +1655,15 @@
       if (f.mode === "direct") {
         return `${quizButtonsHtml(f.id, "amt", f.amtOptions, saved.amt)}<p class="field-note">${f.hint}</p>`;
       }
+      // v52: "빈도"가 주 단위인지 월 단위인지 버튼만 봐서는 헷갈린다는
+      // 피드백 — multiplier가 이미 그 기준의 정답이다(4.3=주간 횟수를
+      // 월로 환산, 1=이미 월 단위). 라벨을 따로 하드코딩하면 계산식과
+      // 표기가 어긋날 수 있어, multiplier에서 그대로 뽑아 쓴다.
+      const freqBasis = f.multiplier === 1 ? "월" : "주";
       return `
         <div class="quiz-question-pair">
           <div class="quiz-question-col">
-            <p class="quiz-question-label">빈도</p>
+            <p class="quiz-question-label">빈도 (${freqBasis} 기준)</p>
             ${quizButtonsHtml(f.id, "freq", f.freqOptions, saved.freq)}
           </div>
           <div class="quiz-question-col">
