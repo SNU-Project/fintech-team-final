@@ -848,12 +848,21 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 @media (max-width: 480px) {
   .quiz-question-pair { grid-template-columns: 1fr; gap: 0; }
 }
-.range-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
+/* v58: "거의 안 함"처럼 일부 버튼에만 보조 설명(span)이 붙으면 그
+   버튼이 있는 행만 콘텐츠가 커져, 행마다 각자 auto로 높이가 정해지는
+   기본 그리드에서는 행끼리 높이가 달라 보였다(설명 없는 행은 짧고,
+   있는 행은 김). grid-auto-rows: 1fr로 모든 행을 같은 높이(가장 큰
+   행 기준)로 맞추고, 버튼 자체도 flex column + justify-content:center로
+   바꿔서 설명이 없는 버튼은 늘어난 셀 안에서 텍스트가 세로 중앙에
+   오도록 한다 — 버튼그룹 컴포넌트(.range-grid) 하나만 고치면 모든
+   카테고리·모든 질문에 그대로 적용된다. */
+.range-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: .35rem; }
 .range-grid button {
   appearance: none; width: 100%; text-align: center; cursor: pointer;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--surface-1); color: var(--text-primary); padding: .5rem .4rem;
   font-family: inherit;
+  display: flex; flex-direction: column; justify-content: center;
 }
 .range-grid button b { display: block; font-size: .82rem; font-weight: 700; line-height: 1.3; }
 .range-grid button span { display: block; margin-top: .15rem; font-size: .7rem; font-weight: 600; color: var(--text-secondary); }
