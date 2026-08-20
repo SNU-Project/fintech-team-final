@@ -1595,29 +1595,27 @@
     // 지출(월세 등) 한 질문짜리, "select"는 금액과 무관한 선택형(대중교통/
     // 자차, 알뜰폰 여부 등 — 절약 팁 개인화용 재료, category: null이라
     // 계산에는 안 들어간다).
-    function quizFieldHtml(f, saved) {
+    // v48: 하위 항목(배달/외식·장보기·카페/음료 등)을 세로로 쭉 늘어놓지
+    // 않고 탭으로 분리한다 — 탭 라벨이 곧 f.label이라 별도 제목이 필요
+    // 없다. freq-avg는 빈도·금액 두 질문을 2단(가로)으로 배치하고,
+    // 좁은 화면에서는 CSS(.quiz-question-pair)가 알아서 세로로 접는다.
+    function quizFieldBodyHtml(f, saved) {
       if (f.mode === "select") {
-        return `
-          <div class="quiz-field">
-            <p class="quiz-field-title">${f.label}</p>
-            ${quizButtonsHtml(f.id, "sel", f.options, saved.value)}
-          </div>`;
+        return quizButtonsHtml(f.id, "sel", f.options, saved.value);
       }
       if (f.mode === "direct") {
-        return `
-          <div class="quiz-field">
-            <p class="quiz-field-title">${f.label}</p>
-            ${quizButtonsHtml(f.id, "amt", f.amtOptions, saved.amt)}
-            <p class="field-note">${f.hint}</p>
-          </div>`;
+        return `${quizButtonsHtml(f.id, "amt", f.amtOptions, saved.amt)}<p class="field-note">${f.hint}</p>`;
       }
       return `
-        <div class="quiz-field">
-          <p class="quiz-field-title">${f.label}</p>
-          <p class="quiz-question-label">빈도</p>
-          ${quizButtonsHtml(f.id, "freq", f.freqOptions, saved.freq)}
-          <p class="quiz-question-label">1회 금액</p>
-          ${quizButtonsHtml(f.id, "avg", f.avgOptions, saved.avg)}
+        <div class="quiz-question-pair">
+          <div class="quiz-question-col">
+            <p class="quiz-question-label">빈도</p>
+            ${quizButtonsHtml(f.id, "freq", f.freqOptions, saved.freq)}
+          </div>
+          <div class="quiz-question-col">
+            <p class="quiz-question-label">1회 금액</p>
+            ${quizButtonsHtml(f.id, "avg", f.avgOptions, saved.avg)}
+          </div>
         </div>`;
     }
 
@@ -1625,14 +1623,32 @@
       const detail = SPEND_GROUP_DETAILS[groupId];
       const saved = draft.spendingDetail?.[groupId] || {};
       const container = $(`#${containerId}`);
-      container.innerHTML = detail.fields.map((f) => quizFieldHtml(f, saved[f.id] || {})).join("");
+      const tabsHtml = `<div class="quiz-tabs" role="tablist">
+        ${detail.fields.map((f, i) => `
+          <button type="button" class="quiz-tab" role="tab" data-tab="${i}" aria-selected="${i === 0}">${f.label}</button>`).join("")}
+      </div>`;
+      const panelsHtml = detail.fields.map((f, i) => `
+        <div class="quiz-panel" data-panel="${i}" ${i === 0 ? "" : "hidden"}>
+          ${quizFieldBodyHtml(f, saved[f.id] || {})}
+        </div>`).join("");
+      container.innerHTML = tabsHtml + panelsHtml;
+
+      container.querySelectorAll(".quiz-tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          container.querySelectorAll(".quiz-tab").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
+          container.querySelectorAll(".quiz-panel").forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab; });
+        });
+      });
 
       // $$는 selector 하나만 받아 항상 document 전체를 검색한다 — 여기서
       // 필요한 건 "이 버튼그룹 안에서만" 선택 해제이므로, DOM 스코프
       // 있는 querySelectorAll을 직접 쓴다. 아니면 페이지 전체 버튼의
       // aria-pressed가 뒤섞여 다른 질문의 답까지 지워진다(식비에서 실제로
       // 이 버그로 마지막에 누른 버튼 하나만 남고 나머지 질문의 선택이
-      // 전부 풀려 총액이 0으로 계산됐었다).
+      // 전부 풀려 총액이 0으로 계산됐었다). 탭으로 숨겨진 패널 안 버튼도
+      // hidden과 무관하게 aria-pressed/data-value는 그대로 읽히므로,
+      // 계산 로직(selectedQuizValue 등)은 손댈 필요가 없다 — 순수
+      // 레이아웃 변경이다.
       container.querySelectorAll(".range-grid button").forEach((b) => {
         b.addEventListener("click", () => {
           const grid = b.closest(".range-grid");

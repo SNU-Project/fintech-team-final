@@ -792,12 +792,25 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 
 /* v47: 설문 Q2 세부질문 — 숫자 직접 입력 대신 구간 버튼을 고른다.
    Q1(.persona-grid)과 같은 카드형 버튼 언어를 쓰되, 짧은 라벨이 여러
-   개(3~4개) 나열되는 자리라 2열로 압축한다. */
-.quiz-field { margin-bottom: 1.1rem; }
-.quiz-field:last-child { margin-bottom: 0; }
-.quiz-field-title { margin: 0 0 .5rem; font-size: .92rem; font-weight: 700; color: var(--text-primary); }
+   개(3~4개) 나열되는 자리라 2열로 압축한다.
+   v48: 하위 항목(배달/외식·장보기·카페/음료 등)을 세로로 쭉 늘어놓으면
+   스크롤이 길어진다는 피드백 — 탭으로 분리해 한 번에 하나만 보여준다.
+   빈도·1회금액 두 질문은 좁은 화면(480px 이하)에서만 세로로 접힌다 —
+   그 아래에서는 구간 버튼 2열(.range-grid)이 이미 화면 폭을 다 쓰고
+   있어서 나란히 배치하면 버튼이 지나치게 좁아진다. */
+.quiz-tabs { display: flex; gap: .4rem; margin-bottom: 1rem; overflow-x: auto; }
+.quiz-tab {
+  flex: 0 0 auto; appearance: none; cursor: pointer; font-family: inherit; white-space: nowrap;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface-1);
+  color: var(--text-secondary); font-size: .82rem; font-weight: 700; padding: .5rem .95rem;
+}
+.quiz-tab[aria-selected="true"] { border-color: var(--brand); background: var(--brand); color: #fff; }
 .quiz-question-label { margin: .6rem 0 .35rem; font-size: .74rem; color: var(--text-muted); }
-.quiz-field-title + .quiz-question-label { margin-top: 0; }
+.quiz-question-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+.quiz-question-pair .quiz-question-label { margin-top: 0; }
+@media (max-width: 480px) {
+  .quiz-question-pair { grid-template-columns: 1fr; gap: 0; }
+}
 .range-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
 .range-grid button {
   appearance: none; width: 100%; text-align: center; cursor: pointer;
