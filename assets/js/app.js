@@ -394,6 +394,18 @@
         const cutManwon = Math.round((s.amt * 0.1) / 10000);
         if (amtManwon <= 0 || cutManwon <= 0) return;
 
+        // 자차로 이동하는 사람에게는 "10% 줄이세요"보다 대중교통 전환이
+        // 더 실행 가능한 조언이다 — "주 이용 수단"(select)은 그동안
+        // 팁 문구에 전혀 쓰이지 않던 응답이었다. 절약액(10%컷) 계산은
+        // 그대로 두고, 조언 문장만 이동 수단을 반영해 바꾼다.
+        if (groupId === "g-move" && f.id === "commute-cost" && saved["commute-mode"]?.value === "car") {
+          candidates.push({
+            cutManwon,
+            text: `자차로 ${f.label}이 월 ${amtManwon}만원 정도예요. 대중교통으로 바꾸면 부담을 줄일 수 있어요 — 10%만 줄여도 한 달에 약 ${cutManwon}만원이에요.`,
+          });
+          return;
+        }
+
         candidates.push({
           cutManwon,
           text: `${f.label} 지출이 월 ${amtManwon}만원 정도예요. 10%만 줄여도 한 달에 약 ${cutManwon}만원을 아낄 수 있어요.`,
