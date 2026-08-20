@@ -486,6 +486,11 @@ section { scroll-margin-top: 5rem; }
   font-size: clamp(1.4rem, 3.4vw, 2rem); line-height: 1.25; letter-spacing: -.02em;
   margin: 0; font-weight: 750; color: var(--text-primary);
 }
+/* 카테고리 대제목이 월 단위 지출을 묻는다는 걸 헷갈려하는 사용자가 있어
+   "(월 기준)"을 덧붙였다 — 제목과 같은 굵기·크기면 "월 기준"이 질문의
+   일부처럼 강조돼 버리므로, 보조 텍스트 톤(작게·중간 굵기·연한 색)으로
+   낮춰서 붙인다. */
+.step-unit-note { font-size: .58em; font-weight: 500; color: var(--text-muted); letter-spacing: -.01em; }
 /* 카드로 감싸는 이유: input-wrap/persona-grid/seg는 채움색이 --surface-1인데
    페이지 배경(--page-plane)과 같은 색이라, 카드(--surface-2) 없이 페이지에
    바로 놓으면 입력 필드 경계가 안 보인다. */
@@ -1089,6 +1094,11 @@ input[readonly] { -moz-appearance: textfield; }
 .spend-details[open] summary { margin-bottom: .65rem; }
 .spend-details-label { color: var(--brand); font-size: .8rem; font-weight: 700; margin: 0 0 .65rem; }
 .spend-details > .field-note { margin: 0 0 .75rem; line-height: 1.5; }
+/* v50: 설문(진찰) 단계의 전체 요약에서 도넛차트를 없애고 이 총액
+   문구로 대체했다 — 카드2("내 물가란?")의 완성된 리포트용 도넛과
+   달리, 아직 답을 채워가는 중간 화면이라 클릭마다 다시 그려지는
+   원형 차트보다 숫자를 바로 읽는 텍스트가 더 빠르다. */
+.spend-summary-total { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0 0 .7rem; }
 .spend-row {
   display: grid; grid-template-columns: minmax(0, 1fr) 130px;
   gap: .5rem; align-items: center; margin-bottom: .42rem;
