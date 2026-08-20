@@ -1052,16 +1052,30 @@
     // 반올림 값 기준으로 다시 구한다(displayDiff, +면 부족·-면 여유로
     // d.gap과 같은 부호 규약).
     const gapDisplay = displayDiff(d.requiredSalary, next, 0);
+
+    // 여기까지의 판정은 "연봉 인상률이 내 물가를 이겼나"만 본다. 그런데
+    // 입력한 생활비가 연봉보다 많은 경우까지 "지금 페이스라면 괜찮아요"라고
+    // 말하면 화면이 명백한 적자를 괜찮다고 하는 셈이 된다(월 500만원 지출·
+    // 연봉 3,600만원이면 연 2,400만원 적자인데 "여유분 44만원을 저축하라"고
+    // 안내했다). 물가 판정과 수지 판정은 다른 질문이므로, 물가 문장은 그대로
+    // 두고 수지 쪽을 따로 덧붙인다.
+    const annualSpend = spendingTotal(state.spending) * 12;
+    const overspent = annualSpend > 0 && cur > 0 && annualSpend > cur;
+
     const lines = d.beatsInflation
       ? [
           `내년 예상 연봉(${man(next)}만원)은 물가 유지선(${man(d.requiredSalary)}만원)을 잘 넘고 있어요.`,
-          "지금 페이스라면 괜찮아요 — 실질 소득이 잘 지켜지고 있어요.",
+          overspent
+            ? `다만 입력하신 생활비(연 ${man(annualSpend)}만원)가 현재 연봉(${man(cur)}만원)보다 많아요. 지출부터 확인해 보세요.`
+            : "지금 페이스라면 괜찮아요 — 실질 소득이 잘 지켜지고 있어요.",
         ]
       : [
           `물가를 따라잡으려면 연봉을 최소 ${man(d.requiredSalary)}만원(${man(gapDisplay)}만원 더)까지는 처방해드릴게요.`,
-          "그 차이는 투자나 협상으로 채워보세요.",
+          overspent
+            ? `게다가 생활비(연 ${man(annualSpend)}만원)가 현재 연봉(${man(cur)}만원)보다 많아요. 지출부터 확인해 보세요.`
+            : "그 차이는 투자나 협상으로 채워보세요.",
         ];
-    return { d, gapDisplay, lines };
+    return { d, gapDisplay, lines, overspent, annualSpend };
   }
 
   // 카드1(결론부터)의 #finalBody 전체 문단 — buildGapVerdictLines()의
@@ -1083,7 +1097,9 @@
     const lines = [];
     if (gap) {
       lines.push(...gap.lines);
-      if (gap.d.beatsInflation) {
+      // 적자 상태에서 "여유분을 저축하라"고 권하면 앞 문장과 정면으로
+      // 어긋난다 — 물가 대비 여유분이 있어도 실제로 쓸 돈은 없다.
+      if (gap.d.beatsInflation && !gap.overspent) {
         const cause = topSpendingCause();
         const surplus = man(-gap.gapDisplay);
         lines.push(`여유분(연 ${surplus}만원)을 목표 자산에 보태보는 건 어때요?`);
