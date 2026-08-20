@@ -1454,6 +1454,13 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 .tip-box .tip-title { margin: 0 0 .5rem; font-size: .82rem; font-weight: 700; color: var(--brand); }
 .tip-box ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .4rem; }
 .tip-box li { font-size: .85rem; color: var(--text-secondary); line-height: 1.5; }
+/* v48: 설문에서 실제로 답한 값으로 만든 맞춤 팁 — 아래 고정 팁 목록과
+   구분되게 살짝 강조하고, 그 아래 일반 팁과는 얇은 구분선으로 나눈다. */
+.tip-box .tip-personalized-label { margin: 0 0 .4rem; font-size: .72rem; font-weight: 700; color: var(--brand); }
+.tip-box ul.tip-personalized {
+  margin: 0 0 .8rem; padding-bottom: .8rem; border-bottom: 1px solid color-mix(in srgb, var(--brand) 25%, transparent);
+}
+.tip-box ul.tip-personalized li { color: var(--text-primary); font-weight: 600; }
 
 /* ---------- 조언 수용 시나리오 3가지 (v20 항목5) ---------- */
 .scenario-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: .7rem; margin-top: .3rem; }

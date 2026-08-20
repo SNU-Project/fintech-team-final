@@ -307,12 +307,63 @@
     ],
   };
 
+  // v48: AI 해설을 걷어내면서(v48-B1), 그 자리를 v47에서 실제로 답한
+  // 세부 응답(빈도·금액 구간)으로 채운다. 위 SPEND_TIPS 주석의 원칙
+  // ("절감액을 지어내지 않는다")은 그대로 지킨다 — 다만 v47 응답은
+  // 사용자가 직접 고른 구간의 대표값이라, 그 값에서 나온 계산은
+  // "지어낸 평균"이 아니라 시나리오 계산과 같은 종류의 실제 계산이다.
+  // 그래서 세부 응답이 있는 필드에 한해서만 구체적인 금액을 말하고,
+  // 총액만 직접 입력한 사용자(세부 응답 없음)에게는 기존처럼 숫자
+  // 없는 SPEND_TIPS만 보여준다.
+  function optionLabelFor(options, value) {
+    const opt = options?.find((o) => o.value === value);
+    if (!opt) return null;
+    return opt.hint ? `${opt.label}(${opt.hint})` : opt.label;
+  }
+
+  function personalizedTipLines(groupId) {
+    const detail = SPEND_GROUP_DETAILS[groupId];
+    const saved = state.spendingDetail?.[groupId];
+    if (!detail || !saved) return [];
+
+    const lines = [];
+    detail.fields.forEach((f) => {
+      const s = saved[f.id];
+      if (!s) return;
+      if (f.mode === "freq-avg" && s.freq > 0 && s.avg > 0) {
+        // 1회분(주간 항목이면 4.3주, 월간 항목이면 그대로)을 줄였을 때
+        // 아끼는 돈 — 본 계산식(freq×avg×multiplier)과 같은 multiplier를
+        // 써서 화면의 카테고리 총액과 항상 같은 셈법을 쓴다.
+        const cutManwon = Math.round((s.avg * f.multiplier) / 10000);
+        const freqLabel = optionLabelFor(f.freqOptions, s.freq);
+        const avgLabel = optionLabelFor(f.avgOptions, s.avg);
+        if (cutManwon <= 0 || !freqLabel || !avgLabel) return;
+        lines.push(`${f.label}${josa(f.label, "을", "를")} ${freqLabel}, 1회 ${avgLabel} 정도 쓰고 계세요. 한 번만 줄이면 한 달에 약 ${cutManwon}만원을 아낄 수 있어요.`);
+        return;
+      }
+      if (f.mode === "direct" && s.amt > 0) {
+        // 알뜰폰을 이미 쓰고 있으면 "알뜰폰으로 바꾸세요" 류의 통신비
+        // 팁은 이미 실천 중인 조언이라 의미가 없다 — 건너뛴다.
+        if (groupId === "g-move" && f.id === "phone-cost" && saved["phone-plan"]?.value === "yes") return;
+        const amtManwon = Math.round(s.amt / 10000);
+        const cutManwon = Math.round((s.amt * 0.1) / 10000);
+        if (amtManwon <= 0 || cutManwon <= 0) return;
+        lines.push(`${f.label} 지출이 월 ${amtManwon}만원 정도예요. 10%만 줄여도 한 달에 약 ${cutManwon}만원을 아낄 수 있어요.`);
+      }
+    });
+    return lines.slice(0, 2);
+  }
+
   function tipBoxHtml(groupId, groupName, title) {
     const tips = SPEND_TIPS[groupId];
     if (!tips) return "";
+    const personalized = personalizedTipLines(groupId);
     return `
       <div class="tip-box">
         <p class="tip-title">${title || `${groupName} 지출, 이렇게 줄여보세요`}</p>
+        ${personalized.length ? `
+          <p class="tip-personalized-label">답변 기준 맞춤 팁</p>
+          <ul class="tip-personalized">${personalized.map((t) => `<li>${t}</li>`).join("")}</ul>` : ""}
         <ul>${tips.map((t) => `<li>${t}</li>`).join("")}</ul>
       </div>`;
   }
@@ -865,6 +916,26 @@
         <span class="scenario-label">${["①", "②", "③"][i] || ""} ${sc.label}</span>
         <span class="scenario-rate">${s.baselineRate.toFixed(2)}%<span class="arrow">→</span><b>${sc.rate.toFixed(2)}%</b></span>
       </div>`).join("");
+
+    // v48: AI가 하던 "어느 쪽이 더 효율적인가" 비교를 규칙으로 대체한다.
+    // 시나리오 자체가 이미 실제 지출로 계산된 값이라(buildSpendScenarios),
+    // 그 결과를 비교하는 것도 지어낸 판단이 아니라 사실 서술이다.
+    const summaryBox = $("#scenarioSummary");
+    if (summaryBox) {
+      summaryBox.hidden = false;
+      if (s.second) {
+        const [firstSc, secondSc, bothSc] = s.scenarios;
+        const moreEfficient = firstSc.rate <= secondSc.rate ? s.first : s.second;
+        const lessRate = firstSc.rate <= secondSc.rate ? firstSc.rate : secondSc.rate;
+        summaryBox.textContent =
+          `둘 다 줄이면 ${bothSc.rate.toFixed(2)}%로 가장 크게 낮아지지만, 하나만 시작한다면 ` +
+          `${moreEfficient.name} 쪽(${lessRate.toFixed(2)}%)이 더 효율적이에요.`;
+      } else {
+        summaryBox.textContent =
+          `${s.first.name}${josa(s.first.name, "을", "를")} 줄이면 내 물가가 ` +
+          `${s.baselineRate.toFixed(2)}%에서 ${s.scenarios[0].rate.toFixed(2)}%로 낮아져요.`;
+      }
+    }
 
     // 리포트 마지막 카드의 마무리 인사 — v27: 카드1은 진단 결과에 따라
     // 표정이 바뀌는데 여기는 항상 good으로 고정해 놨더니, 물가를 못
