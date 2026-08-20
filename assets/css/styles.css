@@ -286,9 +286,13 @@ body.stage-cover .stage-tracker { display: none; }
    조합(.tip-box류가 --brand-soft 배경에 --brand 텍스트를 쓰는
    패턴)으로 낮췄다. 배경을 15% 안팎의 옅은 톤으로 깔아 존재감은
    유지하면서, 흰 글자를 위한 진한 배경은 없애 훨씬 가벼워 보인다. */
+/* inline-block에 padding을 주면 이 span의 실제 높이가 부모 .lede의
+   line-height(1.6)보다 커져서 위아래 줄과 겹쳐 보였다 — line-height:1로
+   span 자신의 줄 간격을 없애고 padding도 줄여서, 배지 높이가 항상
+   한 줄 높이 안에 들어오게 한다. */
 .lede-word {
-  display: inline-block; font-weight: 800;
-  padding: .04em .32em; border-radius: .3em;
+  display: inline-block; font-weight: 800; line-height: 1;
+  padding: .18em .3em; border-radius: .25em;
 }
 .lede-word-checkup { color: #db2777; background-color: rgba(219, 39, 119, .14); }
 .lede-word-diagnosis { color: #2563eb; background-color: rgba(37, 99, 235, .12); }
