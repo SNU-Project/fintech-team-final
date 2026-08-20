@@ -325,16 +325,34 @@
     return opt.hint ? `${opt.label}(${opt.hint})` : opt.label;
   }
 
+  // v54: 구간 버튼의 "가장 낮은 구간"(freqOptions/amtOptions 배열의
+  // 첫 옵션)에 이미 있는 항목은 더 줄이라고 할 대상이 아니다 —
+  // "장보기를 거의 안 하는데 줄이세요"처럼 모순된 팁이 나왔던
+  // 근본 원인이라, 팁 후보를 만들기 전에 걸러낸다.
+  function isLowestOption(options, value) {
+    return !!options?.length && value === options[0].value;
+  }
+
   function personalizedTipLines(groupId) {
     const detail = SPEND_GROUP_DETAILS[groupId];
     const saved = state.spendingDetail?.[groupId];
     if (!detail || !saved) return [];
 
-    const lines = [];
+    const candidates = []; // {cutManwon, text} — 절약 효과 큰 순으로 우선 노출한다.
+
     detail.fields.forEach((f) => {
+      // 장보기는 "쓰는 쪽"이 아니라 "대신 늘려야 할 쪽"이다 — 지출이
+      // 아무리 커도 "장보기를 줄이세요"는 성립하지 않으므로 독립 팁
+      // 후보에서 아예 뺀다. 배달/외식 쪽에서 장보기가 낮으면 두 항목을
+      // 하나로 묶어 안내한다(아래 dining 분기).
+      if (groupId === "g-food" && f.id === "grocery") return;
+
       const s = saved[f.id];
       if (!s) return;
+
       if (f.mode === "freq-avg" && s.freq > 0 && s.avg > 0) {
+        if (isLowestOption(f.freqOptions, s.freq)) return;
+
         // 1회분(주간 항목이면 4.3주, 월간 항목이면 그대로)을 줄였을 때
         // 아끼는 돈 — 본 계산식(freq×avg×multiplier)과 같은 multiplier를
         // 써서 화면의 카테고리 총액과 항상 같은 셈법을 쓴다.
@@ -342,20 +360,64 @@
         const freqLabel = optionLabelFor(f.freqOptions, s.freq);
         const avgLabel = optionLabelFor(f.avgOptions, s.avg);
         if (cutManwon <= 0 || !freqLabel || !avgLabel) return;
-        lines.push(`${f.label}${josa(f.label, "을", "를")} ${freqLabel}, 1회 ${avgLabel} 정도 쓰고 계세요. 한 번만 줄이면 한 달에 약 ${cutManwon}만원을 아낄 수 있어요.`);
+
+        // 배달/외식은 잦은데 장보기는 거의 안 한다면, "배달을 줄이세요"와
+        // "장보기를 줄이세요"(모순) 두 개 대신 "대신 장을 보라"는 하나의
+        // 연결 조언으로 합친다.
+        if (groupId === "g-food" && f.id === "dining") {
+          const grocery = detail.fields.find((x) => x.id === "grocery");
+          const gs = saved.grocery;
+          if (grocery && gs?.freq > 0 && isLowestOption(grocery.freqOptions, gs.freq)) {
+            const groceryLabel = optionLabelFor(grocery.freqOptions, gs.freq);
+            candidates.push({
+              cutManwon,
+              text: `${f.label}${josa(f.label, "을", "를")} ${freqLabel}, 1회 ${avgLabel} 정도 쓰는 반면 ${grocery.label}${josa(grocery.label, "은", "는")} ${groceryLabel} 정도예요. 배달/외식 대신 장을 봐서 집밥 비중을 늘리면 식비를 더 아낄 수 있어요 — 한 번만 줄이면 한 달에 약 ${cutManwon}만원이에요.`,
+            });
+            return;
+          }
+        }
+
+        candidates.push({
+          cutManwon,
+          text: `${f.label}${josa(f.label, "을", "를")} ${freqLabel}, 1회 ${avgLabel} 정도 쓰고 계세요. 한 번만 줄이면 한 달에 약 ${cutManwon}만원을 아낄 수 있어요.`,
+        });
         return;
       }
+
       if (f.mode === "direct" && s.amt > 0) {
+        if (isLowestOption(f.amtOptions, s.amt)) return;
         // 알뜰폰을 이미 쓰고 있으면 "알뜰폰으로 바꾸세요" 류의 통신비
         // 팁은 이미 실천 중인 조언이라 의미가 없다 — 건너뛴다.
         if (groupId === "g-move" && f.id === "phone-cost" && saved["phone-plan"]?.value === "yes") return;
+
         const amtManwon = Math.round(s.amt / 10000);
         const cutManwon = Math.round((s.amt * 0.1) / 10000);
         if (amtManwon <= 0 || cutManwon <= 0) return;
-        lines.push(`${f.label} 지출이 월 ${amtManwon}만원 정도예요. 10%만 줄여도 한 달에 약 ${cutManwon}만원을 아낄 수 있어요.`);
+
+        // 자차로 이동하는 사람에게는 "10% 줄이세요"보다 대중교통 전환이
+        // 더 실행 가능한 조언이다 — "주 이용 수단"(select)은 그동안
+        // 팁 문구에 전혀 쓰이지 않던 응답이었다. 절약액(10%컷) 계산은
+        // 그대로 두고, 조언 문장만 이동 수단을 반영해 바꾼다.
+        if (groupId === "g-move" && f.id === "commute-cost" && saved["commute-mode"]?.value === "car") {
+          candidates.push({
+            cutManwon,
+            text: `자차로 ${f.label}이 월 ${amtManwon}만원 정도예요. 대중교통으로 바꾸면 부담을 줄일 수 있어요 — 10%만 줄여도 한 달에 약 ${cutManwon}만원이에요.`,
+          });
+          return;
+        }
+
+        candidates.push({
+          cutManwon,
+          text: `${f.label} 지출이 월 ${amtManwon}만원 정도예요. 10%만 줄여도 한 달에 약 ${cutManwon}만원을 아낄 수 있어요.`,
+        });
       }
     });
-    return lines.slice(0, 2);
+
+    // v48의 "가장 구체적인 팁 1~2개 우선 노출" 원칙을 실제 절약 효과
+    // 크기로 줄 세워 구현한다 — 후보가 이미 위에서 모순(낮은 구간·
+    // 장보기 단독 등)을 걸러낸 뒤라, 정렬만으로 우선순위가 자연히
+    // 정해진다.
+    return candidates.sort((a, b) => b.cutManwon - a.cutManwon).slice(0, 2).map((c) => c.text);
   }
 
   function tipBoxHtml(groupId, groupName, title) {
