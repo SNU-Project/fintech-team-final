@@ -1521,8 +1521,8 @@
       if (groupId) {
         const g = SPEND_GROUPS.find((x) => x.id === groupId);
         $(`#onb-sp-${groupId}`).value = Math.round(draftGroupTotal(g));
-        // updateRunningTotal()이 renderOnbSpendDonut()도 함께 갱신하므로
-        // 카드6("건강·기타") 진입 시 도넛 요약도 이 한 줄로 같이 채워진다.
+        // updateRunningTotal()이 renderOnbSpendSummary()도 함께 갱신하므로
+        // 카드6("건강·기타") 진입 시 전체 요약도 이 한 줄로 같이 채워진다.
         updateRunningTotal();
         if (STEP_QUIZ_CONTAINER[i]) renderCategoryQuiz(groupId, STEP_QUIZ_CONTAINER[i]);
       }
@@ -1599,15 +1599,15 @@
     // 화면이 5개로 늘면서 사용자가 진행 상황을 감 잡기 어려워질 수 있어
     // 넣었다. 모든 카테고리 화면이 .onb-running-total 하나씩을 갖고
     // 있으므로 값이 바뀔 때마다 전부 같이 갱신한다. 카테고리 총액이
-    // 바뀔 때마다 항상 이 함수를 거치므로, 카드6 하단 도넛 요약도 여기서
+    // 바뀔 때마다 항상 이 함수를 거치므로, 카드6 하단 전체 요약도 여기서
     // 같이 갱신해 둔다 — 안 그러면 카드6에서 마지막 총액을 타이핑하는
     // 동안 요약이 그 화면에 처음 들어왔을 때 값으로 멈춰 있게 된다
-    // (renderOnbSpendDonut은 아래서 선언되지만 함수 선언은 호이스팅되어
+    // (renderOnbSpendSummary는 아래서 선언되지만 함수 선언은 호이스팅되어
     // 여기서 먼저 불러도 문제없다).
     function updateRunningTotal() {
       const text = `지금까지 합계 · 월 ${man(spendingTotal(draft.spending))}만원`;
       $$(".onb-running-total").forEach((el) => { el.textContent = text; });
-      renderOnbSpendDonut();
+      renderOnbSpendSummary();
     }
 
     // v47: 구간 버튼 퀴즈 하나(빈도 또는 1회금액)의 마크업. 버튼의
@@ -1769,25 +1769,20 @@
     }
     SPEND_GROUPS.forEach((g) => bindGroupTotalInput(g.id));
 
-    // ---- 6 · 건강·기타 화면 하단의 전체 요약(도넛) ----
-    function renderOnbSpendDonut() {
+    // ---- 6 · 건강·기타 화면 하단의 전체 요약(텍스트) ----
+    // v50: 도넛차트를 없앴다 — 설문(진찰) 흐름은 아직 답을 채워가는
+    // 중간 과정이라, 매 클릭마다 다시 그려지는 원형 차트보다 숫자를
+    // 바로 읽을 수 있는 텍스트가 더 빠르다는 판단. 리포트(진단) 카드2의
+    // 도넛(renderSpendChart, #spendDonut)은 이미 완성된 데이터를
+    // "보여주는" 자리라 성격이 달라 그대로 둔다.
+    function renderOnbSpendSummary() {
       const total = spendingTotal(draft.spending);
-      let acc = 0;
-      const stops = SPEND_GROUPS.map((g) => {
-        const weight = total > 0 ? draftGroupTotal(g) / total : 0;
-        const from = acc * 100, to = (acc + weight) * 100;
-        acc += weight;
-        return `${SPEND_GROUP_COLOR[g.id]} ${from.toFixed(2)}% ${to.toFixed(2)}%`;
-      });
-      $("#onbSpendDonut").style.background =
-        total > 0 ? `conic-gradient(${stops.join(",")})` : "var(--surface-sunk)";
-      $("#onbSpendDonutCenter").innerHTML =
-        `<div style="font-size:.68rem;color:var(--text-muted)">총 생활비</div>
-         <div style="font-size:1.2rem;font-weight:800">${man(total)}만원</div>`;
+      $("#onbSpendSummaryTotal").textContent = `총 생활비 월 ${man(total)}만원`;
       $("#onbSpendLegend").innerHTML = SPEND_GROUPS.map((g) => {
-        const weight = total > 0 ? (draftGroupTotal(g) / total) * 100 : 0;
+        const amount = draftGroupTotal(g);
+        const weight = total > 0 ? (amount / total) * 100 : 0;
         return `<span class="legend-item"><span class="legend-swatch" style="background:${SPEND_GROUP_COLOR[g.id]}"></span>
-          ${g.name} ${weight.toFixed(0)}%</span>`;
+          ${g.name} ${man(amount)}만원 (${weight.toFixed(0)}%)</span>`;
       }).join("");
     }
 
@@ -2012,10 +2007,11 @@
 
   // v11: 세부 품목별 금액을 접힌 텍스트 목록 대신 가로 막대그래프로
   // 기본 펼쳐서 보여준다 — 금액과 비중이 한눈에 비교되도록.
-  // v12: 가로 막대그래프는 비율감이 잘 안 느껴진다는 피드백 — 설문
-  // Q2에서 이미 쓰던 conic-gradient 도넛(onbSpendDonut)과 같은 방식을
-  // 재사용해 비율이 한눈에 비교되게 했다. 범례에 금액과 비중을 함께
-  // 표시한다.
+  // v12: 가로 막대그래프는 비율감이 잘 안 느껴진다는 피드백 — 당시 설문
+  // Q2에서 쓰던 conic-gradient 도넛과 같은 방식을 재사용해 비율이 한눈에
+  // 비교되게 했다(그 설문 쪽 도넛은 v50에서 텍스트 요약으로 대체됐지만,
+  // 여기는 이미 완성된 데이터를 "보여주는" 자리라 그대로 둔다). 범례에
+  // 금액과 비중을 함께 표시한다.
   function renderSpendChart() {
     const total = spendingTotal(state.spending);
     let acc = 0;
