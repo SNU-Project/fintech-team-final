@@ -171,6 +171,36 @@
           ] },
       ],
     },
+    "g-move": {
+      fields: [
+        { id: "commute-mode", category: null, mode: "select", label: "주 이용 수단",
+          options: [
+            { value: "transit", label: "대중교통" },
+            { value: "car", label: "자차" },
+            { value: "walk", label: "도보/자전거" },
+            { value: "mixed", label: "혼합" },
+          ] },
+        { id: "commute-cost", category: "transport", mode: "direct", label: "이동 비용", hint: "기름값, 교통카드 등 월 총 지출액",
+          amtOptions: [
+            { value: 30000, label: "5만원 미만" },
+            { value: 100000, label: "5~15만원" },
+            { value: 225000, label: "15~30만원" },
+            { value: 400000, label: "30만원 이상" },
+          ] },
+        { id: "phone-cost", category: "comm", mode: "direct", label: "통신비", hint: "월 휴대폰 요금",
+          amtOptions: [
+            { value: 20000, label: "3만원 미만" },
+            { value: 40000, label: "3~5만원" },
+            { value: 65000, label: "5~8만원" },
+            { value: 100000, label: "8만원 이상" },
+          ] },
+        { id: "phone-plan", category: null, mode: "select", label: "알뜰폰 사용 여부",
+          options: [
+            { value: "yes", label: "예" },
+            { value: "no", label: "아니오" },
+          ] },
+      ],
+    },
   };
 
   // 카테고리별 절약 팁 — 카드3("범인")·시나리오 계산(카드7)·격차 추이
@@ -1331,7 +1361,7 @@
     const STEP_GROUP = { 2: "g-food", 3: "g-home", 4: "g-move", 5: "g-play", 6: "g-etc" };
     // 아직 퀴즈 UI가 없는 카테고리(자리표시자 — 총액 직접입력만)는 여기
     // 없다. 카테고리를 순서대로 채워 나갈 때마다 한 줄씩 늘어난다.
-    const STEP_QUIZ_CONTAINER = { 2: "onbFoodQuiz", 3: "onbHomeQuiz" };
+    const STEP_QUIZ_CONTAINER = { 2: "onbFoodQuiz", 3: "onbHomeQuiz", 4: "onbMoveQuiz" };
 
     const loadSaved = () => {
       try { return JSON.parse(localStorage.getItem(ONBOARD_KEY)); } catch { return null; }
@@ -1473,16 +1503,31 @@
       </div>`;
     }
 
-    function selectedQuizValue(fieldId, role) {
+    // select(대중교통/자차 등)는 값이 문자열이라 숫자 변환 전 원본이
+    // 필요하다 — selectedQuizValue는 그 위에 Number()만 얹은 것.
+    function selectedQuizRaw(fieldId, role) {
       const pressed = document.querySelector(`[data-quiz="${fieldId}-${role}"] button[aria-pressed="true"]`);
-      return pressed ? Number(pressed.dataset.value) : null;
+      return pressed ? pressed.dataset.value : null;
+    }
+    function selectedQuizValue(fieldId, role) {
+      const raw = selectedQuizRaw(fieldId, role);
+      return raw == null ? null : Number(raw);
     }
 
     // ---- 2~6 · 카테고리별 퀴즈 (범용) ----
-    // 필드의 mode에 따라 두 형태 중 하나로 그린다: "freq-avg"는 빈도·1회
+    // 필드의 mode에 따라 세 형태 중 하나로 그린다: "freq-avg"는 빈도·1회
     // 금액 두 질문(식비류), "direct"는 이미 월 총액으로 답하는 게 자연스러운
-    // 지출(월세 등) 한 질문짜리다.
+    // 지출(월세 등) 한 질문짜리, "select"는 금액과 무관한 선택형(대중교통/
+    // 자차, 알뜰폰 여부 등 — 절약 팁 개인화용 재료, category: null이라
+    // 계산에는 안 들어간다).
     function quizFieldHtml(f, saved) {
+      if (f.mode === "select") {
+        return `
+          <div class="quiz-field">
+            <p class="quiz-field-title">${f.label}</p>
+            ${quizButtonsHtml(f.id, "sel", f.options, saved.value)}
+          </div>`;
+      }
       if (f.mode === "direct") {
         return `
           <div class="quiz-field">
@@ -1533,6 +1578,15 @@
       const byCategory = {};
       const detailOut = {};
       detail.fields.forEach((f) => {
+        if (f.mode === "select") {
+          // select는 category가 null이라 byCategory에 아예 안 넣는다 —
+          // 그대로 넣으면 draft.spending에 "null" 키가 생긴다(v46에서
+          // 겪은 버그). anyChosen도 안 올린다 — 안 그러면 select 하나만
+          // 눌러도 아직 안 답한 금액 필드들이 0으로 draft.spending을
+          // 덮어써 버린다.
+          detailOut[f.id] = { value: selectedQuizRaw(f.id, "sel") };
+          return;
+        }
         if (f.mode === "direct") {
           const amt = selectedQuizValue(f.id, "amt");
           if (amt != null) anyChosen = true;
