@@ -370,6 +370,23 @@
         { value: 310000, label: "25만원 이상" },
       ],
     },
+    // travel은 연간 예산을 묻는 필드(divisor:12) — 여기 값도 연 단위
+    // 원 그대로 저장한다. 월 환산은 기존처럼 recomputeCategoryFromQuiz가
+    // divisor로 나눠서 처리하므로 이 표는 손댈 게 없다.
+    travel: {
+      couple: [
+        { value: 400000, label: "80만원 미만" },
+        { value: 1650000, label: "80~250만원" },
+        { value: 3750000, label: "250~500만원" },
+        { value: 6250000, label: "500만원 이상" },
+      ],
+      family: [
+        { value: 750000, label: "150만원 미만" },
+        { value: 2750000, label: "150~400만원" },
+        { value: 6000000, label: "400~800만원" },
+        { value: 10000000, label: "800만원 이상" },
+      ],
+    },
   };
   function scaledOptionsFor(fieldId, baseOptions, persona) {
     return PERSONA_SCALED_OPTIONS[fieldId]?.[persona] || baseOptions;
