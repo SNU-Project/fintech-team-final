@@ -1898,6 +1898,11 @@
     // 그 값을 안 보고 모든 freq-avg·direct 질문에 똑같이 안내를
     // 띄우는 쪽으로 단순화했다. select는 금액 계산이 아예 없어(category
     // null) "0원으로 계산돼요"가 사실과 안 맞으므로 대상에서 뺀다.
+    // 모든 하위 항목 탭에 같은 안내를 띄운다. select 필드(주 이용 수단·
+    // 알뜰폰 여부)는 category가 null이라 금액 계산에 안 들어가지만, 탭마다
+    // 안내가 있다 없다 하면 화면이 들쭉날쭉해 보인다 — 특히 교통·통신은
+    // 첫 탭이 select여서, 빼면 그 화면에 들어오자마자 "잘 몰라요" 버튼의
+    // 의미를 못 본 채 지나가게 된다. 일관성을 택했다.
     const NO_USAGE_NOTE_HTML = `<p class="quiz-no-usage-note"><span class="quiz-no-usage-icon" aria-hidden="true">💡</span>선택한 항목만 반영돼요. 잘 모르겠으면 아래 “잘 몰라요”를 눌러 주세요 — 이 카테고리 <b>전체</b>가 가구 평균값으로 계산돼요.</p>`;
 
     // v59: persona는 "공유 소비" 6개 항목(dining/grocery/housing-fixed/
@@ -1906,7 +1911,7 @@
     // 뭐든 항상 자기 원본 옵션을 그대로 쓴다.
     function quizFieldBodyHtml(f, saved, persona) {
       if (f.mode === "select") {
-        return quizButtonsHtml(f.id, "sel", f.options, saved.value);
+        return quizButtonsHtml(f.id, "sel", f.options, saved.value) + NO_USAGE_NOTE_HTML;
       }
       if (f.mode === "direct") {
         return `${quizButtonsHtml(f.id, "amt", scaledOptionsFor(f.id, f.amtOptions, persona), saved.amt)}<p class="field-note">${f.hint}</p>${NO_USAGE_NOTE_HTML}`;
