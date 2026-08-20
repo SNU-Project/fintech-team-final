@@ -279,32 +279,31 @@ body.stage-cover .stage-tracker { display: none; }
 .stage-pill[data-stage="checkup"].is-active { color: #fff; background: #db2777; }
 .stage-pill[data-stage="diagnosis"].is-active { color: #fff; background: #2563eb; }
 .stage-pill[data-stage="prescription"].is-active { color: #fff; background: #15803d; }
-/* v64: 표지 카피의 "진찰/진단/처방" 세 단어를 위 스테퍼와 같은 고정
-   hex(핑크/블루/그린)로 강조한다. v63(꽉 찬 배경 + 흰 글자, 탭의
-   활성 pill과 동일한 처리)이 "너무 두껍다"는 피드백 — 이 앱 다른
-   곳에서 이미 쓰는 "옅은 색 배경 + 그 색 그대로인 굵은 글자"
-   조합(.tip-box류가 --brand-soft 배경에 --brand 텍스트를 쓰는
-   패턴)으로 낮췄다. 배경을 15% 안팎의 옅은 톤으로 깔아 존재감은
-   유지하면서, 흰 글자를 위한 진한 배경은 없애 훨씬 가벼워 보인다. */
-/* inline-block에 padding을 주면 이 span의 실제 높이가 부모 .lede의
-   line-height(1.6)보다 커져서 위아래 줄과 겹쳐 보였다 — line-height:1로
-   span 자신의 줄 간격을 없애고 padding도 줄여서, 배지 높이가 항상
-   한 줄 높이 안에 들어오게 한다. */
+/* v66: 표지 카피의 "진찰/진단/처방" 세 단어를 위 스테퍼와 같은 고정
+   hex(핑크/블루/그린)로 강조한다. 배지형(꽉 찬 배경·옅은 배경 둘 다)이
+   "두껍다/겹쳐 보인다"는 피드백을 거쳐, 얇은 형광펜 밑줄 형태로
+   바꿨다 — 텍스트는 평소 진한 색 그대로 두고 글자 아래쪽 32%만
+   반투명 색 띠가 지나간다. background-color 대신 단색 그라디언트를
+   쓰는 건 background-size로 "세로 일부만" 칠하려면 그라디언트가
+   필요해서다(background-color는 항상 박스 전체를 채운다). padding을
+   전혀 안 써서 이 span의 박스 높이가 글자 자체보다 커지지 않으니,
+   v65에서 겪은 "줄 간격보다 커서 위아래 줄과 겹치는" 문제도 애초에
+   생기지 않는다. */
 .lede-word {
-  display: inline-block; font-weight: 800; line-height: 1;
-  padding: .18em .3em; border-radius: .25em;
+  color: var(--text-primary); font-weight: 800;
+  background-repeat: no-repeat; background-position: 0 90%; background-size: 100% 32%;
 }
-.lede-word-checkup { color: #db2777; background-color: rgba(219, 39, 119, .14); }
-.lede-word-diagnosis { color: #2563eb; background-color: rgba(37, 99, 235, .12); }
-.lede-word-prescription { color: #15803d; background-color: rgba(21, 128, 61, .12); }
+.lede-word-checkup { background-image: linear-gradient(rgba(219, 39, 119, .5), rgba(219, 39, 119, .5)); }
+.lede-word-diagnosis { background-image: linear-gradient(rgba(37, 99, 235, .42), rgba(37, 99, 235, .42)); }
+.lede-word-prescription { background-image: linear-gradient(rgba(21, 128, 61, .42), rgba(21, 128, 61, .42)); }
 @media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme="light"])) .lede-word-checkup { background-color: rgba(219, 39, 119, .22); }
-  :root:where(:not([data-theme="light"])) .lede-word-diagnosis { background-color: rgba(37, 99, 235, .22); }
-  :root:where(:not([data-theme="light"])) .lede-word-prescription { background-color: rgba(21, 128, 61, .22); }
+  :root:where(:not([data-theme="light"])) .lede-word-checkup { background-image: linear-gradient(rgba(219, 39, 119, .58), rgba(219, 39, 119, .58)); }
+  :root:where(:not([data-theme="light"])) .lede-word-diagnosis { background-image: linear-gradient(rgba(37, 99, 235, .55), rgba(37, 99, 235, .55)); }
+  :root:where(:not([data-theme="light"])) .lede-word-prescription { background-image: linear-gradient(rgba(21, 128, 61, .55), rgba(21, 128, 61, .55)); }
 }
-:root[data-theme="dark"] .lede-word-checkup { background-color: rgba(219, 39, 119, .22); }
-:root[data-theme="dark"] .lede-word-diagnosis { background-color: rgba(37, 99, 235, .22); }
-:root[data-theme="dark"] .lede-word-prescription { background-color: rgba(21, 128, 61, .22); }
+:root[data-theme="dark"] .lede-word-checkup { background-image: linear-gradient(rgba(219, 39, 119, .58), rgba(219, 39, 119, .58)); }
+:root[data-theme="dark"] .lede-word-diagnosis { background-image: linear-gradient(rgba(37, 99, 235, .55), rgba(37, 99, 235, .55)); }
+:root[data-theme="dark"] .lede-word-prescription { background-image: linear-gradient(rgba(21, 128, 61, .55), rgba(21, 128, 61, .55)); }
 @media (max-width: 480px) {
   /* 아주 좁은 화면에서는 글자를 지우고 점만 남겨 한 줄을 지킨다.
      라벨은 별도 태그 없이 텍스트 노드라 부모의 font-size:0을
