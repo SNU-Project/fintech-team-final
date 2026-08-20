@@ -86,18 +86,99 @@
         </div>
       </div>
 
-      <!-- 2 · 월 생활비 -->
+      <!-- 2 · 식비 (v47: 기존에 한 화면에 5개 토글로 몰려 있던 "월
+           생활비"를 카테고리별 개별 화면으로 나눴다 — 식비부터 순서대로
+           적용 중. 숫자를 직접 타이핑하는 대신 구간 버튼을 고르면 대표값
+           으로 자동 계산된다(v46의 계산식·데이터 스키마는 그대로 재사용).
+           "총액을 알고 있어요" 토글은 v46 이전부터 있던 총액 직접입력을
+           그대로 남겨 둔 것 — 퀴즈에 답하기 귀찮은 사용자를 위한 대안. -->
       <div class="onboarding-step" data-step="2" hidden>
-        <p class="kicker">Q2 · 내 물가</p>
-        <h2>한 달 생활비는 얼마 정도인가요?</h2>
+        <p class="kicker">Q2-1 · 내 물가</p>
+        <h2>식비는 어느 정도 쓰세요?</h2>
+        <p class="field-note onb-running-total"></p>
         <div class="card onboarding-card is-wide">
-          <label class="field">월 생활비
-            <span class="input-wrap"><input type="number" id="onbMonthlySpend" min="0" step="10" inputmode="numeric"><span>만원</span></span>
+          <div id="onbFoodQuiz"></div>
+          <details class="calc-detail">
+            <summary>총액을 알고 있어요 — 직접 입력할게요</summary>
+            <label class="field">식비 총액
+              <span class="input-wrap"><input type="number" id="onb-sp-g-food" min="0" step="1" inputmode="numeric"><span>만원</span></span>
+            </label>
+          </details>
+        </div>
+        <div class="onboarding-nav">
+          <button class="onboarding-back" data-back type="button">← 이전</button>
+          <button class="home-start-btn" id="onbNext2" type="button">다음 →</button>
+        </div>
+      </div>
+
+      <!-- 3 · 주거·생활 (아직 퀴즈 없음 — 총액 직접입력만. 다음 커밋에서
+           식비와 같은 방식으로 채운다.) -->
+      <div class="onboarding-step" data-step="3" hidden>
+        <p class="kicker">Q2-2 · 내 물가</p>
+        <h2>주거·생활비는 어느 정도 쓰세요?</h2>
+        <p class="field-note onb-running-total"></p>
+        <div class="card onboarding-card is-wide">
+          <label class="field">주거·생활 총액
+            <span class="input-wrap"><input type="number" id="onb-sp-g-home" min="0" step="1" inputmode="numeric"><span>만원</span></span>
           </label>
-          <p class="field-note">방금 고른 생활 유형의 평균값을 채워 뒀어요.</p>
+          <p class="field-note">월세·관리비, 공과금, 생활용품/구독을 합한 금액이에요.</p>
+        </div>
+        <div class="onboarding-nav">
+          <button class="onboarding-back" data-back type="button">← 이전</button>
+          <button class="home-start-btn" id="onbNext3" type="button">다음 →</button>
+        </div>
+      </div>
+
+      <!-- 4 · 교통·통신 (아직 퀴즈 없음) -->
+      <div class="onboarding-step" data-step="4" hidden>
+        <p class="kicker">Q2-3 · 내 물가</p>
+        <h2>교통·통신비는 어느 정도 쓰세요?</h2>
+        <p class="field-note onb-running-total"></p>
+        <div class="card onboarding-card is-wide">
+          <label class="field">교통·통신 총액
+            <span class="input-wrap"><input type="number" id="onb-sp-g-move" min="0" step="1" inputmode="numeric"><span>만원</span></span>
+          </label>
+          <p class="field-note">기름값·대중교통, 휴대폰·인터넷 요금을 합한 금액이에요.</p>
+        </div>
+        <div class="onboarding-nav">
+          <button class="onboarding-back" data-back type="button">← 이전</button>
+          <button class="home-start-btn" id="onbNext4" type="button">다음 →</button>
+        </div>
+      </div>
+
+      <!-- 5 · 여가·문화 (아직 퀴즈 없음) -->
+      <div class="onboarding-step" data-step="5" hidden>
+        <p class="kicker">Q2-4 · 내 물가</p>
+        <h2>여가·문화비는 어느 정도 쓰세요?</h2>
+        <p class="field-note onb-running-total"></p>
+        <div class="card onboarding-card is-wide">
+          <label class="field">여가·문화 총액
+            <span class="input-wrap"><input type="number" id="onb-sp-g-play" min="0" step="1" inputmode="numeric"><span>만원</span></span>
+          </label>
+          <p class="field-note">여행·취미·구독, 옷·신발, 학원비를 합한 금액이에요.</p>
+        </div>
+        <div class="onboarding-nav">
+          <button class="onboarding-back" data-back type="button">← 이전</button>
+          <button class="home-start-btn" id="onbNext5" type="button">다음 →</button>
+        </div>
+      </div>
+
+      <!-- 6 · 건강·기타 (아직 퀴즈 없음) + 전체 요약(도넛·총 생활비) -->
+      <div class="onboarding-step" data-step="6" hidden>
+        <p class="kicker">Q2-5 · 내 물가</p>
+        <h2>건강·기타 비용은 어느 정도 쓰세요?</h2>
+        <p class="field-note onb-running-total"></p>
+        <div class="card onboarding-card is-wide">
+          <label class="field">건강·기타 총액
+            <span class="input-wrap"><input type="number" id="onb-sp-g-etc" min="0" step="1" inputmode="numeric"><span>만원</span></span>
+          </label>
+          <p class="field-note">병원비, 술·담배, 보험료를 합한 금액이에요.</p>
           <div class="spend-details">
             <div class="donut-row">
-              <div id="onbSpendFields" style="flex:1;min-width:230px"></div>
+              <div style="flex:1;min-width:230px">
+                <p class="spend-details-label">전체 요약</p>
+                <p class="field-note">지금까지 답한 5개 카테고리를 모두 더한 값이에요.</p>
+              </div>
               <div class="donut-wrap">
                 <div class="donut" id="onbSpendDonut"></div>
                 <div class="donut-center" id="onbSpendDonutCenter"></div>
@@ -108,12 +189,12 @@
         </div>
         <div class="onboarding-nav">
           <button class="onboarding-back" data-back type="button">← 이전</button>
-          <button class="home-start-btn" id="onbNext2" type="button">다음 →</button>
+          <button class="home-start-btn" id="onbNext6" type="button">다음 →</button>
         </div>
       </div>
 
-      <!-- 3 · 연봉 -->
-      <div class="onboarding-step" data-step="3" hidden>
+      <!-- 7 · 연봉 -->
+      <div class="onboarding-step" data-step="7" hidden>
         <p class="kicker">Q3 · 실질임금 진단</p>
         <h2>현재·내년 예상 연봉은요?</h2>
         <div class="card onboarding-card">
