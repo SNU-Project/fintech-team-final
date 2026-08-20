@@ -549,6 +549,24 @@
           : t
       ));
     }
+    // 배달/외식이 이미 "거의 안 함"(최저 구간)이면 "배달 대신 집밥을
+    // 늘리세요"는 이미 하고 있는 일을 하라는 조언이 된다 — v54에서
+    // 만든 isLowestOption()을 그대로 재사용해 같은 원칙을 적용한다.
+    // (다른 카테고리도 점검했지만, g-move·g-food처럼 "이미 실천 중"을
+    // 판별할 select·최저구간 신호가 있는 조합은 이 둘뿐이었다 — 나머지
+    // SPEND_TIPS 문구는 특정 응답과 직접 모순되지 않는 일반 조언이라
+    // 그대로 둔다.)
+    if (groupId === "g-food") {
+      const dining = SPEND_GROUP_DETAILS["g-food"].fields.find((f) => f.id === "dining");
+      const ds = saved?.dining;
+      if (dining && ds?.freq > 0 && isLowestOption(dining.freqOptions, ds.freq)) {
+        return tips.map((t) => (
+          t === "배달 대신 집밥 비중을 늘리면 식비가 눈에 띄게 줄어요."
+            ? "이미 배달/외식을 거의 안 하고 계세요 — 장보기 목록을 미리 정하면 낭비를 더 줄일 수 있어요."
+            : t
+        ));
+      }
+    }
     return tips;
   }
 
