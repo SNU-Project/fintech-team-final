@@ -91,84 +91,56 @@
     "g-play": "var(--series-4)", "g-etc": "var(--series-5)",
   };
 
-  // v46: 그룹 총액을 직접 입력하는 대신, 소비 습관을 물어서 자동 계산하는
-  // "자세히 입력하기" 아코디언. 카테고리마다 순차 적용 중(식비 → 주거·생활
-  // → …) — 이 키가 없는 그룹은 기존 총액 직접입력 그대로 동작한다(하위
-  // 호환). 필드는 두 가지 mode를 쓴다:
-  //   - "freq-avg": 횟수×1회평균(원)×multiplier를 계산해서 반영(배달비처럼
-  //     "몇 번, 얼마씩"으로 물어야 답하기 쉬운 지출).
-  //   - "direct": 이미 월 총액으로 답하는 게 자연스러운 지출(월세·공과금
-  //     처럼 "몇 번"이 의미가 없는 고정비)은 만원 단위로 바로 받는다.
-  // 두 모드 다 category(실카테고리 id)별로 합산해 만원으로 반올림한 뒤 그
-  // 그룹의 draft.spending[category]에 직접 써 넣는다 — 기존 scaleSpending의
-  // 비례 배분 대신, 실제로 물어본 값이 있으니 그대로 반영한다. 같은
-  // category를 여러 필드가 가리키면(예: 주거 고정비+공과금 → housing)
-  // 자동으로 합산된다.
+  // v47: v46(숫자 직접 입력하는 "자세히 입력하기" 아코디언)을 걷어내고
+  // 구간 버튼 퀴즈로 바꾼다 — 계산 원리는 v46과 동일(freq×avg×multiplier,
+  // 또는 direct는 이미 월 총액)하고, 숫자 입력 대신 버튼을 고르면 그
+  // 버튼의 대표값(구간 중간값)이 freq/avg 자리에 들어간다. category별로
+  // 합산해 만원으로 반올림한 뒤 draft.spending에 직접 써 넣는 방식,
+  // "이 그룹 키가 없으면 총액 직접입력 그대로"인 하위호환도 v46과 같다.
+  // 카테고리별로 순차 적용 중(식비 먼저) — 아직 없는 그룹은 화면에서도
+  // 총액 입력 칸만 보여준다(index.html의 플레이스홀더 스텝).
   const SPEND_GROUP_DETAILS = {
     "g-food": {
       fields: [
-        { id: "dining", category: "dining", mode: "freq-avg", label: "배달/외식",
-          freqLabel: "주간 이용 횟수", freqUnit: "회/주", avgLabel: "1회 평균 결제액", avgUnit: "원", multiplier: 4.3 },
-        { id: "grocery", category: "food", mode: "freq-avg", label: "장보기",
-          freqLabel: "월 이용 횟수", freqUnit: "회/월", avgLabel: "1회 평균 금액", avgUnit: "원", multiplier: 1 },
-        { id: "cafe", category: "dining", mode: "freq-avg", label: "카페/음료",
-          freqLabel: "주간 이용 횟수", freqUnit: "회/주", avgLabel: "1회 평균 금액", avgUnit: "원", multiplier: 4.3 },
-      ],
-    },
-    "g-home": {
-      fields: [
-        { id: "housing-fixed", category: "housing", mode: "direct", label: "주거 고정비", hint: "월세 및 관리비 합계" },
-        { id: "utility", category: "housing", mode: "direct", label: "공과금", hint: "월평균 전기·가스·수도 요금" },
-        { id: "household", category: "household", mode: "direct", label: "생활용품/구독", hint: "월 소모품 구매액 및 정기 구독료 합계" },
-      ],
-    },
-    // g-move부터는 세 번째 mode "select"가 들어간다 — 금액 계산엔 안
-    // 쓰고(category: null) 절약 팁을 개인화할 재료(대중교통/자차,
-    // 알뜰폰 여부)로만 spendingDetail에 저장해 둔다(활용은 후속 작업).
-    "g-move": {
-      fields: [
-        { id: "commute-mode", category: null, mode: "select", label: "주 이용 수단",
-          options: [{ value: "transit", label: "대중교통" }, { value: "car", label: "자차" }] },
-        { id: "commute-cost", category: "transport", mode: "direct", label: "이동 비용", hint: "기름값, 교통카드 등 월 총 지출액" },
-        { id: "phone-cost", category: "comm", mode: "direct", label: "통신비", hint: "월 휴대폰 요금" },
-        { id: "phone-plan", category: null, mode: "select", label: "알뜰폰 사용 여부",
-          options: [{ value: "no", label: "일반 요금제" }, { value: "yes", label: "이미 알뜰폰" }] },
-      ],
-    },
-    // g-play는 실카테고리 3개(leisure/education/clothing)로 이뤄지는데,
-    // 요청서의 세부질문은 education(학원비·등록금)을 다루지 않는다 —
-    // 억지로 만들지 않고 그대로 둔다. education은 이 아코디언이 안
-    // 건드리므로 이전 값(페르소나 기본값 또는 scaleSpending으로 조정된
-    // 값)을 유지한 채 총액에 계속 더해진다 — 다른 두 카테고리처럼
-    // "설문에 없는 항목은 예전 값 그대로"가 자연스러운 하위호환이다.
-    "g-play": {
-      fields: [
-        { id: "shopping", category: "clothing", mode: "freq-avg", label: "쇼핑(패션/뷰티)",
-          freqLabel: "월 구매 횟수", freqUnit: "회/월", avgLabel: "1회 평균 지출액", avgUnit: "원", multiplier: 1 },
-        { id: "hobby", category: "leisure", mode: "direct", label: "취미/구독", hint: "헬스장, OTT, 클래스 등 월 정기 지출액 합계" },
-        // 네 번째 mode "direct-period": 분기/연 단위로 받은 예산을
-        // 월 환산한다. hobby와 같은 category(leisure)로 모이므로,
-        // 두 필드의 "원" 단위 합을 한 번만 반올림한다(v43 원칙 —
-        // 여기서 따로 반올림하면 hobby와의 합계가 화면과 어긋날 수 있다).
-        { id: "travel", category: "leisure", mode: "direct-period", label: "여행/휴식",
-          hint: "분기 또는 연간 여행 예산", periods: [
-            { value: "quarter", label: "분기", divisor: 3 },
-            { value: "year", label: "연", divisor: 12 },
+        { id: "dining", category: "dining", mode: "freq-avg", multiplier: 4.3, label: "배달/외식",
+          freqOptions: [
+            { value: 0.5, label: "거의 안 함", hint: "0~1회" },
+            { value: 2.5, label: "가끔", hint: "2~3회" },
+            { value: 5, label: "자주", hint: "4~6회" },
+            { value: 7, label: "매일" },
+          ],
+          avgOptions: [
+            { value: 5000, label: "1만원 미만" },
+            { value: 15000, label: "1~2만원" },
+            { value: 25000, label: "2~3만원" },
+            { value: 35000, label: "3만원 이상" },
           ] },
-      ],
-    },
-    // g-etc는 실카테고리 3개(health/alcohol/misc)와 요청서의 세부질문
-    // 3개가 정확히 1:1로 맞아떨어지는 유일한 그룹이다 — g-play(education
-    // 누락)와 달리 전부 커버된다. 보험료는 CPI상 "건강" 항목이 아니라
-    // 기타 상품·서비스에 가까워 misc로, 모임/술자리는 술 문화와 직결돼
-    // alcohol로, "담배·반려동물·정기 병원비"를 묶은 기타 정기 지출은
-    // 그중 CPI 매칭이 가장 분명한 정기 병원비를 기준으로 health로 보냈다.
-    "g-etc": {
-      fields: [
-        { id: "insurance", category: "misc", mode: "direct", label: "보험료", hint: "월 납입 총액" },
-        { id: "gathering", category: "alcohol", mode: "freq-avg", label: "모임/술자리",
-          freqLabel: "월 모임 횟수", freqUnit: "회/월", avgLabel: "1회 평균 지출액", avgUnit: "원", multiplier: 1 },
-        { id: "misc-regular", category: "health", mode: "direct", label: "기타 정기 지출", hint: "담배, 반려동물, 정기 병원비 등 월 총액 합계" },
+        { id: "grocery", category: "food", mode: "freq-avg", multiplier: 1, label: "장보기",
+          freqOptions: [
+            { value: 0.5, label: "거의 안 함" },
+            { value: 1.5, label: "월 1~2회" },
+            { value: 4, label: "월 3~5회" },
+            { value: 8, label: "주 2회 이상" },
+          ],
+          avgOptions: [
+            { value: 15000, label: "3만원 미만" },
+            { value: 50000, label: "3~7만원" },
+            { value: 110000, label: "7~15만원" },
+            { value: 200000, label: "15만원 이상" },
+          ] },
+        { id: "cafe", category: "dining", mode: "freq-avg", multiplier: 4.3, label: "카페/음료",
+          freqOptions: [
+            { value: 0.5, label: "거의 안 함" },
+            { value: 1.5, label: "주 1~2회" },
+            { value: 3.5, label: "주 3~4회" },
+            { value: 6, label: "거의 매일" },
+          ],
+          avgOptions: [
+            { value: 3000, label: "5천원 미만" },
+            { value: 7500, label: "5천~1만원" },
+            { value: 15000, label: "1~2만원" },
+            { value: 25000, label: "2만원 이상" },
+          ] },
       ],
     },
   };
@@ -435,7 +407,10 @@
   // 그대로 둔다 — 이미 저장된 기존 사용자의 값과의 연결이 끊기기만
   // 할 뿐 바꿔서 얻는 게 없다.
   const ONBOARD_KEY = "salarygap-profile";
-  const TOTAL_STEPS = 3;
+  // v47: Q2(월 생활비)가 카테고리 5개짜리 개별 화면으로 나뉘면서
+  // 3단계(생활유형/월생활비/연봉)에서 7단계로 늘었다(생활유형 + 식비·
+  // 주거·생활·교통·통신·여가·문화·건강·기타 5개 + 연봉).
+  const TOTAL_STEPS = 7;
 
   // v8: 내 물가·실질임금 진단·결론은 이제 긴 스크롤이 아니라 카드뉴스
   // 덱(#deck, setupCardDeck 참고) 하나로 합쳐졌다. 목표 자산/타임머신은
@@ -1323,6 +1298,9 @@
     const progressText = $("#onbProgressText");
     let stepIndex = 0;
     let draft = freshDraft();
+    // v47: 스텝 번호 → 그 화면이 다루는 지출 그룹. 카테고리 5개가 순서대로
+    // 2~6번 스텝을 하나씩 차지한다.
+    const STEP_GROUP = { 2: "g-food", 3: "g-home", 4: "g-move", 5: "g-play", 6: "g-etc" };
 
     const loadSaved = () => {
       try { return JSON.parse(localStorage.getItem(ONBOARD_KEY)); } catch { return null; }
@@ -1356,11 +1334,17 @@
         progressFill.style.width = `${(i / TOTAL_STEPS) * 100}%`;
         progressText.textContent = `${i} / ${TOTAL_STEPS}`;
       }
-      // 방금 고른 생활 유형의 평균값을 미리 채워 둔다 — 사용자는 그대로 두거나 고칠 수 있다.
-      if (i === 2) {
-        $("#onbMonthlySpend").value = Math.round(draft.monthlySpend);
-        renderOnbSpendFields();
-        renderOnbSpendDonut();
+      // 방금 고른 생활 유형의 평균값을 미리 채워 둔다 — 사용자는 그대로
+      // 두거나 고칠 수 있다. v47: 카테고리별 화면(2~6)이 다시 보일 때마다
+      // (뒤로가기 포함) 그 그룹의 현재 총액으로 입력칸을 동기화한다.
+      const groupId = STEP_GROUP[i];
+      if (groupId) {
+        const g = SPEND_GROUPS.find((x) => x.id === groupId);
+        $(`#onb-sp-${groupId}`).value = Math.round(draftGroupTotal(g));
+        // updateRunningTotal()이 renderOnbSpendDonut()도 함께 갱신하므로
+        // 카드6("건강·기타") 진입 시 도넛 요약도 이 한 줄로 같이 채워진다.
+        updateRunningTotal();
+        if (i === 2) renderFoodQuiz();
       }
       scrollHomeToTop();
     }
@@ -1426,218 +1410,122 @@
     });
     $("#onbNext1").addEventListener("click", () => showStep(2));
 
-    // ---- 2 · 월 생활비 (세부 항목 토글 + 도넛 미리보기) ----
+    // ---- 2~6 · 카테고리별 지출 화면 (v47) ----
     // 리포트 "내 물가" 탭이 쓰는 SPEND_GROUPS/scaleSpending을 그대로
     // draft.spending에 적용한다 — 계산 로직을 새로 만들지 않는다.
     const draftGroupTotal = (g) => g.members.reduce((sum, id) => sum + (draft.spending[id] || 0), 0);
 
-    // v46: 세부질문 입력칸 하나의 id. "onb-{그룹}-{필드}-{freq|avg|amt}"
-    const detailFieldId = (g, f, kind) => `onb-${g.id}-${f.id}-${kind}`;
-
-    function spendDetailFieldHtml(g, f, saved) {
-      if (f.mode === "select") {
-        const chosen = saved.value ?? f.options[0].value;
-        return `
-        <div class="spend-detail-field">
-          <p class="spend-detail-label">${f.label}</p>
-          <span class="input-wrap">
-            <select id="${detailFieldId(g, f, "sel")}">
-              ${f.options.map((o) => `<option value="${o.value}"${o.value === chosen ? " selected" : ""}>${o.label}</option>`).join("")}
-            </select>
-          </span>
-        </div>`;
-      }
-      if (f.mode === "direct") {
-        return `
-        <div class="spend-detail-field">
-          <p class="spend-detail-label">${f.label}</p>
-          <span class="input-wrap">
-            <input type="number" id="${detailFieldId(g, f, "amt")}" min="0" step="1" inputmode="numeric"
-              placeholder="0" value="${saved.amt ?? ""}">
-            <span>만원</span>
-          </span>
-          <p class="field-note">${f.hint}</p>
-        </div>`;
-      }
-      if (f.mode === "direct-period") {
-        const period = saved.period ?? f.periods[0].value;
-        return `
-        <div class="spend-detail-field">
-          <p class="spend-detail-label">${f.label}</p>
-          <div class="spend-detail-inputs">
-            <span class="input-wrap">
-              <input type="number" id="${detailFieldId(g, f, "amt")}" min="0" step="1" inputmode="numeric"
-                placeholder="0" value="${saved.amt ?? ""}">
-              <span>만원</span>
-            </span>
-            <span class="input-wrap">
-              <select id="${detailFieldId(g, f, "period")}">
-                ${f.periods.map((p) => `<option value="${p.value}"${p.value === period ? " selected" : ""}>${p.label}</option>`).join("")}
-              </select>
-            </span>
-          </div>
-          <p class="field-note">${f.hint}</p>
-        </div>`;
-      }
-      return `
-        <div class="spend-detail-field">
-          <p class="spend-detail-label">${f.label}</p>
-          <div class="spend-detail-inputs">
-            <span class="input-wrap">
-              <input type="number" id="${detailFieldId(g, f, "freq")}" min="0" step="1" inputmode="numeric"
-                placeholder="0" value="${saved.freq ?? ""}">
-              <span>${f.freqUnit}</span>
-            </span>
-            <span class="input-wrap">
-              <input type="number" id="${detailFieldId(g, f, "avg")}" min="0" step="1000" inputmode="numeric"
-                placeholder="0" value="${saved.avg ?? ""}">
-              <span>${f.avgUnit}</span>
-            </span>
-          </div>
-          <p class="field-note">${f.freqLabel} × ${f.avgLabel}</p>
-        </div>`;
+    // 화면 상단의 "지금까지 합계" — 선택 사항으로 요청됐지만, 카테고리
+    // 화면이 5개로 늘면서 사용자가 진행 상황을 감 잡기 어려워질 수 있어
+    // 넣었다. 모든 카테고리 화면이 .onb-running-total 하나씩을 갖고
+    // 있으므로 값이 바뀔 때마다 전부 같이 갱신한다. 카테고리 총액이
+    // 바뀔 때마다 항상 이 함수를 거치므로, 카드6 하단 도넛 요약도 여기서
+    // 같이 갱신해 둔다 — 안 그러면 카드6에서 마지막 총액을 타이핑하는
+    // 동안 요약이 그 화면에 처음 들어왔을 때 값으로 멈춰 있게 된다
+    // (renderOnbSpendDonut은 아래서 선언되지만 함수 선언은 호이스팅되어
+    // 여기서 먼저 불러도 문제없다).
+    function updateRunningTotal() {
+      const text = `지금까지 합계 · 월 ${man(spendingTotal(draft.spending))}만원`;
+      $$(".onb-running-total").forEach((el) => { el.textContent = text; });
+      renderOnbSpendDonut();
     }
 
-    function spendDetailFieldsHtml(g, detail) {
-      const saved = draft.spendingDetail?.[g.id] || {};
-      return detail.fields.map((f) => spendDetailFieldHtml(g, f, saved[f.id] || {})).join("");
+    // v47: 구간 버튼 퀴즈 하나(빈도 또는 1회금액)의 마크업. 버튼의
+    // aria-pressed 상태가 곧 선택값이라 별도 JS 상태를 안 둔다 — Q1
+    // 페르소나 선택과 같은 패턴.
+    function quizButtonsHtml(fieldId, role, options, chosen) {
+      return `<div class="range-grid" data-quiz="${fieldId}-${role}">
+        ${options.map((o) => `
+          <button type="button" data-value="${o.value}" aria-pressed="${chosen === o.value}">
+            <b>${o.label}</b>${o.hint ? `<span>${o.hint}</span>` : ""}
+          </button>`).join("")}
+      </div>`;
     }
 
-    function renderOnbSpendFields() {
-      $("#onbSpendFields").innerHTML = SPEND_GROUPS.map((g) => {
-        const detail = SPEND_GROUP_DETAILS[g.id];
-        const detailHtml = detail ? `
-          <details class="calc-detail spend-detail-toggle">
-            <summary>자세히 입력하기</summary>
-            <div class="spend-detail-fields">
-              ${spendDetailFieldsHtml(g, detail)}
-              <p class="field-note">모르면 비워두셔도 괜찮아요 — 위 총액을 그대로 써요.</p>
-            </div>
-          </details>` : "";
+    function selectedQuizValue(fieldId, role) {
+      const pressed = document.querySelector(`[data-quiz="${fieldId}-${role}"] button[aria-pressed="true"]`);
+      return pressed ? Number(pressed.dataset.value) : null;
+    }
+
+    // ---- 2 · 식비 (첫 번째로 퀴즈 UI를 갖춘 카테고리) ----
+    function renderFoodQuiz() {
+      const detail = SPEND_GROUP_DETAILS["g-food"];
+      const saved = draft.spendingDetail?.["g-food"] || {};
+      $("#onbFoodQuiz").innerHTML = detail.fields.map((f) => {
+        const s = saved[f.id] || {};
         return `
-        <div class="spend-row">
-          <label for="onb-sp-${g.id}">
-            <b>${g.name}</b>
-            <small>${g.hint}</small>
-          </label>
-          <span class="input-wrap">
-            <input type="number" id="onb-sp-${g.id}" min="0" step="1" inputmode="numeric" value="${Math.round(draftGroupTotal(g))}">
-            <span>만원</span>
-          </span>
-        </div>
-        ${detailHtml}`;
+          <div class="quiz-field">
+            <p class="quiz-field-title">${f.label}</p>
+            <p class="quiz-question-label">빈도</p>
+            ${quizButtonsHtml(f.id, "freq", f.freqOptions, s.freq)}
+            <p class="quiz-question-label">1회 금액</p>
+            ${quizButtonsHtml(f.id, "avg", f.avgOptions, s.avg)}
+          </div>`;
       }).join("");
 
-      SPEND_GROUPS.forEach((g) => {
-        $(`#onb-sp-${g.id}`).addEventListener("input", (e) => {
-          const nextGroupTotal = Math.max(0, +e.target.value || 0);
-          draft.spending = scaleSpending(
-            draft.spending,
-            nextGroupTotal,
-            g.members,
-            PERSONAS[draft.persona]?.spending
-          );
-          // 총액을 직접 손으로 바꾸면 방금 전까지의 세부 답변은 더는
-          // 이 총액을 설명하지 못한다 — 다음에 세부질문을 다시 채우기
-          // 전까지 잘못된 값을 들고 있지 않도록 지운다(화면의 아코디언
-          // 입력칸은 건드리지 않는다 — 매 타이핑마다 다시 그리면 포커스가
-          // 날아간다. 다시 세부질문에 입력하는 순간 recompute가 총액을
-          // 또 덮어쓰므로 잠깐의 불일치는 스스로 해소된다).
-          if (draft.spendingDetail?.[g.id]) delete draft.spendingDetail[g.id];
-          draft.monthlySpend = spendingTotal(draft.spending);
-          $("#onbMonthlySpend").value = Math.round(draft.monthlySpend);
-          renderOnbSpendDonut();
+      $$("#onbFoodQuiz .range-grid button").forEach((b) => {
+        b.addEventListener("click", () => {
+          const grid = b.closest(".range-grid");
+          // $$는 selector 하나만 받아 항상 document 전체를 검색한다 —
+          // 여기서 필요한 건 "이 버튼그룹 안에서만" 선택 해제이므로,
+          // DOM 스코프 있는 querySelectorAll을 직접 쓴다. 아니면 페이지
+          // 전체 버튼의 aria-pressed가 뒤섞여 다른 질문의 답까지 지워진다
+          // (실제로 이 버그로 마지막에 누른 버튼 하나만 남고 나머지
+          // 질문의 선택이 전부 풀렸었다).
+          grid.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+          recomputeFoodFromQuiz();
         });
-
-        const detail = SPEND_GROUP_DETAILS[g.id];
-        if (detail) bindSpendDetailInputs(g, detail);
       });
     }
 
-    // v46: 세부질문(freq-avg 또는 direct) 입력을 그룹 총액으로 환산한다.
-    // 필드마다 정해진 실카테고리(category)로 "원" 단위 지출을 합산한 뒤
-    // 만원으로 반올림해서 draft.spending에 직접 써 넣는다 —
-    // scaleSpending의 비례 배분(통계 비중 추정)과 달리, 실제로 물어본
-    // 값이니 그대로 반영한다. 다른 그룹 산정 로직(v43)과 같은 원칙: 화면에
-    // 보이는 그룹 총액은 "이미 반올림된 항목들의 합"이어야 한다 — 원본
-    // 합을 한 번 더 반올림하면 항목 합계와 총액이 어긋날 수 있다.
-    // select 필드(대중교통/자차, 알뜰폰 여부 등)는 금액 계산에 안 쓰이고
-    // (category: null) 항상 어떤 값이든 선택돼 있으므로, "사용자가 실제로
-    // 뭔가 입력했나"를 판단하는 기준(anyFilled)에서는 제외한다 — 안
-    // 그러면 select만 건드려도 아직 안 채운 금액 필드들이 0으로
-    // draft.spending을 덮어써 버린다.
-    function isFieldFilled(g, f) {
-      if (f.mode === "select") return false;
-      if (f.mode === "direct" || f.mode === "direct-period") return $(`#${detailFieldId(g, f, "amt")}`).value !== "";
-      return $(`#${detailFieldId(g, f, "freq")}`).value !== "" || $(`#${detailFieldId(g, f, "avg")}`).value !== "";
-    }
-
-    // "direct"는 이미 만원 단위 월 총액이라 ×10000해서 다른 필드와 같은
-    // "원" 단위로 맞춘 뒤 합산한다(byCategory는 항상 원 단위로 모은다).
-    // "direct-period"는 분기/연 단위 예산을 그 자리에서 월 환산(÷3 또는
-    // ÷12)해서 "원" 단위로 넘긴다 — 반올림은 여기서 안 하고 byCategory
-    // 합계 전체에 딱 한 번만 한다(v43 원칙: 다른 필드와 합친 뒤 반올림해야
-    // 화면에 보이는 그룹 총액과 어긋나지 않는다). select는 spendingDetail에
-    // 선택값만 저장하고 금액에는 기여하지 않는다.
-    function fieldWon(g, f) {
-      if (f.mode === "select") {
-        draft.spendingDetail[g.id][f.id] = { value: $(`#${detailFieldId(g, f, "sel")}`).value };
-        return 0;
-      }
-      if (f.mode === "direct") {
-        const amt = Math.max(0, +$(`#${detailFieldId(g, f, "amt")}`).value || 0);
-        draft.spendingDetail[g.id][f.id] = { amt };
-        return amt * 10000;
-      }
-      if (f.mode === "direct-period") {
-        const amt = Math.max(0, +$(`#${detailFieldId(g, f, "amt")}`).value || 0);
-        const period = $(`#${detailFieldId(g, f, "period")}`).value;
-        const divisor = (f.periods.find((p) => p.value === period) || f.periods[0]).divisor;
-        draft.spendingDetail[g.id][f.id] = { amt, period };
-        return (amt * 10000) / divisor;
-      }
-      const freq = Math.max(0, +$(`#${detailFieldId(g, f, "freq")}`).value || 0);
-      const avg = Math.max(0, +$(`#${detailFieldId(g, f, "avg")}`).value || 0);
-      draft.spendingDetail[g.id][f.id] = { freq, avg };
-      return freq * avg * f.multiplier;
-    }
-
-    function bindSpendDetailInputs(g, detail) {
-      const recompute = () => {
-        if (!detail.fields.some((f) => isFieldFilled(g, f))) return;
-
-        draft.spendingDetail[g.id] = draft.spendingDetail[g.id] || {};
-        const byCategory = {};
-        detail.fields.forEach((f) => {
-          const won = fieldWon(g, f);
-          // select 필드는 category가 null이다 — byCategory[null]로 새는
-          // 걸 막고(그대로 두면 draft.spending에 "null" 키가 생긴다).
-          if (f.category) byCategory[f.category] = (byCategory[f.category] || 0) + won;
-        });
-        Object.entries(byCategory).forEach(([category, won]) => {
-          draft.spending[category] = Math.round(won / 10000);
-        });
-
-        draft.monthlySpend = spendingTotal(draft.spending);
-        $(`#onb-sp-${g.id}`).value = Math.round(draftGroupTotal(g));
-        $("#onbMonthlySpend").value = Math.round(draft.monthlySpend);
-        renderOnbSpendDonut();
-      };
+    // 버튼으로 고른 구간의 대표값(freq/avg)을 v46과 같은 계산식
+    // (freq×avg×multiplier, category별 합산 후 한 번만 반올림 — v43
+    // 원칙)에 그대로 대입한다. 두 질문(빈도·금액) 중 하나라도 아직 안
+    // 고른 항목은 기여분을 0으로 둔다 — 버튼은 눌려 있어도 실제 반영은
+    // 두 질문 다 답해야 일어나므로, 우연히 한쪽만 눌렀다고 총액이 튀지
+    // 않는다.
+    function recomputeFoodFromQuiz() {
+      const detail = SPEND_GROUP_DETAILS["g-food"];
+      let anyChosen = false;
+      const byCategory = {};
+      const detailOut = {};
       detail.fields.forEach((f) => {
-        if (f.mode === "select") {
-          $(`#${detailFieldId(g, f, "sel")}`).addEventListener("change", recompute);
-          return;
-        }
-        if (f.mode === "direct-period") {
-          $(`#${detailFieldId(g, f, "amt")}`).addEventListener("input", recompute);
-          $(`#${detailFieldId(g, f, "period")}`).addEventListener("change", recompute);
-          return;
-        }
-        const kinds = f.mode === "direct" ? ["amt"] : ["freq", "avg"];
-        kinds.forEach((kind) => $(`#${detailFieldId(g, f, kind)}`).addEventListener("input", recompute));
+        const freq = selectedQuizValue(f.id, "freq");
+        const avg = selectedQuizValue(f.id, "avg");
+        if (freq != null || avg != null) anyChosen = true;
+        detailOut[f.id] = { freq: freq ?? 0, avg: avg ?? 0 };
+        byCategory[f.category] = (byCategory[f.category] || 0) + (freq ?? 0) * (avg ?? 0) * f.multiplier;
       });
+      if (!anyChosen) return;
+      draft.spendingDetail["g-food"] = detailOut;
+      Object.entries(byCategory).forEach(([category, won]) => {
+        draft.spending[category] = Math.round(won / 10000);
+      });
+      draft.monthlySpend = spendingTotal(draft.spending);
+      $("#onb-sp-g-food").value = Math.round(draftGroupTotal(SPEND_GROUPS.find((g) => g.id === "g-food")));
+      updateRunningTotal();
     }
 
+    // "총액을 알고 있어요" 대안(모든 카테고리 화면 공통) — 직접 입력한
+    // 총액은 기존 scaleSpending으로 그 그룹의 실카테고리들에 통계 비중대로
+    // 나눠 담는다(퀴즈가 아직 없는 카테고리는 이 경로가 유일한 입력
+    // 수단이다). 이미 퀴즈로 답한 뒤 총액을 손으로 덮어쓰면, 그 퀴즈
+    // 답은 더 이상 이 총액을 설명하지 못하므로 지운다 — v46과 같은 원칙.
+    function bindGroupTotalInput(groupId) {
+      const g = SPEND_GROUPS.find((x) => x.id === groupId);
+      $(`#onb-sp-${groupId}`).addEventListener("input", (e) => {
+        const nextGroupTotal = Math.max(0, +e.target.value || 0);
+        draft.spending = scaleSpending(
+          draft.spending, nextGroupTotal, g.members, PERSONAS[draft.persona]?.spending
+        );
+        if (draft.spendingDetail?.[groupId]) delete draft.spendingDetail[groupId];
+        draft.monthlySpend = spendingTotal(draft.spending);
+        updateRunningTotal();
+      });
+    }
+    SPEND_GROUPS.forEach((g) => bindGroupTotalInput(g.id));
+
+    // ---- 6 · 건강·기타 화면 하단의 전체 요약(도넛) ----
     function renderOnbSpendDonut() {
       const total = spendingTotal(draft.spending);
       let acc = 0;
@@ -1659,24 +1547,13 @@
       }).join("");
     }
 
-    $("#onbMonthlySpend").addEventListener("input", (e) => {
-      const nextTotal = Math.max(0, +e.target.value || 0);
-      draft.spending = scaleSpending(
-        draft.spending,
-        nextTotal,
-        Object.keys(draft.spending),
-        PERSONAS[draft.persona]?.spending
-      );
-      renderOnbSpendFields();
-      renderOnbSpendDonut();
-    });
+    $("#onbNext2").addEventListener("click", () => showStep(3));
+    $("#onbNext3").addEventListener("click", () => showStep(4));
+    $("#onbNext4").addEventListener("click", () => showStep(5));
+    $("#onbNext5").addEventListener("click", () => showStep(6));
+    $("#onbNext6").addEventListener("click", () => showStep(7));
 
-    $("#onbNext2").addEventListener("click", () => {
-      draft.monthlySpend = Math.max(0, +$("#onbMonthlySpend").value || 0);
-      showStep(3);
-    });
-
-    // ---- 3 · 연봉 (마지막 문항) ----
+    // ---- 7 · 연봉 (마지막 문항) ----
     $("#onbFinish").addEventListener("click", () => {
       draft.curSalary = Math.max(0, +$("#onbCurSalary").value || 0);
       draft.nextSalary = Math.max(0, +$("#onbNextSalary").value || 0);
@@ -1793,7 +1670,7 @@
     // 아니라 기간이라 이 필터에서 제외한다(0 하나만 입력해도 되는 필드라
     // 굳이 막을 이유가 적고, 의미상으로도 "금액"이 아니다).
     const RULES = [
-      { test: (id) => id === "monthlySpend" || id === "onbMonthlySpend", min: 0, max: 5000, label: "월 생활비", money: true, amount: true },
+      { test: (id) => id === "monthlySpend", min: 0, max: 5000, label: "월 생활비", money: true, amount: true },
       { test: (id) => id.startsWith("sp-") || id.startsWith("onb-sp-"), min: 0, max: 3000, label: "지출 항목", money: true, amount: true },
       { test: (id) => id === "curSalary" || id === "onbCurSalary" || id === "nextSalary" || id === "onbNextSalary", min: 0, max: 100000, label: "연봉", money: true, amount: true },
       { test: (id) => id === "goalAmount", min: 0, max: 100000, label: "목표 금액", money: true, amount: true },
@@ -1802,12 +1679,6 @@
       { test: (id) => id === "goalMonths", min: 0, max: 11, label: "목표 기간(개월)", money: true },
       { test: (id) => id === "goalMonthly", min: 0, max: 5000, label: "월 저축 가능액", money: true, amount: true },
       { test: (id) => id === "investAmount", min: 0, max: 100000, label: "투자 금액", money: true, amount: true },
-      // v46: 소비 습관 세부질문(횟수×1회평균). 접미사 하나로 카테고리
-      // 전부(식비 다음에 늘어날 주거·교통·여가·건강 세부질문 포함)를
-      // 커버해서, 카테고리를 늘릴 때마다 규칙을 새로 안 추가해도 된다.
-      { test: (id) => id.endsWith("-freq"), min: 0, max: 30, label: "이용 횟수", money: true },
-      { test: (id) => id.endsWith("-avg"), min: 0, max: 200000, label: "1회 평균 금액", money: true, amount: true },
-      { test: (id) => id.endsWith("-amt"), min: 0, max: 3000, label: "월 지출액", money: true, amount: true },
     ];
 
     // 숫자가 아닌 문자(부호·소수점·"e" 등)는 타이핑이든 붙여넣기든
