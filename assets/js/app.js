@@ -1853,7 +1853,7 @@
     // 그 값을 안 보고 모든 freq-avg·direct 질문에 똑같이 안내를
     // 띄우는 쪽으로 단순화했다. select는 금액 계산이 아예 없어(category
     // null) "0원으로 계산돼요"가 사실과 안 맞으므로 대상에서 뺀다.
-    const NO_USAGE_NOTE_HTML = `<p class="quiz-no-usage-note"><span class="quiz-no-usage-icon" aria-hidden="true">💡</span>선택한 항목만 반영돼요. 잘 모르겠으면 아래 “잘 몰라요”를 눌러 주세요.</p>`;
+    const NO_USAGE_NOTE_HTML = `<p class="quiz-no-usage-note"><span class="quiz-no-usage-icon" aria-hidden="true">💡</span>선택한 항목만 반영돼요. 잘 모르겠으면 아래 “잘 몰라요”를 눌러 주세요 — 이 카테고리 <b>전체</b>가 가구 평균값으로 계산돼요.</p>`;
 
     // v59: persona는 "공유 소비" 6개 항목(dining/grocery/housing-fixed/
     // utility/household/travel)의 amtOptions·avgOptions를 가구 유형별로
