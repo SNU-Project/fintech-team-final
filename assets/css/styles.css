@@ -486,6 +486,11 @@ section { scroll-margin-top: 5rem; }
   font-size: clamp(1.4rem, 3.4vw, 2rem); line-height: 1.25; letter-spacing: -.02em;
   margin: 0; font-weight: 750; color: var(--text-primary);
 }
+/* 카테고리 대제목이 월 단위 지출을 묻는다는 걸 헷갈려하는 사용자가 있어
+   "(월 기준)"을 덧붙였다 — 제목과 같은 굵기·크기면 "월 기준"이 질문의
+   일부처럼 강조돼 버리므로, 보조 텍스트 톤(작게·중간 굵기·연한 색)으로
+   낮춰서 붙인다. */
+.step-unit-note { font-size: .58em; font-weight: 500; color: var(--text-muted); letter-spacing: -.01em; }
 /* 카드로 감싸는 이유: input-wrap/persona-grid/seg는 채움색이 --surface-1인데
    페이지 배경(--page-plane)과 같은 색이라, 카드(--surface-2) 없이 페이지에
    바로 놓으면 입력 필드 경계가 안 보인다. */
