@@ -447,7 +447,11 @@ section { scroll-margin-top: 5rem; }
 .home-start-btn:hover { filter: brightness(1.08); }
 .home-start-btn:active { transform: translateY(1px); }
 
-.next-step-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: .6rem; }
+/* v55: 바로 위 설명 문구("필요하면 펼쳐서…")를 없앴다 — 원래 이
+   margin-top(.6rem)은 그 문구 아래 여백이었는데, 지금은 제목
+   바로 아래라 그만큼으로는 붙어 보인다. 제목-버튼 사이 여백을
+   자연스럽게 넓힌다(.next-step-actions는 이 카드에서만 쓰는 클래스). */
+.next-step-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1rem; }
 .next-step-actions .home-start-btn { margin-top: 0; }
 
 /* PDF 다운로드는 카드7 맨 마지막(재입력 링크 바로 위)에 둔다 — 리포트를
