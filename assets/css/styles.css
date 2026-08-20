@@ -824,6 +824,12 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 .quiz-question-label { margin: .6rem 0 .35rem; font-size: .74rem; font-weight: 700; color: var(--text-secondary); }
 .quiz-question-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
 .quiz-question-pair .quiz-question-label { margin-top: 0; }
+/* v52: "거의 안 함" 다음에 "전혀 안 함"에 해당하는 선택지가 없는
+   질문(노출 조건: SPEND_GROUP_DETAILS의 noZeroOption)에 붙이는 안내 —
+   .field-note 기본값은 .onboarding-card 안에서 가운데 정렬(위 문항
+   상단 안내용)인데, 이 노트는 좁은 열 안에서 "빈도" 라벨과 같은 줄
+   흐름이라 왼쪽 정렬이 맞다. */
+.quiz-no-usage-note { text-align: left; }
 @media (max-width: 480px) {
   .quiz-question-pair { grid-template-columns: 1fr; gap: 0; }
 }
@@ -1091,10 +1097,6 @@ input[readonly] { -moz-appearance: textfield; }
    (v50에서 카드6 하단에 있던 요약을 이 스텝이 더 자세한 버전으로
    흡수했다). */
 .onb-summary-group { padding: .85rem 0; border-bottom: 1px solid var(--border); }
-/* .onboarding-card .field-note는 기본이 text-align:center(설문 다른
-   화면의 짧은 안내 문구용) — 이 목록 안에서는 나머지 줄과 같은 왼쪽
-   정렬이어야 자연스럽다. */
-.onb-summary-group .field-note { text-align: left; margin: 0 0 .5rem; }
 .onb-summary-group:first-child { padding-top: 0; }
 .onb-summary-group:last-of-type { border-bottom: none; }
 .onb-summary-group-title {
@@ -1103,6 +1105,25 @@ input[readonly] { -moz-appearance: textfield; }
 }
 .onb-summary-fields { margin: 0 0 .5rem; padding-left: 1.15rem; display: flex; flex-direction: column; gap: .3rem; }
 .onb-summary-fields li { font-size: .84rem; color: var(--text-secondary); line-height: 1.5; }
+/* v52: 미답 카테고리가 답한 카테고리와 톤이 비슷해 눈에 안 띈다는
+   피드백 — .verdict.warn과 같은 --warning 토큰으로 옅은 배경 + 왼쪽
+   포인트 바를 주고, 답한 카테고리(위 기본 스타일)와 명확히 구분한다. */
+.onb-summary-group.is-unanswered {
+  margin: .3rem 0; padding: .85rem .9rem; border: none;
+  border-left: 3px solid var(--warning); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+.onb-summary-warn-note {
+  display: flex; align-items: flex-start; gap: .4rem; margin: 0 0 .5rem;
+  font-size: .83rem; font-weight: 600; color: var(--warning-text); line-height: 1.5;
+}
+.onb-summary-warn-icon { flex: 0 0 auto; font-size: .95rem; line-height: 1.4; }
+.onb-summary-group.is-unanswered .onb-summary-group-total { color: var(--warning-text); }
+.onb-summary-group.is-unanswered .onb-summary-group-total b { color: var(--warning-text); }
+/* 페이지 상단의 "N개 카테고리는 아직 답하지 않아…" 한 줄 — 카드 밖,
+   h2 바로 아래라 .onboarding-card .field-note의 가운데 정렬을 그대로
+   물려받지 않는다. */
+.onb-summary-unanswered-count { margin: 0; font-size: .82rem; font-weight: 700; color: var(--warning-text); text-align: center; }
 .onb-summary-group-total { margin: 0; font-size: .86rem; font-weight: 700; color: var(--text-primary); }
 .onb-summary-group-total b { color: var(--brand); }
 .onb-summary-grand-total {

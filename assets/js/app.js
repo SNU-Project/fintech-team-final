@@ -115,7 +115,7 @@
             { value: 25000, label: "2~3만원" },
             { value: 35000, label: "3만원 이상" },
           ] },
-        { id: "grocery", category: "food", mode: "freq-avg", multiplier: 1, label: "장보기",
+        { id: "grocery", category: "food", mode: "freq-avg", multiplier: 1, label: "장보기", noZeroOption: true,
           freqOptions: [
             { value: 0.5, label: "거의 안 함" },
             { value: 1.5, label: "월 1~2회" },
@@ -128,7 +128,7 @@
             { value: 110000, label: "7~15만원" },
             { value: 200000, label: "15만원 이상" },
           ] },
-        { id: "cafe", category: "dining", mode: "freq-avg", multiplier: 4.3, label: "카페/음료",
+        { id: "cafe", category: "dining", mode: "freq-avg", multiplier: 4.3, label: "카페/음료", noZeroOption: true,
           freqOptions: [
             { value: 0.5, label: "거의 안 함" },
             { value: 1.5, label: "주 1~2회" },
@@ -208,7 +208,7 @@
     // 더해진다.
     "g-play": {
       fields: [
-        { id: "shopping", category: "clothing", mode: "freq-avg", multiplier: 1, label: "쇼핑(패션/뷰티)",
+        { id: "shopping", category: "clothing", mode: "freq-avg", multiplier: 1, label: "쇼핑(패션/뷰티)", noZeroOption: true,
           freqOptions: [
             { value: 0.5, label: "거의 안 함" },
             { value: 1.5, label: "월 1~2회" },
@@ -254,7 +254,7 @@
             { value: 225000, label: "15~30만원" },
             { value: 400000, label: "30만원 이상" },
           ] },
-        { id: "gathering", category: "alcohol", mode: "freq-avg", multiplier: 1, label: "모임/술자리",
+        { id: "gathering", category: "alcohol", mode: "freq-avg", multiplier: 1, label: "모임/술자리", noZeroOption: true,
           freqOptions: [
             { value: 0.5, label: "거의 안 함" },
             { value: 1.5, label: "월 1~2회" },
@@ -1655,11 +1655,22 @@
       if (f.mode === "direct") {
         return `${quizButtonsHtml(f.id, "amt", f.amtOptions, saved.amt)}<p class="field-note">${f.hint}</p>`;
       }
+      // v52: "빈도"가 주 단위인지 월 단위인지 버튼만 봐서는 헷갈린다는
+      // 피드백 — multiplier가 이미 그 기준의 정답이다(4.3=주간 횟수를
+      // 월로 환산, 1=이미 월 단위). 라벨을 따로 하드코딩하면 계산식과
+      // 표기가 어긋날 수 있어, multiplier에서 그대로 뽑아 쓴다.
+      const freqBasis = f.multiplier === 1 ? "월" : "주";
+      // "거의 안 함" 옵션에 "0~1회"처럼 0을 포함한다는 힌트가 없는
+      // 질문(장보기·카페/음료·쇼핑·모임/술자리)은 "전혀 안 함"에 해당하는
+      // 선택지가 없다 — 안 고르면 0원으로 계산된다는 걸 명시적으로
+      // 안내한다(noZeroOption 플래그, SPEND_GROUP_DETAILS에서 항목별로
+      // 직접 표시).
       return `
         <div class="quiz-question-pair">
           <div class="quiz-question-col">
-            <p class="quiz-question-label">빈도</p>
+            <p class="quiz-question-label">빈도 (${freqBasis} 기준)</p>
             ${quizButtonsHtml(f.id, "freq", f.freqOptions, saved.freq)}
+            ${f.noZeroOption ? `<p class="field-note quiz-no-usage-note">이 항목을 이용하지 않는다면 선택하지 않아도 괜찮아요 — 0원으로 계산돼요.</p>` : ""}
           </div>
           <div class="quiz-question-col">
             <p class="quiz-question-label">1회 금액</p>
@@ -1809,19 +1820,31 @@
     // 평균값이 그대로 draft.spending에 들어 있다) 항상 표시할 수 있다.
     function renderOnbSummary() {
       const total = spendingTotal(draft.spending);
+      let unansweredCount = 0;
       $("#onbSummaryList").innerHTML = SPEND_GROUPS.map((g) => {
         const detail = SPEND_GROUP_DETAILS[g.id];
         const saved = draft.spendingDetail?.[g.id];
+        const isUnanswered = !saved;
+        if (isUnanswered) unansweredCount++;
+        // v52: "아직 답하지 않았어요" 문구가 일반 텍스트와 톤이 같아
+        // 눈에 안 띈다는 피드백 — 미답 카테고리만 옅은 경고색 박스(⚠
+        // 아이콘 포함)로 감싸고, 답한 카테고리는 기존 차분한 톤을
+        // 그대로 둔다.
         const bodyHtml = saved
           ? `<ul class="onb-summary-fields">${detail.fields.map((f) => `<li>${fieldSummaryLine(f, saved[f.id])}</li>`).join("")}</ul>`
-          : `<p class="field-note">아직 답하지 않았어요 — 평균 기준 기본값이 적용된 상태예요.</p>`;
+          : `<p class="onb-summary-warn-note"><span class="onb-summary-warn-icon" aria-hidden="true">⚠</span>아직 답하지 않았어요 — 평균 기준 기본값이 적용된 상태예요.</p>`;
         return `
-          <div class="onb-summary-group">
+          <div class="onb-summary-group${isUnanswered ? " is-unanswered" : ""}">
             <p class="onb-summary-group-title"><span class="legend-swatch" style="background:${SPEND_GROUP_COLOR[g.id]}"></span>${g.name}</p>
             ${bodyHtml}
             <p class="onb-summary-group-total">${g.name} 총액(월): <b>${man(draftGroupTotal(g))}만원</b></p>
           </div>`;
       }).join("");
+      const unansweredNote = $("#onbSummaryUnansweredNote");
+      unansweredNote.hidden = unansweredCount === 0;
+      if (unansweredCount > 0) {
+        unansweredNote.textContent = `${unansweredCount}개 카테고리는 아직 답하지 않아 평균값으로 채워졌어요.`;
+      }
       $("#onbSummaryGrandTotal").textContent = `전체 월 생활비 합계 · ${man(total)}만원`;
     }
 
