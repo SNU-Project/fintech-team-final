@@ -328,6 +328,48 @@
         { value: 435000, label: "35만원 이상" },
       ],
     },
+    "housing-fixed": {
+      couple: [
+        { value: 300000, label: "60만원 미만" },
+        { value: 800000, label: "60~100만원" },
+        { value: 1250000, label: "100~150만원" },
+        { value: 1750000, label: "150만원 이상" },
+      ],
+      family: [
+        { value: 400000, label: "80만원 미만" },
+        { value: 1050000, label: "80~130만원" },
+        { value: 1650000, label: "130~200만원" },
+        { value: 2350000, label: "200만원 이상" },
+      ],
+    },
+    utility: {
+      couple: [
+        { value: 35000, label: "7만원 미만" },
+        { value: 100000, label: "7~13만원" },
+        { value: 165000, label: "13~20만원" },
+        { value: 235000, label: "20만원 이상" },
+      ],
+      family: [
+        { value: 50000, label: "10만원 미만" },
+        { value: 140000, label: "10~18만원" },
+        { value: 230000, label: "18~28만원" },
+        { value: 330000, label: "28만원 이상" },
+      ],
+    },
+    household: {
+      couple: [
+        { value: 20000, label: "4만원 미만" },
+        { value: 65000, label: "4~9만원" },
+        { value: 135000, label: "9~18만원" },
+        { value: 225000, label: "18만원 이상" },
+      ],
+      family: [
+        { value: 30000, label: "6만원 미만" },
+        { value: 95000, label: "6~13만원" },
+        { value: 190000, label: "13~25만원" },
+        { value: 310000, label: "25만원 이상" },
+      ],
+    },
   };
   function scaledOptionsFor(fieldId, baseOptions, persona) {
     return PERSONA_SCALED_OPTIONS[fieldId]?.[persona] || baseOptions;
