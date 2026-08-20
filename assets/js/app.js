@@ -1784,10 +1784,17 @@
       // hidden과 무관하게 aria-pressed/data-value는 그대로 읽히므로,
       // 계산 로직(selectedQuizValue 등)은 손댈 필요가 없다 — 순수
       // 레이아웃 변경이다.
+      // v57: 이미 선택된 버튼을 다시 누르면 선택을 취소(토글)할 수
+      // 있게 했다 — 안 쓰는 항목을 "억지로 아무 구간이나" 고를 필요
+      // 없이 정말 "미응답"으로 되돌릴 수 있어야 위 안내 문구("선택하지
+      // 않으면 0원으로 계산돼요")가 실제로 가능한 이야기가 된다.
       container.querySelectorAll(".range-grid button").forEach((b) => {
         b.addEventListener("click", () => {
           const grid = b.closest(".range-grid");
-          grid.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+          const wasPressed = b.getAttribute("aria-pressed") === "true";
+          grid.querySelectorAll("button").forEach((x) => {
+            x.setAttribute("aria-pressed", wasPressed ? "false" : String(x === b));
+          });
           recomputeCategoryFromQuiz(groupId);
         });
       });
@@ -1835,7 +1842,17 @@
         detailOut[f.id] = { freq: freq ?? 0, avg: avg ?? 0 };
         byCategory[f.category] = (byCategory[f.category] || 0) + (freq ?? 0) * (avg ?? 0) * f.multiplier;
       });
-      if (!anyChosen) return;
+      // v57: 원래 이 가드는 "이 그룹을 아직 한 번도 안 건드렸는데 select만
+      // 먼저 눌렀다"는 경우에만 의미가 있었다(select는 anyChosen을 안
+      // 올리므로, 그 상태로 그냥 진행하면 아직 안 답한 금액 필드들이
+      // 0으로 draft.spending을 덮어써 페르소나 기본값이 사라진다).
+      // 토글 취소가 생기면서 "전에는 답했는데 지금은 전부 취소해서
+      // anyChosen이 다시 false가 된" 경우도 생겼는데, 이때는 반대로
+      // 반드시 써야 한다 — 안 그러면 버튼은 다 풀렸는데 총액은 마지막
+      // 선택값에 멈춰 있는 상태가 된다. 이 그룹이 이전에 한 번이라도
+      // 기록된 적 있는지(alreadyTouched)로 두 경우를 구분한다.
+      const alreadyTouched = !!draft.spendingDetail[groupId];
+      if (!anyChosen && !alreadyTouched) return;
       draft.spendingDetail[groupId] = detailOut;
       Object.entries(byCategory).forEach(([category, won]) => {
         draft.spending[category] = Math.round(won / 10000);
