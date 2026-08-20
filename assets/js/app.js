@@ -531,9 +531,30 @@
     return candidates.sort((a, b) => b.cutManwon - a.cutManwon).slice(0, 2).map((c) => c.text);
   }
 
+  // v60: SPEND_TIPS는 성문화된 일반 팁이라 사용자 응답을 전혀 안 본다 —
+  // 알뜰폰을 이미 쓴다고 답했는데도 "알뜰 요금제로 바꾸세요"가 그대로
+  // 뜨는 모순이 있었다. personalizedTipLines의 같은 이름 가드(위
+  // phone-plan 체크)는 "실제 계산이 들어간 맞춤 팁" 후보만 걸러내고,
+  // 이 고정 목록은 그 가드를 아예 거치지 않아서였다. 이미 실천 중이라는
+  // 신호가 있는 고정 팁만 그 상황에 맞는 문구로 바꿔치기한다 — 배열
+  // 순서(index)가 아니라 텍스트로 매칭해서, 나중에 SPEND_TIPS 순서가
+  // 바뀌어도 안 깨진다.
+  function activeStaticTips(groupId) {
+    const tips = SPEND_TIPS[groupId] || [];
+    const saved = state.spendingDetail?.[groupId];
+    if (groupId === "g-move" && saved?.["phone-plan"]?.value === "yes") {
+      return tips.map((t) => (
+        t === "알뜰 요금제로 바꾸면 통신비 부담을 크게 줄일 수 있어요."
+          ? "이미 알뜰폰을 쓰고 계세요 — 데이터 사용량을 확인해서 요금제 단계를 더 낮출 수 있는지 살펴보세요."
+          : t
+      ));
+    }
+    return tips;
+  }
+
   function tipBoxHtml(groupId, groupName, title) {
-    const tips = SPEND_TIPS[groupId];
-    if (!tips) return "";
+    const tips = activeStaticTips(groupId);
+    if (!tips.length) return "";
     const personalized = personalizedTipLines(groupId);
     return `
       <div class="tip-box">
