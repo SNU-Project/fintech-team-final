@@ -239,6 +239,43 @@
           ] },
       ],
     },
+    // g-etc는 실카테고리 3개(health/alcohol/misc)와 요청서 세부질문
+    // 3개가 정확히 1:1로 맞아떨어지는 유일한 그룹이다(v46에서 확인한
+    // 매핑 그대로) — 보험료는 CPI상 "건강"이 아니라 기타 상품·서비스에
+    // 가까워 misc로, 모임/술자리는 술 문화와 직결돼 alcohol로, "담배·
+    // 반려동물·정기 병원비"를 묶은 기타 정기 지출은 그중 CPI 매칭이
+    // 가장 분명한 정기 병원비를 기준으로 health로 보냈다.
+    "g-etc": {
+      fields: [
+        { id: "insurance", category: "misc", mode: "direct", label: "보험료", hint: "월 납입 총액",
+          amtOptions: [
+            { value: 30000, label: "5만원 미만" },
+            { value: 100000, label: "5~15만원" },
+            { value: 225000, label: "15~30만원" },
+            { value: 400000, label: "30만원 이상" },
+          ] },
+        { id: "gathering", category: "alcohol", mode: "freq-avg", multiplier: 1, label: "모임/술자리",
+          freqOptions: [
+            { value: 0.5, label: "거의 안 함" },
+            { value: 1.5, label: "월 1~2회" },
+            { value: 4, label: "월 3~5회" },
+            { value: 8, label: "월 6회 이상" },
+          ],
+          avgOptions: [
+            { value: 10000, label: "2만원 미만" },
+            { value: 30000, label: "2~4만원" },
+            { value: 55000, label: "4~7만원" },
+            { value: 90000, label: "7만원 이상" },
+          ] },
+        { id: "misc-regular", category: "health", mode: "direct", label: "기타 정기 지출", hint: "담배, 반려동물, 정기 병원비 등 월 총액 합계",
+          amtOptions: [
+            { value: 0, label: "없음" },
+            { value: 15000, label: "3만원 미만" },
+            { value: 65000, label: "3~10만원" },
+            { value: 150000, label: "10만원 이상" },
+          ] },
+      ],
+    },
   };
 
   // 카테고리별 절약 팁 — 카드3("범인")·시나리오 계산(카드7)·격차 추이
@@ -1399,7 +1436,7 @@
     const STEP_GROUP = { 2: "g-food", 3: "g-home", 4: "g-move", 5: "g-play", 6: "g-etc" };
     // 아직 퀴즈 UI가 없는 카테고리(자리표시자 — 총액 직접입력만)는 여기
     // 없다. 카테고리를 순서대로 채워 나갈 때마다 한 줄씩 늘어난다.
-    const STEP_QUIZ_CONTAINER = { 2: "onbFoodQuiz", 3: "onbHomeQuiz", 4: "onbMoveQuiz", 5: "onbPlayQuiz" };
+    const STEP_QUIZ_CONTAINER = { 2: "onbFoodQuiz", 3: "onbHomeQuiz", 4: "onbMoveQuiz", 5: "onbPlayQuiz", 6: "onbEtcQuiz" };
 
     const loadSaved = () => {
       try { return JSON.parse(localStorage.getItem(ONBOARD_KEY)); } catch { return null; }
