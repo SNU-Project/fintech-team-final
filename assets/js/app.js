@@ -44,13 +44,19 @@
   // 진찰·처방만 클래스를 얹어 styles.css의 토큰 재정의 블록
   // (.stage-checkup/.stage-prescription)이 --brand 등을 갈아입힌다.
   // #stageTracker의 활성 pill도 여기서 같이 옮긴다.
+  // v61: "cover"(설문 시작 전 표지, 아직 어느 단계에도 안 든 상태)는
+  // 3개 pill 중 어느 것도 활성화되지 않는데, 그렇다고 탭을 계속
+  // 보여주면 "지금 진찰 단계다"라고 오해할 여지가 있다 — stage-cover
+  // 클래스를 얹어 표지에서만 탭 자체를 숨긴다(styles.css).
   let currentStage = null;
   function setStage(stage) {
     if (stage === currentStage) return;
     currentStage = stage;
-    document.body.classList.remove("stage-checkup", "stage-prescription");
+    document.body.classList.remove("stage-checkup", "stage-prescription", "stage-cover");
     if (stage === "checkup" || stage === "prescription") {
       document.body.classList.add(`stage-${stage}`);
+    } else if (stage === "cover") {
+      document.body.classList.add("stage-cover");
     }
     $$(".stage-pill").forEach((el) => {
       el.classList.toggle("is-active", el.dataset.stage === stage);

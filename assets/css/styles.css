@@ -256,6 +256,13 @@ section { scroll-margin-top: 5rem; }
    같은 색을 보여줘야 "지금 이 단계"라는 위치를 기준점처럼 읽을 수
    있다. 그래서 토큰이 아니라 고정 hex를 직접 쓴다. */
 .stage-tracker { display: flex; align-items: center; gap: .3rem; }
+/* v61: 표지(설문 시작 전)에서는 세 pill 중 어느 것도 활성화되지
+   않는데, 그 상태로 계속 보여주면 "지금 진찰 단계"로 오해할 수
+   있다 — 표지에서만 탭 자체를 숨긴다(app.js setStage()가 이 클래스를
+   붙인다). 좌우 grid-column을 명시로 고정해 둔 .brand/.theme-toggle
+   덕분에(아래 861px 이상 규칙) 탭이 사라져도 로고는 왼쪽, 테마
+   버튼은 오른쪽에 그대로 남는다 — 별도 여백 보정이 필요 없었다. */
+body.stage-cover .stage-tracker { display: none; }
 .stage-pill {
   display: inline-flex; align-items: center; gap: .35rem;
   font-size: .68rem; font-weight: 700; padding: .32rem .6rem; border-radius: 999px;
