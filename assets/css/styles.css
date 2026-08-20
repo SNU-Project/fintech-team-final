@@ -478,15 +478,16 @@ section { scroll-margin-top: 5rem; }
 /* 카드로 감싸는 이유: input-wrap/persona-grid/seg는 채움색이 --surface-1인데
    페이지 배경(--page-plane)과 같은 색이라, 카드(--surface-2) 없이 페이지에
    바로 놓으면 입력 필드 경계가 안 보인다. */
-.onboarding-card { width: min(100%, 440px); text-align: left; }
+.onboarding-card { width: min(100%, 620px); text-align: left; }
 .onboarding-card .field-note { text-align: center; }
-/* Q2(월 생활비)는 세부 품목 입력 + 도넛이 나란히 서야 스크롤 없이
-   들어오는데, 440px 카드 폭에서는 이 둘(입력 목록 min-width 230px +
-   도넛 156px + 간격)이 겨우 못 들어가 세로로 쌓였다. 모바일은
-   min(100%, 640px)이 그대로 100%라 기존처럼 좁으면 자동으로 세로
-   배치가 유지된다 — 이 폭 자체가 데스크톱 전용 분기라 미디어 쿼리가
-   따로 필요 없다. */
-.onboarding-card.is-wide { width: min(100%, 640px); }
+/* v49: 데스크톱에서 카드가 화면 대비 너무 작아 보인다는 피드백 —
+   리포트 카드덱(.deck-viewport, 데스크톱 최대 1000px)에 맞춰 설문
+   카드도 넓혔다. is-wide(Q2 카테고리별 탭+퀴즈 화면)는 기존 640px에서
+   더 크게(920px), 그 외 스텝(Q1 생활유형·Q3 연봉)도 비례해서
+   440→620px로 같이 넓혔다 — "설문 전체 스텝에 동일한 기준"이라는
+   요청. 모바일은 min(100%, …)이라 이 값을 넓혀도 좁은 화면에서는
+   여전히 100%로 자동 축소된다. */
+.onboarding-card.is-wide { width: min(100%, 920px); }
 .onboarding-nav { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; }
 
 .onboarding-progress-wrap {
@@ -825,6 +826,21 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
 }
 .range-grid button[aria-pressed="true"] b { color: var(--brand); }
 .range-grid button[aria-pressed="true"] span { color: var(--brand); }
+
+/* v49: 카드 폭을 넓힌 만큼 데스크톱에서는 안 요소도 비례해서 키운다 —
+   모바일은 이미 화면이 좁아 카드가 상대적으로 커 보이므로 기존 크기
+   그대로 둔다(기존 .deck-viewport 등과 같은 861px 기준선 재사용). */
+@media (min-width: 861px) {
+  .onboarding-step h2 { font-size: 2.2rem; }
+  .quiz-tabs { gap: .6rem; margin-bottom: 1.3rem; }
+  .quiz-tab { font-size: .92rem; padding: .65rem 1.3rem; }
+  .quiz-question-label { font-size: .82rem; }
+  .quiz-question-pair { gap: 2rem; }
+  .range-grid { gap: .6rem; }
+  .range-grid button { padding: .85rem .7rem; }
+  .range-grid button b { font-size: .95rem; }
+  .range-grid button span { font-size: .74rem; margin-top: .2rem; }
+}
 /* 가구 유형(#personaLabel)은 인풋이 아닌 텍스트라 input[readonly]의
    "설문에서 이미 답한 값" 스타일을 못 물려받는다 — 같은 무게로 맞춘다. */
 .field-value {
