@@ -256,6 +256,13 @@ section { scroll-margin-top: 5rem; }
    같은 색을 보여줘야 "지금 이 단계"라는 위치를 기준점처럼 읽을 수
    있다. 그래서 토큰이 아니라 고정 hex를 직접 쓴다. */
 .stage-tracker { display: flex; align-items: center; gap: .3rem; }
+/* v61: 표지(설문 시작 전)에서는 세 pill 중 어느 것도 활성화되지
+   않는데, 그 상태로 계속 보여주면 "지금 진찰 단계"로 오해할 수
+   있다 — 표지에서만 탭 자체를 숨긴다(app.js setStage()가 이 클래스를
+   붙인다). 좌우 grid-column을 명시로 고정해 둔 .brand/.theme-toggle
+   덕분에(아래 861px 이상 규칙) 탭이 사라져도 로고는 왼쪽, 테마
+   버튼은 오른쪽에 그대로 남는다 — 별도 여백 보정이 필요 없었다. */
+body.stage-cover .stage-tracker { display: none; }
 .stage-pill {
   display: inline-flex; align-items: center; gap: .35rem;
   font-size: .68rem; font-weight: 700; padding: .32rem .6rem; border-radius: 999px;
@@ -272,6 +279,14 @@ section { scroll-margin-top: 5rem; }
 .stage-pill[data-stage="checkup"].is-active { color: #fff; background: #db2777; }
 .stage-pill[data-stage="diagnosis"].is-active { color: #fff; background: #2563eb; }
 .stage-pill[data-stage="prescription"].is-active { color: #fff; background: #15803d; }
+/* v61: 표지 카피의 "진찰/진단/처방" 세 단어에 위 스테퍼와 같은 고정
+   hex(핑크/블루/그린)를 그대로 재사용 — 두 자리에서 같은 색이
+   같은 단계를 가리켜야 문구가 탭을 미리 보여주는 역할을 한다.
+   나머지 문장은 .lede의 기본 색(--text-secondary, 회색 계열)을
+   그대로 유지하니 색상 변경 외엔 손대지 않는다. */
+.lede-word-checkup { color: #db2777; }
+.lede-word-diagnosis { color: #2563eb; }
+.lede-word-prescription { color: #15803d; }
 @media (max-width: 480px) {
   /* 아주 좁은 화면에서는 글자를 지우고 점만 남겨 한 줄을 지킨다.
      라벨은 별도 태그 없이 텍스트 노드라 부모의 font-size:0을
