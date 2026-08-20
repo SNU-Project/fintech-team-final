@@ -287,6 +287,52 @@
     },
   };
 
+  // v59: "여러 가구원이 함께 쓰는 항목(공유 소비)"은 가구 규모에 비례해
+  // 구간을 다르게, "응답자 개인 소비 습관"에 해당하는 항목(카페/음료·
+  // 이동 비용·통신비·쇼핑·취미/구독·보험료·모임/술자리·기타 정기
+  // 지출)은 가구 유형과 무관하게 고정한다. "혼자" 값은 위
+  // SPEND_GROUP_DETAILS의 amtOptions/avgOptions와 동일해서 따로 안
+  // 만든다 — scaledOptionsFor가 혼자거나 이 표에 없는 필드일 때는
+  // 필드 원본을 그대로 반환한다. 둘이·가족 구간의 대표값은 주어진
+  // 경계값으로부터: 가운데 구간 = 정확한 산술 중앙값, 맨 아래 구간
+  // = 경계의 절반, 맨 위 구간 = 경계 + 바로 앞 구간 폭의 절반 규칙으로
+  // 계산했다 — 기존 데이터의 가운데 구간들이 전부 이 규칙과 정확히
+  // 맞아떨어져서(예: 주거 고정비 "50~80만원"→650000 = (500000+
+  // 800000)/2) 같은 규칙을 그대로 확장한 것.
+  const PERSONA_SCALED_OPTIONS = {
+    dining: {
+      couple: [
+        { value: 10000, label: "2만원 미만" },
+        { value: 30000, label: "2~4만원" },
+        { value: 50000, label: "4~6만원" },
+        { value: 70000, label: "6만원 이상" },
+      ],
+      family: [
+        { value: 20000, label: "4만원 미만" },
+        { value: 55000, label: "4~7만원" },
+        { value: 95000, label: "7~12만원" },
+        { value: 145000, label: "12만원 이상" },
+      ],
+    },
+    grocery: {
+      couple: [
+        { value: 25000, label: "5만원 미만" },
+        { value: 85000, label: "5~12만원" },
+        { value: 185000, label: "12~25만원" },
+        { value: 315000, label: "25만원 이상" },
+      ],
+      family: [
+        { value: 40000, label: "8만원 미만" },
+        { value: 130000, label: "8~18만원" },
+        { value: 265000, label: "18~35만원" },
+        { value: 435000, label: "35만원 이상" },
+      ],
+    },
+  };
+  function scaledOptionsFor(fieldId, baseOptions, persona) {
+    return PERSONA_SCALED_OPTIONS[fieldId]?.[persona] || baseOptions;
+  }
+
   // 카테고리별 절약 팁 — 카드3("범인")·시나리오 계산(카드7)·격차 추이
   // 카드(항목 5·7)가 전부 이 하나의 데이터를 공유한다. 문구에는 "월
   // OO원 절약" 같은 구체 금액을 넣지 않는다 — 사람마다 실제 절감액이
@@ -342,6 +388,7 @@
     const detail = SPEND_GROUP_DETAILS[groupId];
     const saved = state.spendingDetail?.[groupId];
     if (!detail || !saved) return [];
+    const persona = state.persona || DEFAULT_PERSONA;
 
     const candidates = []; // {cutManwon, text} — 절약 효과 큰 순으로 우선 노출한다.
 
@@ -363,7 +410,7 @@
         // 써서 화면의 카테고리 총액과 항상 같은 셈법을 쓴다.
         const cutManwon = Math.round((s.avg * f.multiplier) / 10000);
         const freqLabel = optionLabelFor(f.freqOptions, s.freq);
-        const avgLabel = optionLabelFor(f.avgOptions, s.avg);
+        const avgLabel = optionLabelFor(scaledOptionsFor(f.id, f.avgOptions, persona), s.avg);
         if (cutManwon <= 0 || !freqLabel || !avgLabel) return;
 
         // 배달/외식은 잦은데 장보기는 거의 안 한다면, "배달을 줄이세요"와
@@ -390,7 +437,7 @@
       }
 
       if (f.mode === "direct" && s.amt > 0) {
-        if (isLowestOption(f.amtOptions, s.amt)) return;
+        if (isLowestOption(scaledOptionsFor(f.id, f.amtOptions, persona), s.amt)) return;
         // 알뜰폰을 이미 쓰고 있으면 "알뜰폰으로 바꾸세요" 류의 통신비
         // 팁은 이미 실천 중인 조언이라 의미가 없다 — 건너뛴다.
         if (groupId === "g-move" && f.id === "phone-cost" && saved["phone-plan"]?.value === "yes") return;
@@ -1680,6 +1727,12 @@
         draft.persona = b.dataset.persona;
         draft.monthlySpend = personaDefaultTotal(draft.persona);
         draft.spending = roundSpending(PERSONAS[draft.persona].spending);
+        // v59: 가구 유형별로 amtOptions·avgOptions 구간 자체가 달라지는
+        // 필드가 생겨서(PERSONA_SCALED_OPTIONS), 뒤로가기로 여기 돌아와
+        // 유형을 바꾸면 앞서 고른 구간 버튼의 값이 새 유형의 구간
+        // 체계와 안 맞게 된다 — 카테고리 화면을 다시 그릴 때 예전 값을
+        // 새 구간에 잘못 겹쳐 보여주지 않도록 세부 응답을 비운다.
+        draft.spendingDetail = {};
         $$("#onbPersonaGrid button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       });
     });
@@ -1743,12 +1796,16 @@
     // null) "0원으로 계산돼요"가 사실과 안 맞으므로 대상에서 뺀다.
     const NO_USAGE_NOTE_HTML = `<p class="quiz-no-usage-note"><span class="quiz-no-usage-icon" aria-hidden="true">💡</span>선택하지 않으면 0원으로 계산돼요.</p>`;
 
-    function quizFieldBodyHtml(f, saved) {
+    // v59: persona는 "공유 소비" 6개 항목(dining/grocery/housing-fixed/
+    // utility/household/travel)의 amtOptions·avgOptions를 가구 유형별로
+    // 바꿔치기하는 데만 쓴다(scaledOptionsFor) — 그 외 필드는 persona가
+    // 뭐든 항상 자기 원본 옵션을 그대로 쓴다.
+    function quizFieldBodyHtml(f, saved, persona) {
       if (f.mode === "select") {
         return quizButtonsHtml(f.id, "sel", f.options, saved.value);
       }
       if (f.mode === "direct") {
-        return `${quizButtonsHtml(f.id, "amt", f.amtOptions, saved.amt)}<p class="field-note">${f.hint}</p>${NO_USAGE_NOTE_HTML}`;
+        return `${quizButtonsHtml(f.id, "amt", scaledOptionsFor(f.id, f.amtOptions, persona), saved.amt)}<p class="field-note">${f.hint}</p>${NO_USAGE_NOTE_HTML}`;
       }
       // v53: "빈도 (월 기준)" 같은 소제목 라벨은 버렸다 — 대신 각 구간
       // 버튼 자체(hint 또는 label)에 "주"/"월"을 직접 박아 넣어(위
@@ -1764,7 +1821,7 @@
           </div>
           <div class="quiz-question-col">
             <p class="quiz-question-label">1회 금액</p>
-            ${quizButtonsHtml(f.id, "avg", f.avgOptions, saved.avg)}
+            ${quizButtonsHtml(f.id, "avg", scaledOptionsFor(f.id, f.avgOptions, persona), saved.avg)}
           </div>
         </div>
         ${NO_USAGE_NOTE_HTML}`;
@@ -1780,7 +1837,7 @@
       </div>`;
       const panelsHtml = detail.fields.map((f, i) => `
         <div class="quiz-panel" data-panel="${i}" ${i === 0 ? "" : "hidden"}>
-          ${quizFieldBodyHtml(f, saved[f.id] || {})}
+          ${quizFieldBodyHtml(f, saved[f.id] || {}, draft.persona)}
         </div>`).join("");
       container.innerHTML = tabsHtml + panelsHtml;
 
@@ -1903,20 +1960,20 @@
     // 실제로 골랐음"을 구분할 수 없어(기타 정기 지출의 "없음"이 값 0인
     // 정식 선택지) direct 모드는 answered 플래그로, freq-avg는 모든
     // 옵션값이 0보다 크다는 성질로, select는 value==null로 구분한다.
-    function fieldSummaryLine(f, s) {
+    function fieldSummaryLine(f, s, persona) {
       if (f.mode === "select") {
         const label = s ? optionLabelFor(f.options, s.value) : null;
         return `${f.label}: ${label || "아직 답하지 않았어요"}`;
       }
       if (f.mode === "direct") {
         if (!s?.answered) return `${f.label}: 아직 답하지 않았어요`;
-        const label = optionLabelFor(f.amtOptions, s.amt);
+        const label = optionLabelFor(scaledOptionsFor(f.id, f.amtOptions, persona), s.amt);
         const manwon = Math.round(s.amt / (f.divisor || 1) / 10000);
         return `${f.label}: ${label} → 월 약 ${man(manwon)}만원`;
       }
       if (!s?.freq || !s?.avg) return `${f.label}: 아직 답하지 않았어요`;
       const freqLabel = optionLabelFor(f.freqOptions, s.freq);
-      const avgLabel = optionLabelFor(f.avgOptions, s.avg);
+      const avgLabel = optionLabelFor(scaledOptionsFor(f.id, f.avgOptions, persona), s.avg);
       const manwon = Math.round((s.freq * s.avg * f.multiplier) / 10000);
       return `${f.label}: ${freqLabel}·1회 ${avgLabel} → 월 약 ${man(manwon)}만원`;
     }
@@ -1939,7 +1996,7 @@
         // 아이콘 포함)로 감싸고, 답한 카테고리는 기존 차분한 톤을
         // 그대로 둔다.
         const bodyHtml = saved
-          ? `<ul class="onb-summary-fields">${detail.fields.map((f) => `<li>${fieldSummaryLine(f, saved[f.id])}</li>`).join("")}</ul>`
+          ? `<ul class="onb-summary-fields">${detail.fields.map((f) => `<li>${fieldSummaryLine(f, saved[f.id], draft.persona)}</li>`).join("")}</ul>`
           : `<p class="onb-summary-warn-note"><span class="onb-summary-warn-icon" aria-hidden="true">⚠</span>아직 답하지 않았어요 — 평균 기준 기본값이 적용된 상태예요.</p>`;
         return `
           <div class="onb-summary-group${isUnanswered ? " is-unanswered" : ""}">
