@@ -279,14 +279,21 @@ body.stage-cover .stage-tracker { display: none; }
 .stage-pill[data-stage="checkup"].is-active { color: #fff; background: #db2777; }
 .stage-pill[data-stage="diagnosis"].is-active { color: #fff; background: #2563eb; }
 .stage-pill[data-stage="prescription"].is-active { color: #fff; background: #15803d; }
-/* v61: 표지 카피의 "진찰/진단/처방" 세 단어에 위 스테퍼와 같은 고정
-   hex(핑크/블루/그린)를 그대로 재사용 — 두 자리에서 같은 색이
-   같은 단계를 가리켜야 문구가 탭을 미리 보여주는 역할을 한다.
-   나머지 문장은 .lede의 기본 색(--text-secondary, 회색 계열)을
-   그대로 유지하니 색상 변경 외엔 손대지 않는다. */
-.lede-word-checkup { color: #db2777; }
-.lede-word-diagnosis { color: #2563eb; }
-.lede-word-prescription { color: #15803d; }
+/* v61: 표지 카피의 "진찰/진단/처방" 세 단어를 위 스테퍼와 같은 고정
+   hex(핑크/블루/그린)로 강조한다. 처음엔 글자색만 바꿨는데 "형광펜
+   줄 친 것처럼" 보였으면 좋겠다는 피드백 — 텍스트는 평소 색(진하게)
+   그대로 두고, 글자 아래쪽 40%만 반투명 색 띠가 지나가게 했다.
+   background-color 대신 단색 그라디언트를 쓰는 건, background-size로
+   "세로 몇 %만" 칠하려면 그라디언트가 필요해서다(background-color는
+   항상 박스 전체를 채운다). 반투명(alpha .3~.35)이라 검정/흰 글자가
+   그 위에서도 그대로 읽힌다. */
+.lede-word {
+  color: var(--text-primary); font-weight: 700; padding: 0 .1em;
+  background-repeat: no-repeat; background-position: 0 88%; background-size: 100% 40%;
+}
+.lede-word-checkup { background-image: linear-gradient(rgba(219, 39, 119, .38), rgba(219, 39, 119, .38)); }
+.lede-word-diagnosis { background-image: linear-gradient(rgba(37, 99, 235, .32), rgba(37, 99, 235, .32)); }
+.lede-word-prescription { background-image: linear-gradient(rgba(21, 128, 61, .32), rgba(21, 128, 61, .32)); }
 @media (max-width: 480px) {
   /* 아주 좁은 화면에서는 글자를 지우고 점만 남겨 한 줄을 지킨다.
      라벨은 별도 태그 없이 텍스트 노드라 부모의 font-size:0을
