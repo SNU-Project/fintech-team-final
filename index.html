@@ -178,10 +178,13 @@
         <h2>건강·기타 비용은 어느 정도 쓰세요?</h2>
         <p class="field-note onb-running-total"></p>
         <div class="card onboarding-card is-wide">
-          <label class="field">건강·기타 총액
-            <span class="input-wrap"><input type="number" id="onb-sp-g-etc" min="0" step="1" inputmode="numeric"><span>만원</span></span>
-          </label>
-          <p class="field-note">병원비, 술·담배, 보험료를 합한 금액이에요.</p>
+          <div id="onbEtcQuiz"></div>
+          <details class="calc-detail">
+            <summary>총액을 알고 있어요 — 직접 입력할게요</summary>
+            <label class="field">건강·기타 총액
+              <span class="input-wrap"><input type="number" id="onb-sp-g-etc" min="0" step="1" inputmode="numeric"><span>만원</span></span>
+            </label>
+          </details>
           <div class="spend-details">
             <div class="donut-row">
               <div style="flex:1;min-width:230px">
