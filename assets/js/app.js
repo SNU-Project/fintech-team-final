@@ -1737,7 +1737,7 @@
           <div class="quiz-question-col">
             <p class="quiz-question-label">빈도</p>
             ${quizButtonsHtml(f.id, "freq", f.freqOptions, saved.freq)}
-            ${f.noZeroOption ? `<p class="field-note quiz-no-usage-note">이 항목을 이용하지 않는다면 선택하지 않아도 괜찮아요 — 0원으로 계산돼요.</p>` : ""}
+            ${f.noZeroOption ? `<p class="quiz-no-usage-note"><span class="quiz-no-usage-icon" aria-hidden="true">💡</span>이 항목을 이용하지 않는다면 선택하지 않아도 괜찮아요 — 0원으로 계산돼요.</p>` : ""}
           </div>
           <div class="quiz-question-col">
             <p class="quiz-question-label">1회 금액</p>
