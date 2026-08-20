@@ -201,6 +201,44 @@
           ] },
       ],
     },
+    // g-play는 실카테고리 3개(leisure/education/clothing)인데 요청서
+    // 세부질문은 education(학원비·등록금)을 안 다룬다 — v46과 같은
+    // 이유로 억지로 만들지 않는다. education은 이 퀴즈가 안 건드리므로
+    // 이전 값(페르소나 기본값 등)을 그대로 유지한 채 총액에 계속
+    // 더해진다.
+    "g-play": {
+      fields: [
+        { id: "shopping", category: "clothing", mode: "freq-avg", multiplier: 1, label: "쇼핑(패션/뷰티)",
+          freqOptions: [
+            { value: 0.5, label: "거의 안 함" },
+            { value: 1.5, label: "월 1~2회" },
+            { value: 4, label: "월 3~5회" },
+            { value: 8, label: "월 6회 이상" },
+          ],
+          avgOptions: [
+            { value: 15000, label: "3만원 미만" },
+            { value: 50000, label: "3~7만원" },
+            { value: 110000, label: "7~15만원" },
+            { value: 200000, label: "15만원 이상" },
+          ] },
+        { id: "hobby", category: "leisure", mode: "direct", label: "취미/구독", hint: "헬스장, OTT, 클래스 등 월 정기 지출액 합계",
+          amtOptions: [
+            { value: 15000, label: "3만원 미만" },
+            { value: 65000, label: "3~10만원" },
+            { value: 150000, label: "10~20만원" },
+            { value: 300000, label: "20만원 이상" },
+          ] },
+        // hobby와 같은 category(leisure)로 모인다 — divisor:12로 연간
+        // 예산을 월 환산.
+        { id: "travel", category: "leisure", mode: "direct", divisor: 12, label: "여행/휴식", hint: "연간 여행 예산",
+          amtOptions: [
+            { value: 300000, label: "50만원 미만" },
+            { value: 1000000, label: "50~150만원" },
+            { value: 2250000, label: "150~300만원" },
+            { value: 4000000, label: "300만원 이상" },
+          ] },
+      ],
+    },
   };
 
   // 카테고리별 절약 팁 — 카드3("범인")·시나리오 계산(카드7)·격차 추이
@@ -1361,7 +1399,7 @@
     const STEP_GROUP = { 2: "g-food", 3: "g-home", 4: "g-move", 5: "g-play", 6: "g-etc" };
     // 아직 퀴즈 UI가 없는 카테고리(자리표시자 — 총액 직접입력만)는 여기
     // 없다. 카테고리를 순서대로 채워 나갈 때마다 한 줄씩 늘어난다.
-    const STEP_QUIZ_CONTAINER = { 2: "onbFoodQuiz", 3: "onbHomeQuiz", 4: "onbMoveQuiz" };
+    const STEP_QUIZ_CONTAINER = { 2: "onbFoodQuiz", 3: "onbHomeQuiz", 4: "onbMoveQuiz", 5: "onbPlayQuiz" };
 
     const loadSaved = () => {
       try { return JSON.parse(localStorage.getItem(ONBOARD_KEY)); } catch { return null; }
@@ -1591,7 +1629,12 @@
           const amt = selectedQuizValue(f.id, "amt");
           if (amt != null) anyChosen = true;
           detailOut[f.id] = { amt: amt ?? 0 };
-          byCategory[f.category] = (byCategory[f.category] || 0) + (amt ?? 0);
+          // divisor는 여행/휴식처럼 "예산은 연 단위로 물었지만 월 지출로
+          // 환산해야 하는" 필드에만 있다(기본 1 = 이미 월 단위). 반올림은
+          // 여기서 안 하고(v43 원칙) byCategory 합계 전체에 한 번만 한다 —
+          // 같은 category(leisure)로 모이는 취미/구독(direct, divisor
+          // 없음)과 합친 뒤에 반올림해야 화면 총액과 어긋나지 않는다.
+          byCategory[f.category] = (byCategory[f.category] || 0) + (amt ?? 0) / (f.divisor || 1);
           return;
         }
         const freq = selectedQuizValue(f.id, "freq");
