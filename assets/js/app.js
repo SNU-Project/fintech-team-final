@@ -104,10 +104,10 @@
       fields: [
         { id: "dining", category: "dining", mode: "freq-avg", multiplier: 4.3, label: "배달/외식",
           freqOptions: [
-            { value: 0.5, label: "거의 안 함", hint: "0~1회" },
-            { value: 2.5, label: "가끔", hint: "2~3회" },
-            { value: 5, label: "자주", hint: "4~6회" },
-            { value: 7, label: "매일" },
+            { value: 0.5, label: "거의 안 함", hint: "주 0~1회" },
+            { value: 2.5, label: "가끔", hint: "주 2~3회" },
+            { value: 5, label: "자주", hint: "주 4~6회" },
+            { value: 7, label: "매일", hint: "주 7회" },
           ],
           avgOptions: [
             { value: 5000, label: "1만원 미만" },
@@ -115,12 +115,16 @@
             { value: 25000, label: "2~3만원" },
             { value: 35000, label: "3만원 이상" },
           ] },
+        // v53: 이 필드의 마지막 구간이 "주 2회 이상"으로 되어 있어 앞의
+        // 세 버튼(월 단위)과 단위가 섞여 있었다 — 같은 값(8)을 그대로
+        // 두고 표기만 shopping/gathering이 이미 쓰는 "월 6회 이상"
+        // 관례에 맞췄다(세 필드 모두 multiplier:1, 같은 대표값 체계).
         { id: "grocery", category: "food", mode: "freq-avg", multiplier: 1, label: "장보기", noZeroOption: true,
           freqOptions: [
-            { value: 0.5, label: "거의 안 함" },
+            { value: 0.5, label: "거의 안 함", hint: "월 0~1회" },
             { value: 1.5, label: "월 1~2회" },
             { value: 4, label: "월 3~5회" },
-            { value: 8, label: "주 2회 이상" },
+            { value: 8, label: "월 6회 이상" },
           ],
           avgOptions: [
             { value: 15000, label: "3만원 미만" },
@@ -130,10 +134,10 @@
           ] },
         { id: "cafe", category: "dining", mode: "freq-avg", multiplier: 4.3, label: "카페/음료", noZeroOption: true,
           freqOptions: [
-            { value: 0.5, label: "거의 안 함" },
+            { value: 0.5, label: "거의 안 함", hint: "주 0~1회" },
             { value: 1.5, label: "주 1~2회" },
             { value: 3.5, label: "주 3~4회" },
-            { value: 6, label: "거의 매일" },
+            { value: 6, label: "거의 매일", hint: "주 5회 이상" },
           ],
           avgOptions: [
             { value: 3000, label: "5천원 미만" },
@@ -210,7 +214,7 @@
       fields: [
         { id: "shopping", category: "clothing", mode: "freq-avg", multiplier: 1, label: "쇼핑(패션/뷰티)", noZeroOption: true,
           freqOptions: [
-            { value: 0.5, label: "거의 안 함" },
+            { value: 0.5, label: "거의 안 함", hint: "월 0~1회" },
             { value: 1.5, label: "월 1~2회" },
             { value: 4, label: "월 3~5회" },
             { value: 8, label: "월 6회 이상" },
@@ -256,7 +260,7 @@
           ] },
         { id: "gathering", category: "alcohol", mode: "freq-avg", multiplier: 1, label: "모임/술자리", noZeroOption: true,
           freqOptions: [
-            { value: 0.5, label: "거의 안 함" },
+            { value: 0.5, label: "거의 안 함", hint: "월 0~1회" },
             { value: 1.5, label: "월 1~2회" },
             { value: 4, label: "월 3~5회" },
             { value: 8, label: "월 6회 이상" },
@@ -1655,20 +1659,21 @@
       if (f.mode === "direct") {
         return `${quizButtonsHtml(f.id, "amt", f.amtOptions, saved.amt)}<p class="field-note">${f.hint}</p>`;
       }
-      // v52: "빈도"가 주 단위인지 월 단위인지 버튼만 봐서는 헷갈린다는
-      // 피드백 — multiplier가 이미 그 기준의 정답이다(4.3=주간 횟수를
-      // 월로 환산, 1=이미 월 단위). 라벨을 따로 하드코딩하면 계산식과
-      // 표기가 어긋날 수 있어, multiplier에서 그대로 뽑아 쓴다.
-      const freqBasis = f.multiplier === 1 ? "월" : "주";
-      // "거의 안 함" 옵션에 "0~1회"처럼 0을 포함한다는 힌트가 없는
-      // 질문(장보기·카페/음료·쇼핑·모임/술자리)은 "전혀 안 함"에 해당하는
-      // 선택지가 없다 — 안 고르면 0원으로 계산된다는 걸 명시적으로
-      // 안내한다(noZeroOption 플래그, SPEND_GROUP_DETAILS에서 항목별로
-      // 직접 표시).
+      // v53: "빈도 (월 기준)" 같은 소제목 라벨은 버렸다 — 대신 각 구간
+      // 버튼 자체(hint 또는 label)에 "주"/"월"을 직접 박아 넣어(위
+      // SPEND_GROUP_DETAILS) 버튼 하나하나가 스스로 단위를 말하게
+      // 했다. 소제목에서 단위를 한 번만 말하면 그 아래 버튼 중 하나가
+      // 실수로 다른 단위를 써도(장보기 "주 2회 이상" 버그처럼) 티가
+      // 안 나지만, 버튼마다 명시하면 그 자리에서 바로 드러난다.
+      // "거의 안 함" 옵션에 0을 포함한다는 힌트가 없는 질문(장보기·
+      // 카페/음료·쇼핑·모임/술자리)은 "전혀 안 함"에 해당하는 선택지가
+      // 없다 — 안 고르면 0원으로 계산된다는 걸 명시적으로 안내한다
+      // (noZeroOption 플래그, SPEND_GROUP_DETAILS에서 항목별로 직접
+      // 표시).
       return `
         <div class="quiz-question-pair">
           <div class="quiz-question-col">
-            <p class="quiz-question-label">빈도 (${freqBasis} 기준)</p>
+            <p class="quiz-question-label">빈도</p>
             ${quizButtonsHtml(f.id, "freq", f.freqOptions, saved.freq)}
             ${f.noZeroOption ? `<p class="field-note quiz-no-usage-note">이 항목을 이용하지 않는다면 선택하지 않아도 괜찮아요 — 0원으로 계산돼요.</p>` : ""}
           </div>
