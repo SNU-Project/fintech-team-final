@@ -94,7 +94,7 @@
            그대로 남겨 둔 것 — 퀴즈에 답하기 귀찮은 사용자를 위한 대안. -->
       <div class="onboarding-step" data-step="2" hidden>
         <p class="kicker">Q2-1 · 내 물가</p>
-        <h2>식비는 어느 정도 쓰세요? <span class="step-unit-note">(월 기준)</span></h2>
+        <h2>식비는 어느 정도 쓰세요?</h2>
         <p class="field-note onb-running-total"></p>
         <div class="card onboarding-card is-wide">
           <div id="onbFoodQuiz"></div>
@@ -115,7 +115,7 @@
            식비와 같은 방식으로 채운다.) -->
       <div class="onboarding-step" data-step="3" hidden>
         <p class="kicker">Q2-2 · 내 물가</p>
-        <h2>주거·생활비는 어느 정도 쓰세요? <span class="step-unit-note">(월 기준)</span></h2>
+        <h2>주거·생활비는 어느 정도 쓰세요?</h2>
         <p class="field-note onb-running-total"></p>
         <div class="card onboarding-card is-wide">
           <div id="onbHomeQuiz"></div>
@@ -135,7 +135,7 @@
       <!-- 4 · 교통·통신 (아직 퀴즈 없음) -->
       <div class="onboarding-step" data-step="4" hidden>
         <p class="kicker">Q2-3 · 내 물가</p>
-        <h2>교통·통신비는 어느 정도 쓰세요? <span class="step-unit-note">(월 기준)</span></h2>
+        <h2>교통·통신비는 어느 정도 쓰세요?</h2>
         <p class="field-note onb-running-total"></p>
         <div class="card onboarding-card is-wide">
           <div id="onbMoveQuiz"></div>
@@ -155,7 +155,7 @@
       <!-- 5 · 여가·문화 (아직 퀴즈 없음) -->
       <div class="onboarding-step" data-step="5" hidden>
         <p class="kicker">Q2-4 · 내 물가</p>
-        <h2>여가·문화비는 어느 정도 쓰세요? <span class="step-unit-note">(월 기준)</span></h2>
+        <h2>여가·문화비는 어느 정도 쓰세요?</h2>
         <p class="field-note onb-running-total"></p>
         <div class="card onboarding-card is-wide">
           <div id="onbPlayQuiz"></div>
@@ -172,10 +172,10 @@
         </div>
       </div>
 
-      <!-- 6 · 건강·기타 (아직 퀴즈 없음) + 전체 요약(텍스트·총 생활비) -->
+      <!-- 6 · 건강·기타 (아직 퀴즈 없음) -->
       <div class="onboarding-step" data-step="6" hidden>
         <p class="kicker">Q2-5 · 내 물가</p>
-        <h2>건강·기타 비용은 어느 정도 쓰세요? <span class="step-unit-note">(월 기준)</span></h2>
+        <h2>건강·기타 비용은 어느 정도 쓰세요?</h2>
         <p class="field-note onb-running-total"></p>
         <div class="card onboarding-card is-wide">
           <div id="onbEtcQuiz"></div>
@@ -185,12 +185,6 @@
               <span class="input-wrap"><input type="number" id="onb-sp-g-etc" min="0" step="1" inputmode="numeric"><span>만원</span></span>
             </label>
           </details>
-          <div class="spend-details">
-            <p class="spend-details-label">전체 요약</p>
-            <p class="field-note">지금까지 답한 5개 카테고리를 모두 더한 값이에요.</p>
-            <p class="spend-summary-total" id="onbSpendSummaryTotal"></p>
-            <div class="legend" id="onbSpendLegend"></div>
-          </div>
         </div>
         <div class="onboarding-nav">
           <button class="onboarding-back" data-back type="button">← 이전</button>
@@ -198,8 +192,27 @@
         </div>
       </div>
 
-      <!-- 7 · 연봉 -->
+      <!-- 7 · 전체 요약 (v51: 카테고리 5개 응답을 다 마친 뒤, 연봉으로
+           넘어가기 전에 지금까지 입력한 내용을 텍스트로 확인하는 독립
+           스텝. v50에서 카드6 하단에 있던 요약(총액+비중)은 이 스텝이
+           더 자세한 버전으로 흡수해 없앴다. 내용은 renderOnbSummary()가
+           채운다 — 이 스텝에 들어올 때마다(뒤로가기 포함) 항상 최신
+           draft 기준으로 다시 그린다. -->
       <div class="onboarding-step" data-step="7" hidden>
+        <p class="kicker">전체 요약 · 내 물가</p>
+        <h2>지금까지 입력한 내용을 확인해보세요</h2>
+        <div class="card onboarding-card is-wide">
+          <div id="onbSummaryList"></div>
+          <p class="onb-summary-grand-total" id="onbSummaryGrandTotal"></p>
+        </div>
+        <div class="onboarding-nav">
+          <button class="onboarding-back" data-back type="button">← 이전</button>
+          <button class="home-start-btn" id="onbNext7" type="button">다음 →</button>
+        </div>
+      </div>
+
+      <!-- 8 · 연봉 -->
+      <div class="onboarding-step" data-step="8" hidden>
         <p class="kicker">Q3 · 실질임금 진단</p>
         <h2>현재·내년 예상 연봉은요?</h2>
         <div class="card onboarding-card">

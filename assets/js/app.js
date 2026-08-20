@@ -594,7 +594,11 @@
   // v47: Q2(월 생활비)가 카테고리 5개짜리 개별 화면으로 나뉘면서
   // 3단계(생활유형/월생활비/연봉)에서 7단계로 늘었다(생활유형 + 식비·
   // 주거·생활·교통·통신·여가·문화·건강·기타 5개 + 연봉).
-  const TOTAL_STEPS = 7;
+  // v51: 카테고리 5개를 다 채운 뒤 연봉으로 바로 넘어가기 전에, 지금까지
+  // 답한 내용을 텍스트로 확인하는 "전체 요약" 화면을 독립 스텝으로
+  // 끼워 넣어 8단계가 됐다.
+  const TOTAL_STEPS = 8;
+  const SUMMARY_STEP = 7;
 
   // v8: 내 물가·실질임금 진단·결론은 이제 긴 스크롤이 아니라 카드뉴스
   // 덱(#deck, setupCardDeck 참고) 하나로 합쳐졌다. 목표 자산/타임머신은
@@ -1526,6 +1530,10 @@
         updateRunningTotal();
         if (STEP_QUIZ_CONTAINER[i]) renderCategoryQuiz(groupId, STEP_QUIZ_CONTAINER[i]);
       }
+      // v51: 전체 요약 화면은 "다음"으로 처음 들어올 때뿐 아니라, 연봉
+      // 스텝에서 "이전"으로 돌아올 때도 매번 다시 그려야 한다 — 그 사이
+      // 카테고리 화면으로 더 되돌아가 답을 바꿨을 수 있어서다.
+      if (i === SUMMARY_STEP) renderOnbSummary();
       scrollHomeToTop();
     }
 
@@ -1598,16 +1606,13 @@
     // 화면 상단의 "지금까지 합계" — 선택 사항으로 요청됐지만, 카테고리
     // 화면이 5개로 늘면서 사용자가 진행 상황을 감 잡기 어려워질 수 있어
     // 넣었다. 모든 카테고리 화면이 .onb-running-total 하나씩을 갖고
-    // 있으므로 값이 바뀔 때마다 전부 같이 갱신한다. 카테고리 총액이
-    // 바뀔 때마다 항상 이 함수를 거치므로, 카드6 하단 전체 요약도 여기서
-    // 같이 갱신해 둔다 — 안 그러면 카드6에서 마지막 총액을 타이핑하는
-    // 동안 요약이 그 화면에 처음 들어왔을 때 값으로 멈춰 있게 된다
-    // (renderOnbSpendSummary는 아래서 선언되지만 함수 선언은 호이스팅되어
-    // 여기서 먼저 불러도 문제없다).
+    // 있으므로 값이 바뀔 때마다 전부 같이 갱신한다. 전체 요약(v51,
+    // 독립 스텝)은 여기서 매번 같이 갱신하지 않는다 — showStep()이 그
+    // 스텝에 들어올 때(진입·뒤로가기 공통)만 renderOnbSummary()를 불러
+    // 최신 상태로 다시 그린다.
     function updateRunningTotal() {
       const text = `지금까지 합계 · 월 ${man(spendingTotal(draft.spending))}만원`;
       $$(".onb-running-total").forEach((el) => { el.textContent = text; });
-      renderOnbSpendSummary();
     }
 
     // v47: 구간 버튼 퀴즈 하나(빈도 또는 1회금액)의 마크업. 버튼의
@@ -1725,7 +1730,11 @@
         if (f.mode === "direct") {
           const amt = selectedQuizValue(f.id, "amt");
           if (amt != null) anyChosen = true;
-          detailOut[f.id] = { amt: amt ?? 0 };
+          // amt만으로는 "아직 안 답함(기본 0)"과 "0을 실제로 골랐음"을
+          // 구분할 수 없다(기타 정기 지출의 "없음"이 값 0인 정식
+          // 선택지라서) — answered를 따로 남겨 전체 요약 화면(v51)이
+          // 정확히 구분하게 한다.
+          detailOut[f.id] = { amt: amt ?? 0, answered: amt != null };
           // divisor는 여행/휴식처럼 "예산은 연 단위로 물었지만 월 지출로
           // 환산해야 하는" 필드에만 있다(기본 1 = 이미 월 단위). 반올림은
           // 여기서 안 하고(v43 원칙) byCategory 합계 전체에 한 번만 한다 —
@@ -1769,21 +1778,51 @@
     }
     SPEND_GROUPS.forEach((g) => bindGroupTotalInput(g.id));
 
-    // ---- 6 · 건강·기타 화면 하단의 전체 요약(텍스트) ----
-    // v50: 도넛차트를 없앴다 — 설문(진찰) 흐름은 아직 답을 채워가는
-    // 중간 과정이라, 매 클릭마다 다시 그려지는 원형 차트보다 숫자를
-    // 바로 읽을 수 있는 텍스트가 더 빠르다는 판단. 리포트(진단) 카드2의
-    // 도넛(renderSpendChart, #spendDonut)은 이미 완성된 데이터를
-    // "보여주는" 자리라 성격이 달라 그대로 둔다.
-    function renderOnbSpendSummary() {
+    // ---- 7 · 전체 요약 (v51) ----
+    // 카테고리 5개 응답을 다 마친 뒤, 연봉으로 넘어가기 전에 하위 항목
+    // 단위로 나열해서 보여준다. 값(0)만으로는 "아직 안 고름"과 "0을
+    // 실제로 골랐음"을 구분할 수 없어(기타 정기 지출의 "없음"이 값 0인
+    // 정식 선택지) direct 모드는 answered 플래그로, freq-avg는 모든
+    // 옵션값이 0보다 크다는 성질로, select는 value==null로 구분한다.
+    function fieldSummaryLine(f, s) {
+      if (f.mode === "select") {
+        const label = s ? optionLabelFor(f.options, s.value) : null;
+        return `${f.label}: ${label || "아직 답하지 않았어요"}`;
+      }
+      if (f.mode === "direct") {
+        if (!s?.answered) return `${f.label}: 아직 답하지 않았어요`;
+        const label = optionLabelFor(f.amtOptions, s.amt);
+        const manwon = Math.round(s.amt / (f.divisor || 1) / 10000);
+        return `${f.label}: ${label} → 월 약 ${man(manwon)}만원`;
+      }
+      if (!s?.freq || !s?.avg) return `${f.label}: 아직 답하지 않았어요`;
+      const freqLabel = optionLabelFor(f.freqOptions, s.freq);
+      const avgLabel = optionLabelFor(f.avgOptions, s.avg);
+      const manwon = Math.round((s.freq * s.avg * f.multiplier) / 10000);
+      return `${f.label}: ${freqLabel}·1회 ${avgLabel} → 월 약 ${man(manwon)}만원`;
+    }
+
+    // 카테고리 자체를 한 번도 안 건드렸으면(총액 직접입력도 안 한 경우
+    // 포함) spendingDetail에 그 그룹 키가 아예 없다 — 이때는 하위 항목을
+    // 나열하지 않고 "아직 답하지 않았어요"만 보여준다. 카테고리 총액은
+    // 두 경우 모두 draftGroupTotal로 계산되므로(퀴즈 미답 시 페르소나
+    // 평균값이 그대로 draft.spending에 들어 있다) 항상 표시할 수 있다.
+    function renderOnbSummary() {
       const total = spendingTotal(draft.spending);
-      $("#onbSpendSummaryTotal").textContent = `총 생활비 월 ${man(total)}만원`;
-      $("#onbSpendLegend").innerHTML = SPEND_GROUPS.map((g) => {
-        const amount = draftGroupTotal(g);
-        const weight = total > 0 ? (amount / total) * 100 : 0;
-        return `<span class="legend-item"><span class="legend-swatch" style="background:${SPEND_GROUP_COLOR[g.id]}"></span>
-          ${g.name} ${man(amount)}만원 (${weight.toFixed(0)}%)</span>`;
+      $("#onbSummaryList").innerHTML = SPEND_GROUPS.map((g) => {
+        const detail = SPEND_GROUP_DETAILS[g.id];
+        const saved = draft.spendingDetail?.[g.id];
+        const bodyHtml = saved
+          ? `<ul class="onb-summary-fields">${detail.fields.map((f) => `<li>${fieldSummaryLine(f, saved[f.id])}</li>`).join("")}</ul>`
+          : `<p class="field-note">아직 답하지 않았어요 — 평균 기준 기본값이 적용된 상태예요.</p>`;
+        return `
+          <div class="onb-summary-group">
+            <p class="onb-summary-group-title"><span class="legend-swatch" style="background:${SPEND_GROUP_COLOR[g.id]}"></span>${g.name}</p>
+            ${bodyHtml}
+            <p class="onb-summary-group-total">${g.name} 총액(월): <b>${man(draftGroupTotal(g))}만원</b></p>
+          </div>`;
       }).join("");
+      $("#onbSummaryGrandTotal").textContent = `전체 월 생활비 합계 · ${man(total)}만원`;
     }
 
     $("#onbNext2").addEventListener("click", () => showStep(3));
@@ -1791,8 +1830,9 @@
     $("#onbNext4").addEventListener("click", () => showStep(5));
     $("#onbNext5").addEventListener("click", () => showStep(6));
     $("#onbNext6").addEventListener("click", () => showStep(7));
+    $("#onbNext7").addEventListener("click", () => showStep(8));
 
-    // ---- 7 · 연봉 (마지막 문항) ----
+    // ---- 8 · 연봉 (마지막 문항) ----
     $("#onbFinish").addEventListener("click", () => {
       draft.curSalary = Math.max(0, +$("#onbCurSalary").value || 0);
       draft.nextSalary = Math.max(0, +$("#onbNextSalary").value || 0);

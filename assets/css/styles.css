@@ -486,11 +486,6 @@ section { scroll-margin-top: 5rem; }
   font-size: clamp(1.4rem, 3.4vw, 2rem); line-height: 1.25; letter-spacing: -.02em;
   margin: 0; font-weight: 750; color: var(--text-primary);
 }
-/* 카테고리 대제목이 월 단위 지출을 묻는다는 걸 헷갈려하는 사용자가 있어
-   "(월 기준)"을 덧붙였다 — 제목과 같은 굵기·크기면 "월 기준"이 질문의
-   일부처럼 강조돼 버리므로, 보조 텍스트 톤(작게·중간 굵기·연한 색)으로
-   낮춰서 붙인다. */
-.step-unit-note { font-size: .58em; font-weight: 500; color: var(--text-muted); letter-spacing: -.01em; }
 /* 카드로 감싸는 이유: input-wrap/persona-grid/seg는 채움색이 --surface-1인데
    페이지 배경(--page-plane)과 같은 색이라, 카드(--surface-2) 없이 페이지에
    바로 놓으면 입력 필드 경계가 안 보인다. */
@@ -822,7 +817,11 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
   color: var(--text-secondary); font-size: .82rem; font-weight: 700; padding: .5rem .95rem;
 }
 .quiz-tab[aria-selected="true"] { border-color: var(--brand); background: var(--brand); color: #fff; }
-.quiz-question-label { margin: .6rem 0 .35rem; font-size: .74rem; color: var(--text-muted); }
+/* v51: "(월 기준)" 같은 대제목 표기 대신, 실제 입력 단위를 이 라벨과
+   버튼 아래 힌트(.range-grid button span)가 직접 안내하도록 했다 —
+   안내 역할이 커진 만큼 text-muted보다 대비가 확실한 text-secondary로
+   올리고 굵기를 준다. */
+.quiz-question-label { margin: .6rem 0 .35rem; font-size: .74rem; font-weight: 700; color: var(--text-secondary); }
 .quiz-question-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
 .quiz-question-pair .quiz-question-label { margin-top: 0; }
 @media (max-width: 480px) {
@@ -836,7 +835,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
   font-family: inherit;
 }
 .range-grid button b { display: block; font-size: .82rem; font-weight: 700; line-height: 1.3; }
-.range-grid button span { display: block; margin-top: .1rem; font-size: .64rem; color: var(--text-muted); }
+.range-grid button span { display: block; margin-top: .15rem; font-size: .7rem; font-weight: 600; color: var(--text-secondary); }
 .range-grid button[aria-pressed="true"] {
   border-color: var(--brand); background: var(--brand-soft); box-shadow: 0 0 0 2px var(--brand-soft);
 }
@@ -855,7 +854,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--b
   .range-grid { gap: .6rem; }
   .range-grid button { padding: .85rem .7rem; }
   .range-grid button b { font-size: .95rem; }
-  .range-grid button span { font-size: .74rem; margin-top: .2rem; }
+  .range-grid button span { font-size: .78rem; margin-top: .2rem; }
 }
 /* 가구 유형(#personaLabel)은 인풋이 아닌 텍스트라 input[readonly]의
    "설문에서 이미 답한 값" 스타일을 못 물려받는다 — 같은 무게로 맞춘다. */
@@ -1085,20 +1084,31 @@ input[readonly] { -moz-appearance: textfield; }
 .bento-hero .verdict { margin-top: .8rem; }
 
 /* 지출 입력 */
-.spend-details {
-  margin-top: .9rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  padding: .72rem 0;
-}
-.spend-details summary { cursor: pointer; color: var(--brand); font-size: .8rem; font-weight: 700; }
-.spend-details summary::marker { color: var(--brand); }
-.spend-details[open] summary { margin-bottom: .65rem; }
 .spend-details-label { color: var(--brand); font-size: .8rem; font-weight: 700; margin: 0 0 .65rem; }
-.spend-details > .field-note { margin: 0 0 .75rem; line-height: 1.5; }
-/* v50: 설문(진찰) 단계의 전체 요약에서 도넛차트를 없애고 이 총액
-   문구로 대체했다 — 카드2("내 물가란?")의 완성된 리포트용 도넛과
-   달리, 아직 답을 채워가는 중간 화면이라 클릭마다 다시 그려지는
-   원형 차트보다 숫자를 바로 읽는 텍스트가 더 빠르다. */
-.spend-summary-total { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0 0 .7rem; }
+/* v51: 카테고리 5개 응답을 다 마친 뒤 보여주는 "전체 요약" 독립 스텝 —
+   카드2("내 물가란?")의 완성된 리포트용 도넛과 달리 아직 답을
+   채워가는 중간 화면이라 차트 없이 텍스트 목록으로만 구성한다
+   (v50에서 카드6 하단에 있던 요약을 이 스텝이 더 자세한 버전으로
+   흡수했다). */
+.onb-summary-group { padding: .85rem 0; border-bottom: 1px solid var(--border); }
+/* .onboarding-card .field-note는 기본이 text-align:center(설문 다른
+   화면의 짧은 안내 문구용) — 이 목록 안에서는 나머지 줄과 같은 왼쪽
+   정렬이어야 자연스럽다. */
+.onb-summary-group .field-note { text-align: left; margin: 0 0 .5rem; }
+.onb-summary-group:first-child { padding-top: 0; }
+.onb-summary-group:last-of-type { border-bottom: none; }
+.onb-summary-group-title {
+  display: flex; align-items: center; gap: .45rem; margin: 0 0 .5rem;
+  font-size: .92rem; font-weight: 800; color: var(--text-primary);
+}
+.onb-summary-fields { margin: 0 0 .5rem; padding-left: 1.15rem; display: flex; flex-direction: column; gap: .3rem; }
+.onb-summary-fields li { font-size: .84rem; color: var(--text-secondary); line-height: 1.5; }
+.onb-summary-group-total { margin: 0; font-size: .86rem; font-weight: 700; color: var(--text-primary); }
+.onb-summary-group-total b { color: var(--brand); }
+.onb-summary-grand-total {
+  margin: 1rem 0 0; padding-top: 1rem; border-top: 2px solid var(--border);
+  font-size: 1.2rem; font-weight: 800; color: var(--text-primary);
+}
 .spend-row {
   display: grid; grid-template-columns: minmax(0, 1fr) 130px;
   gap: .5rem; align-items: center; margin-bottom: .42rem;
@@ -1395,7 +1405,7 @@ p.skeleton-bar { display: block; width: min(26em, 90%); height: 1em; }
 /* v32: 이 토글(비중 직접 조정)은 "상세 계산 보기" 같은 얕은 부연
    토글과 달리 실제로 값을 바꾸는 핵심 조작 진입점인데, 그동안
    ▶ 표시 하나만 있는 작은 텍스트 링크라 있는지도 모르고 지나치기
-   쉬웠다. 다른 disclosure류(.calc-detail, .spend-details 등)는
+   쉬웠다. 다른 disclosure류(.calc-detail, .disclosure 등)는
    의도적으로 얕게 남겨두고, 이 토글만 배경·테두리가 있는 초록
    버튼 + 아이콘으로 위계를 분명히 다르게 준다. */
 .mix-tuner { margin-bottom: 1rem; }
