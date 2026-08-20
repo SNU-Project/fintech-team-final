@@ -1892,7 +1892,7 @@
     // 그 값을 안 보고 모든 freq-avg·direct 질문에 똑같이 안내를
     // 띄우는 쪽으로 단순화했다. select는 금액 계산이 아예 없어(category
     // null) "0원으로 계산돼요"가 사실과 안 맞으므로 대상에서 뺀다.
-    const NO_USAGE_NOTE_HTML = `<p class="quiz-no-usage-note"><span class="quiz-no-usage-icon" aria-hidden="true">💡</span>선택하지 않으면 0원으로 계산돼요.</p>`;
+    const NO_USAGE_NOTE_HTML = `<p class="quiz-no-usage-note"><span class="quiz-no-usage-icon" aria-hidden="true">💡</span>선택한 항목만 반영돼요. 잘 모르겠으면 아래 “잘 몰라요”를 눌러 주세요 — 이 카테고리 <b>전체</b>가 가구 평균값으로 계산돼요.</p>`;
 
     // v59: persona는 "공유 소비" 6개 항목(dining/grocery/housing-fixed/
     // utility/household/travel)의 amtOptions·avgOptions를 가구 유형별로
@@ -2051,6 +2051,40 @@
       });
     }
     SPEND_GROUPS.forEach((g) => bindGroupTotalInput(g.id));
+
+    /* "잘 몰라요" — 그 카테고리를 가구 통계 평균으로 되돌리고 넘어간다.
+       하나라도 답하면 나머지 항목이 0원으로 처리되는 구조라(배달만 답하면
+       장보기·카페가 0이 된다), 일부만 답하고 넘어간 사용자는 자기가 무엇을
+       0으로 만들었는지 모른 채 결과를 본다. 명시적으로 "모르겠다"를 고를
+       수단을 줘서 그 상태를 없앤다.
+
+       퀴즈 답(spendingDetail)과 화면의 눌린 버튼을 함께 지운다 — 남겨 두면
+       값은 평균인데 버튼은 예전 선택이 눌린 채로 남아 서로 어긋난다. */
+    function applyGroupAverage(groupId) {
+      const g = SPEND_GROUPS.find((x) => x.id === groupId);
+      const base = PERSONAS[draft.persona] || PERSONAS[DEFAULT_PERSONA];
+      if (!g || !base) return;
+
+      g.members.forEach((category) => {
+        draft.spending[category] = Math.round(base.spending[category] || 0);
+      });
+      delete draft.spendingDetail[groupId];
+      draft.monthlySpend = spendingTotal(draft.spending);
+
+      const stepEl = document.querySelector(`[data-skip-group="${groupId}"]`)?.closest(".onboarding-step");
+      stepEl?.querySelectorAll('[aria-pressed="true"]').forEach((b) => b.setAttribute("aria-pressed", "false"));
+
+      const totalInput = $(`#onb-sp-${groupId}`);
+      if (totalInput) totalInput.value = Math.round(draftGroupTotal(g));
+      updateRunningTotal();
+    }
+
+    document.querySelectorAll("[data-skip-group]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyGroupAverage(btn.dataset.skipGroup);
+        btn.closest(".onboarding-nav")?.querySelector(".home-start-btn")?.click();
+      });
+    });
 
     // ---- 7 · 전체 요약 (v51) ----
     // 카테고리 5개 응답을 다 마친 뒤, 연봉으로 넘어가기 전에 하위 항목
