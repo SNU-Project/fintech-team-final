@@ -1820,19 +1820,31 @@
     // 평균값이 그대로 draft.spending에 들어 있다) 항상 표시할 수 있다.
     function renderOnbSummary() {
       const total = spendingTotal(draft.spending);
+      let unansweredCount = 0;
       $("#onbSummaryList").innerHTML = SPEND_GROUPS.map((g) => {
         const detail = SPEND_GROUP_DETAILS[g.id];
         const saved = draft.spendingDetail?.[g.id];
+        const isUnanswered = !saved;
+        if (isUnanswered) unansweredCount++;
+        // v52: "아직 답하지 않았어요" 문구가 일반 텍스트와 톤이 같아
+        // 눈에 안 띈다는 피드백 — 미답 카테고리만 옅은 경고색 박스(⚠
+        // 아이콘 포함)로 감싸고, 답한 카테고리는 기존 차분한 톤을
+        // 그대로 둔다.
         const bodyHtml = saved
           ? `<ul class="onb-summary-fields">${detail.fields.map((f) => `<li>${fieldSummaryLine(f, saved[f.id])}</li>`).join("")}</ul>`
-          : `<p class="field-note">아직 답하지 않았어요 — 평균 기준 기본값이 적용된 상태예요.</p>`;
+          : `<p class="onb-summary-warn-note"><span class="onb-summary-warn-icon" aria-hidden="true">⚠</span>아직 답하지 않았어요 — 평균 기준 기본값이 적용된 상태예요.</p>`;
         return `
-          <div class="onb-summary-group">
+          <div class="onb-summary-group${isUnanswered ? " is-unanswered" : ""}">
             <p class="onb-summary-group-title"><span class="legend-swatch" style="background:${SPEND_GROUP_COLOR[g.id]}"></span>${g.name}</p>
             ${bodyHtml}
             <p class="onb-summary-group-total">${g.name} 총액(월): <b>${man(draftGroupTotal(g))}만원</b></p>
           </div>`;
       }).join("");
+      const unansweredNote = $("#onbSummaryUnansweredNote");
+      unansweredNote.hidden = unansweredCount === 0;
+      if (unansweredCount > 0) {
+        unansweredNote.textContent = `${unansweredCount}개 카테고리는 아직 답하지 않아 평균값으로 채워졌어요.`;
+      }
       $("#onbSummaryGrandTotal").textContent = `전체 월 생활비 합계 · ${man(total)}만원`;
     }
 
